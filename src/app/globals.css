@@ -1,0 +1,150 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Warm editorial planner's notebook theme - Light */
+  --color-paper: #FBF9F5;
+  --color-paper-card: #FFFFFF;
+  --color-paper-subtle: #F3EFE8;
+  --color-ink: #191C1E;
+  --color-ink-muted: #484E54;
+  --color-ink-faint: #6E757D;
+  --color-accent: #0D5852;
+  --color-accent-hover: #09403B;
+  --color-accent-text: #FFFFFF;
+  --color-accent-subtle: #E3F1EE;
+  --color-marigold: #B45309;
+  --color-marigold-subtle: #FEF3C7;
+  --color-marigold-text: #78350F;
+  --color-rule: #E2DDD5;
+  --color-rule-strong: #9A9388;
+  --color-error: #B91C1C;
+  --color-error-subtle: #FEE2E2;
+  --color-success: #15803D;
+  --color-success-subtle: #DCFCE7;
+  --color-warning: #B45309;
+}
+
+.dark {
+  /* Warm near-black editorial planner's notebook theme - Dark */
+  --color-paper: #121417;
+  --color-paper-card: #1A1D22;
+  --color-paper-subtle: #23272E;
+  --color-ink: #F4F2ED;
+  --color-ink-muted: #AEB5C0;
+  --color-ink-faint: #828B98;
+  --color-accent: #1EB8A6;
+  --color-accent-hover: #149D8D;
+  --color-accent-text: #08211E;
+  --color-accent-subtle: #0D3732;
+  --color-marigold: #F59E0B;
+  --color-marigold-subtle: #452402;
+  --color-marigold-text: #FDE68A;
+  --color-rule: #2E333D;
+  --color-rule-strong: #616B7B;
+  --color-error: #EF4444;
+  --color-error-subtle: #451111;
+  --color-success: #22C55E;
+  --color-success-subtle: #0E3A1A;
+  --color-warning: #F59E0B;
+}
+
+html,
+body {
+  width: 100%;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Accessible focus ring styling */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Reduced motion accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Mobile safe area padding utility */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 1rem);
+}
+
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 1rem);
+}
+
+/* Print-friendly stylesheet (Save as PDF) */
+@media print {
+  @page {
+    margin: 1.5cm;
+    size: auto;
+  }
+
+  body {
+    background-color: #ffffff !important;
+    color: #000000 !important;
+    font-size: 11pt;
+  }
+
+  html,
+  body,
+  #__next,
+  div {
+    height: auto !important;
+    overflow: visible !important;
+    min-height: 0 !important;
+  }
+
+  .no-print,
+  aside,
+  nav,
+  header,
+  footer,
+  button,
+  .print-hide {
+    display: none !important;
+  }
+
+  .print-break-inside-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .print-break-before {
+    break-before: page;
+    page-break-before: always;
+  }
+
+  /* Expand full width for paper */
+  main,
+  .print-full-width {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Ledger borders in print */
+  .border,
+  .border-b,
+  .border-t {
+    border-color: #cccccc !important;
+  }
+}

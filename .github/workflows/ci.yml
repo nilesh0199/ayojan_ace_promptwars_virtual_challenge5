@@ -1,0 +1,42 @@
+name: Aayojan Ace CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    name: Lint, Typecheck, Test Coverage & Build
+    runs-on: ubuntu-latest
+    env:
+      GEMINI_API_KEY: mock-ci-gemini-key
+      NEXT_PUBLIC_FIREBASE_API_KEY: mock-ci-firebase-key
+      NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN: mock-ci.firebaseapp.com
+      NEXT_PUBLIC_FIREBASE_PROJECT_ID: mock-ci-project
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript Strict Typecheck
+        run: npm run typecheck
+
+      - name: Run Vitest with Coverage
+        run: npm run test:coverage
+
+      - name: Build Next.js Production Bundle
+        run: npm run build
