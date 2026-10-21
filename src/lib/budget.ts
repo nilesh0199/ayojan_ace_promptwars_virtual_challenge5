@@ -1,4 +1,4 @@
-import { BudgetPlan, BudgetCategory } from './schemas';
+import { BudgetPlan } from './schemas';
 import { CurrencyCode, SUPPORTED_CURRENCIES } from './constants';
 
 export interface BudgetSummary {

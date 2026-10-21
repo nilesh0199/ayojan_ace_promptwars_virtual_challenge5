@@ -30,6 +30,7 @@ export default function SavedPlansPage() {
   const [loadingPlans, setLoadingPlans] = useState(false);
   const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const fetchPlans = async () => {
     if (!user) return;
@@ -37,8 +38,9 @@ export default function SavedPlansPage() {
     try {
       const plans = await listUserPlans(user.uid);
       setSavedPlans(plans);
-    } catch (err) {
-      console.error('Error fetching plans:', err);
+      setActionError(null);
+    } catch {
+      setActionError('Unable to load saved plans. Please verify connection and try again.');
     } finally {
       setLoadingPlans(false);
     }
@@ -66,9 +68,10 @@ export default function SavedPlansPage() {
     try {
       await renameUserPlan(user.uid, planId, editTitle.trim());
       setEditingPlanId(null);
+      setActionError(null);
       await fetchPlans();
-    } catch (err) {
-      console.error('Error renaming plan:', err);
+    } catch {
+      setActionError('Failed to rename plan. Please try again.');
     }
   };
 
@@ -77,9 +80,10 @@ export default function SavedPlansPage() {
     if (window.confirm('Are you sure you want to delete this saved plan?')) {
       try {
         await deleteUserPlan(user.uid, planId);
+        setActionError(null);
         await fetchPlans();
-      } catch (err) {
-        console.error('Error deleting plan:', err);
+      } catch {
+        setActionError('Failed to delete plan. Please try again.');
       }
     }
   };
@@ -100,6 +104,16 @@ export default function SavedPlansPage() {
             Manage your saved plans in Firestore cloud persistence or test instant static presets.
           </p>
         </div>
+
+        {/* Action Error Banner */}
+        {actionError && (
+          <div
+            role="alert"
+            className="rounded-xl border border-state-error bg-state-error-subtle p-4 text-xs text-state-error"
+          >
+            {actionError}
+          </div>
+        )}
 
         {/* Not Logged In State */}
         {!authLoading && !user && (

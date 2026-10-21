@@ -1,7 +1,7 @@
 import React from 'react';
 import { AppShell } from '@/components/app-shell';
 import { APP_NAME } from '@/lib/constants';
-import { FileText, AlertCircle, CheckCircle, Scale } from 'lucide-react';
+import { AlertCircle, CheckCircle, Scale } from 'lucide-react';
 
 export const metadata = {
   title: `Terms of Service · ${APP_NAME}`,

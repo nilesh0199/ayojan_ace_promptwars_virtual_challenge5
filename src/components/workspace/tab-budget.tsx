@@ -1,11 +1,10 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import { usePlan } from '../plan-context';
 import { calculateBudgetSummary, formatCurrency } from '@/lib/budget';
 import {
   AlertTriangle,
-  CheckCircle2,
   SlidersHorizontal,
   Info,
   ShieldCheck,
@@ -31,10 +30,13 @@ const BAR_COLORS = [
 export function TabBudget({ onOpenReplan }: TabBudgetProps) {
   const { activePlan } = usePlan();
 
-  if (!activePlan) return null;
+  // Pure deterministic budget math performed strictly in code (memoized)
+  const summary = useMemo(() => {
+    if (!activePlan) return null;
+    return calculateBudgetSummary(activePlan.budget, activePlan.totalBudget);
+  }, [activePlan]);
 
-  // Pure deterministic budget math performed strictly in code
-  const summary = calculateBudgetSummary(activePlan.budget, activePlan.totalBudget);
+  if (!activePlan || !summary) return null;
 
   return (
     <div className="space-y-8">

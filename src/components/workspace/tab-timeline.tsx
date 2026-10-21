@@ -2,17 +2,15 @@
 
 import React, { useState } from 'react';
 import { usePlan } from '../plan-context';
-import { TIMELINE_PHASES, TimelinePhase } from '@/lib/constants';
+import { TIMELINE_PHASES } from '@/lib/constants';
 import { triggerIcsDownload, generateTimelineIcs } from '@/lib/ics';
 import {
   Calendar,
   CalendarCheck,
   CheckCircle2,
   Circle,
-  Clock,
   User,
   Tag,
-  ArrowRight,
   Info,
 } from 'lucide-react';
 

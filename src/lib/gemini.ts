@@ -39,6 +39,14 @@ export function extractJsonFromResponse(rawText: string): string {
 }
 
 /**
+ * Safely extracts error message from an unknown error value.
+ */
+function toErrorMessage(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  return String(err || 'Unknown error');
+}
+
+/**
  * Creates or retrieves the GoogleGenAI client using server-only environment variables.
  */
 export function getGeminiClient(): GoogleGenAI {
@@ -76,9 +84,11 @@ export async function callGeminiStructured<T>(
     const currentModel = modelsToAttempt[modelIdx];
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      let timerId: ReturnType<typeof setTimeout> | undefined;
+
       try {
         const timeoutPromise = new Promise<never>((_, reject) => {
-          setTimeout(() => {
+          timerId = setTimeout(() => {
             reject(new GeminiApiError(`Gemini request timed out after ${timeoutMs}ms`, 504, true));
           }, timeoutMs);
         });
@@ -106,7 +116,7 @@ export async function callGeminiStructured<T>(
           parsedData = JSON.parse(cleanedJson);
         } catch (jsonErr) {
           throw new GeminiApiError(
-            `Malformed JSON returned by AI model: ${(jsonErr as Error).message}`,
+            `Malformed JSON returned by AI model: ${toErrorMessage(jsonErr)}`,
             502,
             false
           );
@@ -123,7 +133,7 @@ export async function callGeminiStructured<T>(
 
         return validatedResult.data;
       } catch (err: unknown) {
-        lastError = err as Error;
+        lastError = err instanceof Error ? err : new Error(toErrorMessage(err));
         const isRetryable =
           err instanceof GeminiApiError
             ? err.isRetryable
@@ -139,12 +149,16 @@ export async function callGeminiStructured<T>(
 
         // Break retry loop to try fallback model if available
         break;
+      } finally {
+        if (timerId !== undefined) {
+          clearTimeout(timerId);
+        }
       }
     }
   }
 
   throw new GeminiApiError(
-    `AI service is currently busy or unavailable. Please retry or load a saved example plan. (Details: ${lastError?.message || 'Unknown error'})`,
+    `AI service is currently busy or unavailable. Please retry or load a saved example plan. (Details: ${toErrorMessage(lastError)})`,
     503,
     false
   );

@@ -86,11 +86,21 @@ describe('reflowTimelineDates pure logic', () => {
     expect(assignPhaseForDueDate(20, 60)).toBe('Next 30 days');
   });
 
-  it('formats and parses ISO dates consistently', () => {
+  it('handles unchanged event date correctly', () => {
+    const result = reflowTimelineDates(sampleTasks, '2026-11-01', '2026-11-01', '2026-08-01');
+    expect(result.stats.daysDelta).toBe(0);
+    expect(result.summaryText).toContain('Event date unchanged');
+  });
+
+  it('formats and parses ISO dates consistently, including full ISO timestamps', () => {
     const parsed = parseDateISO('2026-11-15');
     expect(parsed.getUTCFullYear()).toBe(2026);
     expect(parsed.getUTCMonth()).toBe(10); // 0-indexed November
     expect(parsed.getUTCDate()).toBe(15);
+
+    const fullIso = parseDateISO('2026-11-15T14:30:00.000Z');
+    expect(fullIso.getUTCFullYear()).toBe(2026);
+    expect(fullIso.getUTCDate()).toBe(15);
 
     expect(formatDateISO(parsed)).toBe('2026-11-15');
   });

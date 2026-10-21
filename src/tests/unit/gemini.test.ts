@@ -126,6 +126,31 @@ describe('Gemini SDK Integration & Extraction', () => {
     ).rejects.toThrow();
   });
 
+  it('retries transient 503 errors with backoff before succeeding', async () => {
+    const mockSchema = z.object({ value: z.number() });
+
+    const generateContentMock = vi
+      .fn()
+      .mockRejectedValueOnce(new GeminiApiError('503 Service Unavailable', 503, true))
+      .mockResolvedValueOnce({
+        text: JSON.stringify({ value: 42 }),
+      });
+
+    const mockClient = {
+      models: {
+        generateContent: generateContentMock,
+      },
+    } as unknown as GoogleGenAI;
+
+    const result = await callGeminiStructured('prompt', mockSchema, {
+      customClient: mockClient,
+      maxRetries: 1,
+    });
+
+    expect(result.value).toBe(42);
+    expect(generateContentMock).toHaveBeenCalledTimes(2);
+  });
+
   it('throws GeminiApiError when GEMINI_API_KEY is not defined in environment', () => {
     delete process.env.GEMINI_API_KEY;
     expect(() => getGeminiClient()).toThrow('GEMINI_API_KEY is not set');

@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from './auth-context';
 import { ThemeToggle } from './theme-toggle';
-import { APP_NAME } from '@/lib/constants';
 import {
   Sparkles,
   LayoutDashboard,

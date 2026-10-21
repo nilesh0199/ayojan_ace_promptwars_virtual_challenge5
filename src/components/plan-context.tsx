@@ -44,7 +44,7 @@ interface PlanContextType {
   updateVendorStatus: (vendorId: string, status: VendorStatus) => void;
   updateEventDate: (newDate: string) => void;
   saveToCloud: () => Promise<boolean>;
-  setActivePlan: (plan: EventPlan) => void;
+  setActivePlan: (plan: EventPlan | null) => void;
   clearError: () => void;
 }
 

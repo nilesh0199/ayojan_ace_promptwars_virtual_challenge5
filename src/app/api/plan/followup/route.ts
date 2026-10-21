@@ -12,7 +12,7 @@ const requestPayloadSchema = z.object({
 
 export async function POST(request: Request) {
   const safety = checkRequestSafety(request);
-  if (!safety.allowed && safety.response) {
+  if (!safety.allowed) {
     return safety.response;
   }
 

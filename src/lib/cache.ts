@@ -1,3 +1,5 @@
+import type { EventPlan } from './schemas';
+
 interface CacheEntry<T> {
   value: T;
   expiresAt: number;
@@ -63,12 +65,15 @@ export class SimpleLruCache<T> {
  */
 export function createPayloadKey(prefix: string, payload: unknown): string {
   try {
-    const serialized = JSON.stringify(payload, Object.keys(payload as object).sort());
-    return `${prefix}:${serialized}`;
+    if (payload !== null && typeof payload === 'object') {
+      const serialized = JSON.stringify(payload, Object.keys(payload).sort());
+      return `${prefix}:${serialized}`;
+    }
+    return `${prefix}:${JSON.stringify(payload)}`;
   } catch {
     return `${prefix}:${String(payload)}`;
   }
 }
 
 // Global server-side request cache
-export const planGenerationCache = new SimpleLruCache<unknown>(50, 15 * 60 * 1000);
+export const planGenerationCache = new SimpleLruCache<EventPlan>(50, 15 * 60 * 1000);

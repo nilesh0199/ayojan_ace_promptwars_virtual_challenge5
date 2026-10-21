@@ -10,7 +10,7 @@ import {
   EventType,
   PLANNER_DISCLAIMER,
 } from '@/lib/constants';
-import { intakeFormSchema, IntakeFormData } from '@/lib/schemas';
+import { intakeFormSchema } from '@/lib/schemas';
 import { usePlan } from './plan-context';
 import {
   Sparkles,

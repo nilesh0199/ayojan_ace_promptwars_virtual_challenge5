@@ -23,10 +23,11 @@ export function formatDateISO(date: Date): string {
 }
 
 /**
- * Pure helper to parse YYYY-MM-DD into a UTC Date object.
+ * Pure helper to parse YYYY-MM-DD (or ISO 8601 string) into a UTC Date object.
  */
 export function parseDateISO(isoString: string): Date {
-  const [y, m, d] = isoString.split('-').map(Number);
+  const datePart = isoString.includes('T') ? isoString.split('T')[0] : isoString;
+  const [y, m, d] = datePart.split('-').map(Number);
   return new Date(Date.UTC(y, m - 1, d, 0, 0, 0, 0));
 }
 

@@ -6,7 +6,6 @@ import { calculateBudgetSummary, formatCurrency } from '@/lib/budget';
 import {
   Coins,
   CheckCircle2,
-  Calendar,
   Users,
   Compass,
   AlertOctagon,

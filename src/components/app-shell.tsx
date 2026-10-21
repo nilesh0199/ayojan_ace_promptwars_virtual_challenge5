@@ -6,8 +6,7 @@ import { DesktopNavRail, MobileNavBar } from './navigation';
 import { SavePromptModal } from './save-prompt-modal';
 import { ThemeToggle } from './theme-toggle';
 import { useAuth } from './auth-context';
-import { APP_NAME } from '@/lib/constants';
-import { LogIn, User as UserIcon } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, signIn, loading } = useAuth();

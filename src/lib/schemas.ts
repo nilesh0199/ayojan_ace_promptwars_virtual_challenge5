@@ -4,7 +4,6 @@ import {
   TIMELINE_PHASES,
   VENDOR_STATUSES,
   RISK_SEVERITIES,
-  CurrencyCode,
   VendorStatus,
   TimelinePhase,
   RiskSeverity,

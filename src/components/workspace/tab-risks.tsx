@@ -7,8 +7,6 @@ import {
   AlertTriangle,
   ShieldCheck,
   RefreshCw,
-  Clock,
-  ArrowRight,
   ShieldAlert,
 } from 'lucide-react';
 

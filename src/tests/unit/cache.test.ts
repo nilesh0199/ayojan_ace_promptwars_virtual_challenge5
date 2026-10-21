@@ -47,7 +47,15 @@ describe('SimpleLruCache', () => {
     expect(cache.size()).toBe(0);
   });
 
-  it('creates deterministic payload keys irrespective of property order', () => {
+  it('updates existing keys without increasing capacity', () => {
+    const cache = new SimpleLruCache<string>(3);
+    cache.set('key', 'val1');
+    cache.set('key', 'val2');
+    expect(cache.get('key')).toBe('val2');
+    expect(cache.size()).toBe(1);
+  });
+
+  it('creates deterministic payload keys irrespective of property order and handles non-objects', () => {
     const payload1 = { event: 'Wedding', budget: 1000, city: 'Jaipur' };
     const payload2 = { city: 'Jaipur', budget: 1000, event: 'Wedding' };
 
@@ -55,5 +63,11 @@ describe('SimpleLruCache', () => {
     const key2 = createPayloadKey('test', payload2);
 
     expect(key1).toBe(key2);
+
+    const primKey = createPayloadKey('scalar', 'simple-string');
+    expect(primKey).toBe('scalar:"simple-string"');
+
+    const nullKey = createPayloadKey('null-test', null);
+    expect(nullKey).toBe('null-test:null');
   });
 });

@@ -106,26 +106,26 @@ Every core capability mandated by the challenge brief is delivered with dedicate
 - **Test Stack**: Vitest + React Testing Library + `jest-axe` + mocked Gemini SDK (no live API calls during tests).
 - **Enforced Coverage Thresholds**: Configured in [`vitest.config.ts`](file:///vitest.config.ts) requiring $\ge 85\%$ lines and $\ge 80\%$ branches for `lib/` and `api/`.
 - **Actual Coverage Results (Real Run Output)**:
-  - Statements: **97.96%**
-  - Branches: **80.67%** (Threshold $\ge 80\%$ met)
+  - Statements: **98.60%**
+  - Branches: **83.85%** (Threshold $\ge 80\%$ met)
   - Functions: **100.00%**
-  - Lines: **97.96%** (Threshold $\ge 85\%$ met)
-  - Total Tests: **20 test suites passed, 89 unit/API/component/a11y tests passed**.
+  - Lines: **98.60%** (Threshold $\ge 85\%$ met)
+  - Total Tests: **20 test suites passed, 92 unit/API/component/a11y tests passed**.
 - **Coverage By Module**:
   - `src/app/api/plan/followup`: 100% lines, 100% branches
   - `src/app/api/plan/replan`: 100% lines, 100% branches
   - `src/app/api/plan/risks`: 100% lines, 100% branches
-  - `src/app/api/plan/generate`: 100% lines, 68.75% branches
-  - `src/lib/diff.ts`: 100% lines, 88% branches
+  - `src/app/api/plan/generate`: 100% lines, 66.66% branches
+  - `src/lib/diff.ts`: 100% lines, 96.42% branches
   - `src/lib/prompts.ts`: 100% lines, 100% branches
   - `src/lib/schemas.ts`: 100% lines, 100% branches
   - `src/lib/ics.ts`: 100% lines, 75% branches
-  - `src/lib/api-helper.ts`: 98.66% lines, 71.42% branches
-  - `src/lib/timeline.ts`: 96.8% lines, 80% branches
+  - `src/lib/api-helper.ts`: 98.64% lines, 71.42% branches
+  - `src/lib/timeline.ts`: 98.94% lines, 87.5% branches
   - `src/lib/budget.ts`: 96.82% lines, 57.89% branches
-  - `src/lib/cache.ts`: 94.23% lines, 86.66% branches
+  - `src/lib/cache.ts`: 96.36% lines, 94.73% branches
   - `src/lib/ratelimit.ts`: 92% lines, 94.11% branches
-  - `src/lib/gemini.ts`: 92.85% lines, 70.96% branches
+  - `src/lib/gemini.ts`: 96.69% lines, 75.67% branches
   - `src/lib/firebase/mappers.ts`: 100% lines, 100% branches
 
 ### 5. Accessibility (WCAG 2.2 AA)

@@ -29,15 +29,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signIn = async () => {
-    try {
-      const loggedUser = await signInWithGoogle();
-      setUser(loggedUser);
-      setIsSaveModalOpen(false);
-      return loggedUser;
-    } catch (err) {
-      console.error('Sign-in error:', err);
-      throw err;
-    }
+    const loggedUser = await signInWithGoogle();
+    setUser(loggedUser);
+    setIsSaveModalOpen(false);
+    return loggedUser;
   };
 
   const signOut = async () => {

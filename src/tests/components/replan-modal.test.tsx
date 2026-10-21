@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { ReplanModal } from '@/components/workspace/replan-modal';
 import { PlanProvider, usePlan } from '@/components/plan-context';
 import { AuthProvider } from '@/components/auth-context';

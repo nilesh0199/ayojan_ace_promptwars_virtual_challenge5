@@ -5,16 +5,16 @@ import { apiLimiter, getClientIp } from './ratelimit';
 
 export const MAX_BODY_BYTES = 300 * 1024; // 300 KB ceiling to prevent DoS
 
+export type SafetyCheckResult =
+  | { allowed: true; clientIp: string }
+  | { allowed: false; response: NextResponse; clientIp: string };
+
 /**
  * Standard security check for incoming API route requests:
  * 1. Checks content length
  * 2. Enforces token bucket rate limiting per client IP
  */
-export function checkRequestSafety(request: Request): {
-  allowed: boolean;
-  response?: NextResponse;
-  clientIp: string;
-} {
+export function checkRequestSafety(request: Request): SafetyCheckResult {
   const clientIp = getClientIp(request.headers);
   const contentLength = Number(request.headers.get('content-length') || 0);
 

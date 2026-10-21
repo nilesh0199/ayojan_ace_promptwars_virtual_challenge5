@@ -98,6 +98,16 @@ describe('Replanning Diff Logic', () => {
           completed: false,
           daysBeforeEvent: 140,
         },
+        {
+          id: SAMPLE_WEDDING_PLAN.timeline[0].id,
+          phase: 'Now',
+          title: 'Updated existing task title',
+          description: 'Updated description',
+          dueDate: '2026-07-15',
+          owner: 'Host',
+          completed: false,
+          daysBeforeEvent: 125,
+        },
       ],
     };
 

@@ -108,7 +108,11 @@ export function applyReplanDiff(
     currentPlan.timeline.map((t) => [t.id, t])
   );
   for (const task of diff.affectedTimelineTasks) {
-    taskMap.set(task.id, task);
+    const existing = taskMap.get(task.id);
+    taskMap.set(task.id, {
+      ...task,
+      completed: existing ? existing.completed : task.completed,
+    });
   }
 
   const updatedBudget = {

@@ -6,8 +6,6 @@ import { VENDOR_STATUSES, VendorStatus } from '@/lib/constants';
 import {
   ShieldAlert,
   HelpCircle,
-  CheckCircle,
-  FileText,
   Building,
   Info,
 } from 'lucide-react';
