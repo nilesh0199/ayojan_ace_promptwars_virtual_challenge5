@@ -2,8 +2,8 @@
 
 > "Your celebration, perfectly planned."
 
-- **Live Demonstration**: [LIVE_URL_HERE](https://LIVE_URL_HERE)
-- **Source Code Repository**: [Repository Link Placeholder](https://github.com/placeholder/aayojan-ace)
+- **Live Demonstration**: [https://ayojan-ace.vercel.app/](https://ayojan-ace.vercel.app/)
+- **Source Code Repository**: [https://github.com/nilesh0199/ayojan_ace_promptwars_virtual_challenge5](https://github.com/nilesh0199/ayojan_ace_promptwars_virtual_challenge5)
 
 ### Product Visual Progressions (Screenshots)
 - **Light Editorial Notebook Theme**: `![Aayojan Ace - Light Theme Interface](screenshots/light-theme-workspace.png)`
