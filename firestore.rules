@@ -8,7 +8,7 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
-    // Helper functions for strict validation
+    // Helper functions for strict authentication & authorization
     function isAuthenticated() {
       return request.auth != null;
     }
@@ -17,38 +17,74 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == userId;
     }
 
-    function isValidPlanData(data) {
-      return data.keys().hasAll([
+    // Validates that an event plan document strictly matches the required schema
+    function isValidPlanData(data, planId) {
+      return data.keys().hasOnly([
         'id', 'title', 'eventType', 'city', 'date', 
-        'guestCount', 'totalBudget', 'currency', 'budget', 
-        'timeline', 'vendors', 'ideas', 'updatedAt', 'version'
+        'guestCount', 'totalBudget', 'currency', 'styleCulture', 
+        'nonNegotiables', 'budget', 'timeline', 'vendors', 
+        'ideas', 'createdAt', 'updatedAt', 'version', 'isSavedExample'
       ])
+      && data.keys().hasAll([
+        'id', 'title', 'eventType', 'city', 'date', 
+        'guestCount', 'totalBudget', 'currency', 'styleCulture', 
+        'nonNegotiables', 'budget', 'timeline', 'vendors', 
+        'ideas', 'createdAt', 'updatedAt', 'version', 'isSavedExample'
+      ])
+      && data.id == planId
       && data.title is string && data.title.size() >= 2 && data.title.size() <= 120
       && data.eventType in ['Wedding', 'Birthday', 'Community Event']
-      && data.city is string && data.city.size() <= 80
+      && data.city is string && data.city.size() >= 2 && data.city.size() <= 80
+      && data.date is string && data.date.size() >= 8 && data.date.size() <= 30
       && data.guestCount is int && data.guestCount >= 2 && data.guestCount <= 50000
       && data.totalBudget is number && data.totalBudget > 0 && data.totalBudget <= 1000000000
       && data.currency in ['INR', 'USD', 'EUR', 'GBP', 'AED', 'CAD', 'AUD']
+      && data.styleCulture is string && data.styleCulture.size() <= 200
+      && data.nonNegotiables is string && data.nonNegotiables.size() <= 500
       && data.budget is map
-      && data.timeline is list
-      && data.vendors is list
+      && data.budget.categories is list && data.budget.categories.size() >= 1 && data.budget.categories.size() <= 30
+      && data.budget.contingencyPercent is number && data.budget.contingencyPercent >= 0 && data.budget.contingencyPercent <= 50
+      && data.budget.taxServiceChargePercent is number && data.budget.taxServiceChargePercent >= 0 && data.budget.taxServiceChargePercent <= 50
+      && data.budget.statedAssumptions is list && data.budget.statedAssumptions.size() <= 20
+      && data.timeline is list && data.timeline.size() >= 1 && data.timeline.size() <= 100
+      && data.vendors is list && data.vendors.size() >= 1 && data.vendors.size() <= 50
       && data.ideas is map
-      && data.version is int;
+      && data.createdAt is string && data.createdAt.size() >= 10 && data.createdAt.size() <= 40
+      && data.updatedAt is string && data.updatedAt.size() >= 10 && data.updatedAt.size() <= 40
+      && data.version is int && data.version >= 1 && data.version <= 10000
+      && data.isSavedExample is bool;
     }
 
-    // Isolated user-scoped subcollection for celebration plans
+    // Validates snapshot version record in the versions subcollection
+    function isValidVersionData(data, planId) {
+      return data.keys().hasOnly(['versionNumber', 'savedAt', 'planData'])
+      && data.keys().hasAll(['versionNumber', 'savedAt', 'planData'])
+      && data.versionNumber is int && data.versionNumber >= 1 && data.versionNumber <= 10000
+      && data.savedAt is string && data.savedAt.size() >= 10 && data.savedAt.size() <= 40
+      && data.planData is map
+      && isValidPlanData(data.planData, planId);
+    }
+
+    // Isolated user-scoped collection for celebration plans
     match /users/{userId}/plans/{planId} {
-      // Users can only view or delete documents stored strictly under their own UID
+      // Users can only view or delete documents strictly under their own UID
       allow read, delete: if isOwner(userId);
 
-      // Enforce payload size < 400KB and strict schema on create/update
+      // Create and update enforced with strict schema, matching ID, and bounded sizes
       allow create, update: if isOwner(userId)
-        && request.resource.data.size() < 400000
-        && isValidPlanData(request.resource.data);
+        && isValidPlanData(request.resource.data, planId);
 
       // Plan versions history subcollection (capped at latest 20 versions)
       match /versions/{versionId} {
-        allow read, write, delete: if isOwner(userId);
+        // Read and delete allowed only for the document owner
+        allow read, delete: if isOwner(userId);
+
+        // Version creation requires ownership and strict version record validation
+        allow create: if isOwner(userId)
+          && isValidVersionData(request.resource.data, planId);
+
+        // Updates to existing version snapshots are explicitly disallowed (immutable history)
+        allow update: if false;
       }
     }
   }

@@ -81,19 +81,42 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 
 ## 6. Startup Environment Verification & Health Check
 
-1. **Startup Check (`getMissingFirebaseConfigVars`)**:
-   Inspects client-side Firebase environment variables (`NEXT_PUBLIC_FIREBASE_*`). If any required variable is missing or set to placeholder defaults, an accessible banner informs the administrator of *which* variable names are missing without ever disclosing or logging actual secret values.
+1. **Client-Side Build-Time Inlining & Startup Check (`getMissingFirebaseConfigVars`)**:
+   - Next.js strictly inlines `NEXT_PUBLIC_*` environment variables during build time **only** when referenced through literal property accesses (e.g. `process.env.NEXT_PUBLIC_FIREBASE_API_KEY`). Dynamic lookups such as `process.env[name]` return `undefined` in browser runtimes.
+   - All client-side Firebase configurations in [`src/lib/firebase/config.ts`](file:///src/lib/firebase/config.ts) use static literal property accesses (`clientFirebaseEnv`).
+   - `getMissingFirebaseConfigVars()` validates the config on mount and detects missing, empty, whitespace-only, or obvious placeholder templates (values starting with `<`, `your_`, `mock-`, etc.) without ever disclosing or logging actual credentials.
+   - **Important Operations Note**: Because `NEXT_PUBLIC_*` values are baked into client JS bundles at build time, any changes to Firebase environment variables in Vercel require triggering a **Redeploy**. For local development, set values in `.env.local` and **restart the Next.js dev server** (`npm run dev`).
 2. **Server Health Check (`/api/health`)**:
    Protected by IP-based token bucket rate limiting. Returns only abstract booleans and status strings (`{ status: "ok" | "degraded", gemini: "configured" | "missing", model: "configured" | "missing" }`). Never returns environment values, API keys, or stack traces.
 
 ---
 
-## 7. Firestore Database Security Rules
+## 7. Firestore Database Security Rules & Storage Boundaries
 
 Published in [`firestore.rules`](file:///firestore.rules):
-- Only authenticated users can access their own document path `/users/{userId}/plans/{planId}`.
-- Enforces payload size limit $<400\text{KB}$ per document.
-- Validates mandatory fields, string length constraints, and number bounds at the database layer.
+
+### Honest Storage Boundary Explanation
+In Cloud Firestore Security Rules, calling `.size()` on a map (such as `request.resource.data`) counts the **number of keys/fields**, not raw byte size. To enforce authentic document safety without relying on deceptive claims:
+1. **Exact Key Enumeration**: Both celebration plans and versions enforce `keys().hasOnly([...])` and `keys().hasAll([...])`, rejecting any payload with unexpected or injected fields.
+2. **Path Document ID Integrity**: Requires `request.resource.data.id == planId`, guaranteeing a document cannot be created with mismatched or forged identifier fields.
+3. **Bounded Array Collections**:
+   - `timeline`: bounded between 1 and 100 items (`data.timeline.size() >= 1 && data.timeline.size() <= 100`).
+   - `vendors`: bounded between 1 and 50 items (`data.vendors.size() >= 1 && data.vendors.size() <= 50`).
+   - `budget.categories`: bounded between 1 and 30 items (`data.budget.categories.size() >= 1 && data.budget.categories.size() <= 30`).
+   - `budget.statedAssumptions`: bounded to $\le 20$ items.
+4. **String Length Ceilings**: Title (2–120 chars), City (2–80 chars), Style & Culture ($\le 200$ chars), Non-negotiables ($\le 500$ chars), Timestamps (`createdAt`, `updatedAt`, `savedAt` between 10 and 40 chars).
+5. **Native Document Limit**: Relies on Cloud Firestore's native 1 MiB ($1,048,576$ bytes) storage ceiling per document.
+6. **Immutable Version Snapshots**: Under `/users/{userId}/plans/{planId}/versions/{versionId}`, versions can be created and deleted by the owner, but `allow update: if false;` guarantees that historic version snapshots are immutable and tamper-proof.
+7. **Per-User Isolation & Top-Level Deny-All**: All documents require `request.auth != null && request.auth.uid == userId`. Root collections fallback to `allow read, write: if false;`.
+
+### Manual Rules Verification Checklist (Firebase Emulator / Console Rules Simulator)
+- **Check 1 (Owner Plan Create/Update)**: Authenticated user (`auth.uid: "user_123"`) writing to `/users/user_123/plans/plan_abc` with valid 18 keys and matching `id: "plan_abc"` $\to$ **ALLOW**.
+- **Check 2 (ID Mismatch Attempt)**: Authenticated user writing to `/users/user_123/plans/plan_abc` with `id: "plan_forged"` $\to$ **DENY**.
+- **Check 3 (Field Injection Attempt)**: Authenticated user writing to `/users/user_123/plans/plan_abc` with extra field `{ maliciousField: true }` $\to$ **DENY** (`keys().hasOnly`).
+- **Check 4 (Cross-User Read/Write)**: Authenticated user (`auth.uid: "user_456"`) attempting to read or write `/users/user_123/plans/plan_abc` $\to$ **DENY**.
+- **Check 5 (Version Creation)**: Authenticated user creating snapshot under `/users/user_123/plans/plan_abc/versions/v_1` with valid `{ versionNumber, savedAt, planData }` $\to$ **ALLOW**.
+- **Check 6 (Version Tampering)**: Authenticated user attempting to update an existing snapshot under `/users/user_123/plans/plan_abc/versions/v_1` $\to$ **DENY** (`allow update: if false`).
+- **Check 7 (Unauthenticated Request)**: Guest request with `auth: null` attempting any read or write $\to$ **DENY**.
 
 ---
 

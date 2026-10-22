@@ -104,8 +104,8 @@ Every core capability mandated by the challenge brief is delivered with dedicate
 - **Token Bucket Rate Limiting**: Per-IP rate limiting module ([`src/lib/ratelimit.ts`](file:///src/lib/ratelimit.ts)) blocks automated spam with HTTP 429 and `Retry-After` headers.
 - **Content Security Policy & COOP Headers**: Strict CSP, HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Cross-Origin-Opener-Policy: same-origin-allow-popups` configured in [`next.config.mjs`](file:///next.config.mjs).
 - **In-Memory Calendar Token Storage**: Google Calendar OAuth tokens are held strictly in runtime memory and expire naturally; they are never stored in Firestore, localStorage, cookies, or logs.
-- **Firestore Security Rules**: User-scoped access control in [`firestore.rules`](file:///firestore.rules) ensures documents under `/users/{uid}/plans/{planId}` and subcollection `/versions/{versionId}` can only be read or written by the authenticated owner (`request.auth.uid == userId`) with size validation (<400KB).
-- **Startup Environment Verification**: `getMissingFirebaseConfigVars` verifies required `NEXT_PUBLIC_FIREBASE_*` keys on startup and displays an accessible alert naming missing variables without exposing secret values.
+- **Firestore Security Rules**: User-scoped access control in [`firestore.rules`](file:///firestore.rules) ensures documents under `/users/{uid}/plans/{planId}` and subcollection `/versions/{versionId}` can only be read or written by the authenticated owner (`request.auth.uid == userId`). Requires `data.id == planId`, enforces strict key enumeration via `keys().hasOnly([...])` rejecting unauthorized fields, validates `createdAt`/`updatedAt` timestamp strings, bounds list sizes (`timeline <= 100`, `vendors <= 50`, `categories <= 30`), enforces immutable version snapshots (`allow update: if false`), and relies on Firestore's native 1 MiB document size ceiling.
+- **Startup Environment Verification**: `getMissingFirebaseConfigVars` ([`src/lib/firebase/config.ts`](file:///src/lib/firebase/config.ts)) verifies required `NEXT_PUBLIC_FIREBASE_*` keys on startup using static literal property accesses (ensuring reliable Next.js build-time inlining) and displays an accessible alert naming missing variables without exposing secret values. Empty strings, whitespace, and placeholder templates (e.g. `<...>`, `your_...`, `mock-...`) are flagged as missing. Note: `NEXT_PUBLIC_*` values are inlined into client JS at build time, so Vercel requires a redeploy after environment variable changes, and local development requires updating `.env.local` followed by a dev server restart (`npm run dev`).
 - **Zero Committed Secrets**: Strict [`.gitignore`](file:///.gitignore) and template [`.env.example`](file:///.env.example). Full security posture documented in [`SECURITY.md`](file:///SECURITY.md).
 
 ### 3. Efficiency
@@ -135,7 +135,7 @@ Every core capability mandated by the challenge brief is delivered with dedicate
   - Branches: **84.35%** (Threshold $\ge 80\%$ met)
   - Functions: **100.00%**
   - Lines: **95.81%** (Threshold $\ge 85\%$ met)
-  - Total Tests: **25 test suites passed, 140 unit/API/component/a11y tests passed cleanly (0 failed)**.
+  - Total Tests: **26 test suites passed, 155 unit/API/component/a11y tests passed cleanly (0 failed)**.
 - **Coverage By Module**:
   - `src/app/api/health/route.ts`: 100% lines, 93.33% branches
   - `src/app/api/plan/followup`: 100% lines, 100% branches

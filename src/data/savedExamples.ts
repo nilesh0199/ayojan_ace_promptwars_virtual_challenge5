@@ -340,6 +340,19 @@ export const SAMPLE_BIRTHDAY_PLAN: EventPlan = {
       verifyWithVendorNotice: 'Verify with the vendor',
       notes: 'Confirm arrival 1 hour prior for soundcheck.',
     },
+    {
+      id: 'ven-b3',
+      categoryName: 'Artisan Floral Stylist & Festoon Lighting',
+      vendorTypeDescription: 'Garden event designer specializing in sustainable wildflower arrangements and warm string lighting',
+      status: 'Shortlisted',
+      questionsToAsk: [
+        'Do you provide low wooden picnic tables and weather-resistant jute floor cushions?',
+        'What is your setup timeline on the lawn before guest arrival?',
+        'Do you supply power extension reels with outdoor safety breakers?',
+      ],
+      verifyWithVendorNotice: 'Verify with the vendor',
+      notes: 'Ensure setup is completed 2 hours prior to sunset.',
+    },
   ],
   ideas: {
     themes: [
@@ -492,6 +505,19 @@ export const SAMPLE_COMMUNITY_PLAN: EventPlan = {
       ],
       verifyWithVendorNotice: 'Verify with the vendor',
       notes: 'Ensure clean drinking water refill station is integrated.',
+    },
+    {
+      id: 'ven-c3',
+      categoryName: 'Community Waste Management & Sanitation Crew',
+      vendorTypeDescription: 'Green event sanitation team providing color-coded waste segregation stations and venue clean-up',
+      status: 'Shortlisted',
+      questionsToAsk: [
+        'Do you provide labeled 3-bin dry, wet, and compostable waste segregation stations?',
+        'Does your team manage post-event venue cleanup and transport to municipal composting units?',
+        'How many sanitation attendants are stationed throughout the festival grounds?',
+      ],
+      verifyWithVendorNotice: 'Verify with the vendor',
+      notes: 'Coordinate placement of stations near festival food kiosks.',
     },
   ],
   ideas: {
