@@ -45,6 +45,11 @@ service cloud.firestore {
       allow create, update: if isOwner(userId)
         && request.resource.data.size() < 400000
         && isValidPlanData(request.resource.data);
+
+      // Plan versions history subcollection (capped at latest 20 versions)
+      match /versions/{versionId} {
+        allow read, write, delete: if isOwner(userId);
+      }
     }
   }
 }

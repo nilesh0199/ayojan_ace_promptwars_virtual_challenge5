@@ -11,6 +11,7 @@ import {
   PLANNER_DISCLAIMER,
 } from '@/lib/constants';
 import { intakeFormSchema } from '@/lib/schemas';
+import { getFriendlyAiError } from '@/lib/gemini';
 import { usePlan } from './plan-context';
 import {
   Sparkles,
@@ -29,6 +30,8 @@ export function IntakeForm() {
     loadSavedExample,
     isLoading,
     error,
+    errorCode,
+    retryLastAction,
     followUp,
     submitFollowUp,
     skipFollowUp,
@@ -170,7 +173,7 @@ export function IntakeForm() {
         </div>
       </div>
 
-      {/* Error Banner with Retry */}
+      {/* Error Banner with Retry and Saved Example */}
       {error && (
         <div
           role="alert"
@@ -179,16 +182,34 @@ export function IntakeForm() {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" aria-hidden="true" />
             <div className="flex-1">
-              <h3 className="font-serif font-bold text-base">Unable to generate plan</h3>
-              <p className="mt-1 text-sm">{error}</p>
-              <div className="mt-3 flex flex-wrap gap-3">
+              <h3 className="font-serif font-bold text-base">
+                {getFriendlyAiError(errorCode).title}
+              </h3>
+              <p className="mt-1 text-sm leading-relaxed">{error}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (retryLastAction) {
+                      retryLastAction();
+                    } else {
+                      handleSubmit(new Event('submit') as unknown as React.FormEvent);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-accent text-accent-contrast hover:opacity-90 transition-opacity"
+                  aria-label="Retry celebration planning"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                  Retry
+                </button>
                 <button
                   type="button"
                   onClick={() => handleQuickLoad('wedding')}
                   className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-paper-card text-ink border border-rule hover:bg-paper-subtle transition-colors"
+                  aria-label="Load pre-built saved example celebration plan"
                 >
                   <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                  Load Saved Example Instead
+                  Load saved example
                 </button>
               </div>
             </div>

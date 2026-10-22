@@ -8,7 +8,7 @@ const cspHeader = `
   style-src 'self' 'unsafe-inline';
   img-src 'self' data: https://*.googleusercontent.com https://lh3.googleusercontent.com;
   font-src 'self' data:;
-  connect-src 'self' https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com https://*.google.com;
+  connect-src 'self' https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com https://*.google.com;
   frame-src 'self' https://*.firebaseapp.com https://accounts.google.com;
   object-src 'none';
   base-uri 'self';
@@ -29,6 +29,10 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value: cspHeader,
+          },
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups',
           },
           {
             key: 'X-Content-Type-Options',

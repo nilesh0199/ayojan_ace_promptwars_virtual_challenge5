@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import {
   EventPlan,
   IntakeFormData,
@@ -9,12 +9,15 @@ import {
   ReplanDiffResponse,
   RiskRegister,
   VendorStatus,
+  TimelineTask,
+  eventPlanSchema,
 } from '@/lib/schemas';
 import { SAVED_EXAMPLES } from '@/data/savedExamples';
 import { computePlanDiff, applyReplanDiff, PlanDiffView } from '@/lib/diff';
 import { reflowTimelineDates } from '@/lib/timeline';
+import { GeminiErrorCode, getFriendlyAiError } from '@/lib/gemini';
 import { useAuth } from './auth-context';
-import { saveUserPlan } from '@/lib/firebase/firestore';
+import { saveUserPlan, savePlanVersion } from '@/lib/firebase/firestore';
 
 interface PlanContextType {
   activePlan: EventPlan | null;
@@ -26,11 +29,16 @@ interface PlanContextType {
   isReplanning: boolean;
   isLoadingRisks: boolean;
   error: string | null;
+  errorCode: GeminiErrorCode | null;
+  retryLastAction: (() => Promise<void>) | null;
   followUp: FollowUpResponse | null;
   followUpCount: number;
   lastIntake: IntakeFormData | null;
   lastFollowUpAnswers: Array<{ questionId: string; answer: string }>;
   dateReflowNotice: string | null;
+  guestPlanPrompt: EventPlan | null;
+  importGuestPlan: () => Promise<void>;
+  dismissGuestImport: () => void;
   loadSavedExample: (key: string) => void;
   startPlanGeneration: (intake: IntakeFormData) => Promise<void>;
   submitFollowUp: (answer: string) => Promise<void>;
@@ -41,6 +49,7 @@ interface PlanContextType {
   undoReplan: () => void;
   generateRisks: () => Promise<void>;
   toggleTaskCompletion: (taskId: string) => void;
+  updateTimelineTasks: (tasks: TimelineTask[]) => void;
   updateVendorStatus: (vendorId: string, status: VendorStatus) => void;
   updateEventDate: (newDate: string) => void;
   saveToCloud: () => Promise<boolean>;
@@ -63,6 +72,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   const [isReplanning, setIsReplanning] = useState(false);
   const [isLoadingRisks, setIsLoadingRisks] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<GeminiErrorCode | null>(null);
+  const [retryLastAction, setRetryLastAction] = useState<(() => Promise<void>) | null>(null);
   const [followUp, setFollowUp] = useState<FollowUpResponse | null>(null);
   const [followUpCount, setFollowUpCount] = useState(0);
   const [lastIntake, setLastIntake] = useState<IntakeFormData | null>(null);
@@ -70,16 +81,21 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     Array<{ questionId: string; answer: string }>
   >([]);
   const [dateReflowNotice, setDateReflowNotice] = useState<string | null>(null);
+  const [guestPlanPrompt, setGuestPlanPrompt] = useState<EventPlan | null>(null);
 
   const { user, openSaveModal } = useAuth();
+  const prevUserRef = useRef(user);
 
-  // Load from session storage / local storage on mount
+  // Load from local storage on mount (Guest Mode schema-validated)
   useEffect(() => {
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (stored) {
         const parsed = JSON.parse(stored);
-        setActivePlanState(parsed);
+        const validated = eventPlanSchema.safeParse(parsed);
+        if (validated.success) {
+          setActivePlanState(validated.data);
+        }
       }
       const storedHist = localStorage.getItem(LOCAL_STORAGE_HIST_KEY);
       if (storedHist) {
@@ -91,7 +107,62 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Sync to local storage
+  // Handle user state transitions: Sign-out wipe & Sign-in guest import detection
+  useEffect(() => {
+    const prevUser = prevUserRef.current;
+    prevUserRef.current = user;
+
+    // Transition: Signed out
+    if (prevUser && !user) {
+      setActivePlanState(null);
+      setPlanHistory([]);
+      setActiveRisks(null);
+      setPendingDiff(null);
+      setRawDiffResponse(null);
+      setDateReflowNotice(null);
+      setGuestPlanPrompt(null);
+      try {
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+        localStorage.removeItem(LOCAL_STORAGE_HIST_KEY);
+      } catch {
+        // Storage unavailable
+      }
+      return;
+    }
+
+    // Transition: Signed in
+    if (!prevUser && user) {
+      try {
+        const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          const validated = eventPlanSchema.safeParse(parsed);
+          if (validated.success && !validated.data.isSavedExample) {
+            setGuestPlanPrompt(validated.data);
+          }
+        }
+      } catch {
+        // Ignore
+      }
+    }
+  }, [user]);
+
+  // Debounced auto-save to Firestore for signed-in users
+  useEffect(() => {
+    if (!user || !activePlan || activePlan.isSavedExample) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        await saveUserPlan(user.uid, activePlan);
+      } catch {
+        // Non-blocking auto-save failure
+      }
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [user, activePlan]);
+
+  // Sync to local storage for guests
   const setActivePlan = (plan: EventPlan | null) => {
     setActivePlanState(plan);
     try {
@@ -105,8 +176,47 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const setMappedError = (
+    errPayload: { code?: string; message?: string } | unknown,
+    retryFn?: () => Promise<void>
+  ) => {
+    let resolvedCode: GeminiErrorCode = 'AI_BUSY';
+    if (typeof errPayload === 'object' && errPayload !== null && 'code' in errPayload) {
+      resolvedCode = ((errPayload as { code: string }).code as GeminiErrorCode) || 'AI_BUSY';
+    }
+    const friendly = getFriendlyAiError(resolvedCode);
+    setError(friendly.message);
+    setErrorCode(resolvedCode);
+    if (retryFn) {
+      setRetryLastAction(() => retryFn);
+    }
+  };
+
+  const importGuestPlan = async () => {
+    if (!user || !guestPlanPrompt) return;
+    try {
+      await saveUserPlan(user.uid, guestPlanPrompt);
+      await savePlanVersion(user.uid, guestPlanPrompt.id, guestPlanPrompt);
+      setActivePlanState(guestPlanPrompt);
+      setGuestPlanPrompt(null);
+      try {
+        localStorage.removeItem(LOCAL_STORAGE_KEY);
+      } catch {
+        // Ignore
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to import guest plan');
+    }
+  };
+
+  const dismissGuestImport = () => {
+    setGuestPlanPrompt(null);
+  };
+
   const loadSavedExample = (key: string) => {
     setError(null);
+    setErrorCode(null);
+    setRetryLastAction(null);
     setPendingDiff(null);
     setActiveRisks(null);
     const example = SAVED_EXAMPLES[key];
@@ -119,6 +229,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   const startPlanGeneration = async (intake: IntakeFormData) => {
     setIsLoading(true);
     setError(null);
+    setErrorCode(null);
+    setRetryLastAction(null);
     setLastIntake(intake);
     setFollowUp(null);
     setFollowUpCount(0);
@@ -134,7 +246,9 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
       if (!followUpRes.ok) {
         const errJson = await followUpRes.json().catch(() => ({}));
-        throw new Error(errJson.message || 'AI service alert');
+        setMappedError(errJson, () => startPlanGeneration(intake));
+        setIsLoading(false);
+        return;
       }
 
       const followUpData: FollowUpResponse = await followUpRes.json();
@@ -148,11 +262,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       // Step 2: Proceed immediately to plan generation
       await triggerPlanGeneration(intake, []);
     } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'Unable to contact planning service. Please retry or try an example plan.'
-      );
+      setMappedError(err, () => startPlanGeneration(intake));
       setIsLoading(false);
     }
   };
@@ -161,12 +271,15 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     if (!lastIntake || !followUp) return;
     setIsLoading(true);
     setError(null);
+    setErrorCode(null);
+    setRetryLastAction(null);
 
     const answers = [
       ...lastFollowUpAnswers,
       { questionId: followUp.questionId || 'q1', answer },
     ];
     setLastFollowUpAnswers(answers);
+    const currentFollowUp = followUp;
     setFollowUp(null);
 
     try {
@@ -194,7 +307,10 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
       await triggerPlanGeneration(lastIntake, answers);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Error processing answer');
+      setMappedError(err, () => {
+        setFollowUp(currentFollowUp);
+        return submitFollowUp(answer);
+      });
       setIsLoading(false);
     }
   };
@@ -219,19 +335,26 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || 'AI service failed to generate plan');
+        setMappedError(errJson, () => triggerPlanGeneration(intake, followUpAnswers));
+        return;
       }
 
       const generatedPlan: EventPlan = await res.json();
       setActivePlan(generatedPlan);
       setPlanHistory([]);
       setActiveRisks(null);
+
+      // Save initial version to Firestore if authenticated
+      if (user) {
+        try {
+          await saveUserPlan(user.uid, generatedPlan);
+          await savePlanVersion(user.uid, generatedPlan.id, generatedPlan);
+        } catch {
+          // Non-blocking version save
+        }
+      }
     } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'AI service is currently busy or unavailable. Please retry or choose a saved example.'
-      );
+      setMappedError(err, () => triggerPlanGeneration(intake, followUpAnswers));
     } finally {
       setIsLoading(false);
     }
@@ -241,6 +364,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     if (!activePlan) return;
     setIsReplanning(true);
     setError(null);
+    setErrorCode(null);
+    setRetryLastAction(null);
 
     try {
       const res = await fetch('/api/plan/replan', {
@@ -251,7 +376,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || 'Replanning service failed');
+        setMappedError(errJson, () => requestReplan(changes));
+        return;
       }
 
       const diffRes: ReplanDiffResponse = await res.json();
@@ -259,7 +385,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       const diffView = computePlanDiff(activePlan, diffRes, changes.totalBudget);
       setPendingDiff(diffView);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to calculate replan diff');
+      setMappedError(err, () => requestReplan(changes));
     } finally {
       setIsReplanning(false);
     }
@@ -273,6 +399,11 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     setActivePlan(updated);
     setPendingDiff(null);
     setRawDiffResponse(null);
+
+    // Save snapshot version to Firestore if user is authenticated
+    if (user) {
+      savePlanVersion(user.uid, updated.id, updated).catch(() => {});
+    }
   };
 
   const rejectReplan = () => {
@@ -291,6 +422,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     if (!activePlan) return;
     setIsLoadingRisks(true);
     setError(null);
+    setErrorCode(null);
+    setRetryLastAction(null);
 
     try {
       const res = await fetch('/api/plan/risks', {
@@ -301,13 +434,14 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        throw new Error(errJson.message || 'Risk assessment service failed');
+        setMappedError(errJson, () => generateRisks());
+        return;
       }
 
       const risks: RiskRegister = await res.json();
       setActiveRisks(risks);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to generate risk register');
+      setMappedError(err, () => generateRisks());
     } finally {
       setIsLoadingRisks(false);
     }
@@ -319,6 +453,15 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
       t.id === taskId ? { ...t, completed: !t.completed } : t
     );
     setActivePlan({ ...activePlan, timeline: updatedTasks, updatedAt: new Date().toISOString() });
+  };
+
+  const updateTimelineTasks = (tasks: TimelineTask[]) => {
+    if (!activePlan) return;
+    setActivePlan({
+      ...activePlan,
+      timeline: tasks,
+      updatedAt: new Date().toISOString(),
+    });
   };
 
   const updateVendorStatus = (vendorId: string, status: VendorStatus) => {
@@ -350,6 +493,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
     try {
       await saveUserPlan(user.uid, activePlan);
+      await savePlanVersion(user.uid, activePlan.id, activePlan);
       return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save plan to Firebase');
@@ -369,11 +513,16 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         isReplanning,
         isLoadingRisks,
         error,
+        errorCode,
+        retryLastAction,
         followUp,
         followUpCount,
         lastIntake,
         lastFollowUpAnswers,
         dateReflowNotice,
+        guestPlanPrompt,
+        importGuestPlan,
+        dismissGuestImport,
         loadSavedExample,
         startPlanGeneration,
         submitFollowUp,
@@ -384,11 +533,16 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         undoReplan,
         generateRisks,
         toggleTaskCompletion,
+        updateTimelineTasks,
         updateVendorStatus,
         updateEventDate,
         saveToCloud,
         setActivePlan,
-        clearError: () => setError(null),
+        clearError: () => {
+          setError(null);
+          setErrorCode(null);
+          setRetryLastAction(null);
+        },
       }}
     >
       {children}

@@ -68,4 +68,40 @@ describe('IntakeForm Component', () => {
       expect(screen.getByText(/City name must be at least 2 characters/i)).toBeInTheDocument();
     });
   });
+
+  it('renders friendly positive error banner with Retry and Load Saved Example buttons on AI failure', async () => {
+    // Mock global fetch to return 503 AI_BUSY
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 503,
+      json: async () => ({
+        error: 'AI Planning Service Alert',
+        code: 'AI_BUSY',
+        message: 'Gemini AI is currently experiencing high demand. Please click Retry in a few moments, or explore a pre-built celebration plan.',
+      }),
+    } as unknown as Response);
+
+    try {
+      renderComponent();
+
+      const submitBtn = screen.getByRole('button', { name: /Generate Celebration Plan/i });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByText(/High Demand on AI Services/i)).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Retry celebration planning/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Load pre-built saved example celebration plan/i })).toBeInTheDocument();
+      });
+
+      // Verify no raw upstream JSON or stack traces in UI
+      const alert = screen.getByRole('alert');
+      expect(alert.textContent).not.toContain('{"');
+      expect(alert.textContent).not.toContain('stack');
+      expect(alert.textContent).not.toContain('fatal');
+    } finally {
+      global.fetch = originalFetch;
+    }
+  });
 });

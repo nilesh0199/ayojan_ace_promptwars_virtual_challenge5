@@ -112,6 +112,7 @@ export const timelineTaskSchema = z.object({
   estimatedCostLink: z.string().max(100).optional(),
   completed: z.boolean().default(false),
   daysBeforeEvent: z.number().int(),
+  googleCalendarEventId: z.string().optional(),
 });
 
 export type TimelineTask = z.infer<typeof timelineTaskSchema>;

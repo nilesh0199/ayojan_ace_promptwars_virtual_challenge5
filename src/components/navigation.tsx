@@ -85,13 +85,26 @@ export function DesktopNavRail() {
         {/* User Card */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 overflow-hidden">
-            <div className="h-8 w-8 rounded-full bg-paper-subtle border border-rule flex items-center justify-center text-ink-muted shrink-0">
-              <UserIcon className="h-4 w-4" aria-hidden="true" />
-            </div>
+            {user?.photoURL ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={user.photoURL}
+                alt={user.displayName || 'User profile'}
+                className="h-8 w-8 rounded-full border border-rule object-cover shrink-0"
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-paper-subtle border border-rule flex items-center justify-center text-ink-muted font-bold text-xs shrink-0">
+                {user?.displayName ? (
+                  user.displayName.charAt(0).toUpperCase()
+                ) : (
+                  <UserIcon className="h-4 w-4" aria-hidden="true" />
+                )}
+              </div>
+            )}
             <div className="truncate">
               {user ? (
                 <>
-                  <p className="text-xs font-medium text-ink truncate">
+                  <p className="text-xs font-semibold text-ink truncate">
                     {user.displayName || 'Account'}
                   </p>
                   <p className="text-[10px] text-ink-faint truncate">{user.email}</p>
@@ -107,14 +120,14 @@ export function DesktopNavRail() {
             </div>
           </div>
 
-          {!loading && (
-            user ? (
+          {!loading &&
+            (user ? (
               <button
                 type="button"
                 onClick={signOut}
                 title="Sign out"
                 aria-label="Sign out"
-                className="p-1.5 rounded-md text-ink-muted hover:text-state-error hover:bg-paper-subtle transition-colors"
+                className="p-1.5 rounded-md text-ink-muted hover:text-state-error hover:bg-paper-subtle transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
               </button>
@@ -124,12 +137,11 @@ export function DesktopNavRail() {
                 onClick={signIn}
                 title="Sign in with Google"
                 aria-label="Sign in with Google"
-                className="p-1.5 rounded-md text-ink-muted hover:text-accent hover:bg-accent-subtle transition-colors"
+                className="p-1.5 rounded-md text-ink-muted hover:text-accent hover:bg-accent-subtle transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
               >
                 <LogIn className="h-4 w-4" aria-hidden="true" />
               </button>
-            )
-          )}
+            ))}
         </div>
 
         {/* Theme Toggle */}
@@ -168,9 +180,7 @@ export function MobileNavBar() {
               href={item.href}
               aria-current={isActive ? 'page' : undefined}
               className={`flex flex-col items-center justify-center min-h-[44px] py-1 text-[11px] font-medium transition-colors ${
-                isActive
-                  ? 'text-accent font-semibold'
-                  : 'text-ink-muted hover:text-ink'
+                isActive ? 'text-accent font-semibold' : 'text-ink-muted hover:text-ink'
               }`}
             >
               <Icon className="h-5 w-5 mb-1" aria-hidden="true" />

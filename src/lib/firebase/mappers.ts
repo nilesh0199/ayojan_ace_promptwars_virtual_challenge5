@@ -34,6 +34,7 @@ export interface FirestorePlanDoc {
     estimatedCostLink?: string;
     completed: boolean;
     daysBeforeEvent: number;
+    googleCalendarEventId?: string;
   }>;
   vendors: Array<{
     id: string;
@@ -97,6 +98,7 @@ export function toFirestoreDoc(plan: EventPlan): FirestorePlanDoc {
       estimatedCostLink: t.estimatedCostLink,
       completed: t.completed,
       daysBeforeEvent: t.daysBeforeEvent,
+      googleCalendarEventId: t.googleCalendarEventId,
     })),
     vendors: validPlan.vendors.map((v) => ({
       id: v.id,

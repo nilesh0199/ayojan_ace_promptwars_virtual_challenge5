@@ -19,6 +19,7 @@ In celebration planning, AI models are creative synthesis engines, not authorita
 ```
 src/
 ├── app/                  # Next.js App Router (Routes & Server API Handlers)
+│   ├── api/health/       # Config & service health check endpoint
 │   ├── api/plan/         # Server-only API routes (/followup, /generate, /replan, /risks)
 │   ├── workspace/        # 7-Tab Celebration Workspace
 │   ├── saved/            # Cloud and Static Saved Plans
@@ -37,12 +38,13 @@ src/
 │   ├── timeline.ts       # Date reflow algorithm & phase assignment
 │   ├── diff.ts           # Before/After replanning diff engine
 │   ├── ics.ts            # RFC 5545 calendar export generator
+│   ├── google-calendar.ts# Google Calendar REST API integration & reminders
 │   ├── prompts.ts        # Delimited prompt constructors & injection defense
 │   ├── schemas.ts        # Master Zod validation models
 │   ├── gemini.ts         # GoogleGenAI SDK wrapper, retries & fallback
 │   ├── ratelimit.ts      # Token bucket rate limiter per client IP
 │   ├── cache.ts          # Server-side LRU memory cache
-│   └── firebase/         # Client Auth & Firestore data mappers
+│   └── firebase/         # Client Auth & Firestore subcollection persistence
 ├── data/                 # Static JSON Plan Presets (Wedding, Birthday, Community)
 └── tests/                # Automated Vitest Suite (Unit, API, Components, a11y)
 ```

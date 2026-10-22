@@ -196,7 +196,7 @@ describe('API /api/plan/generate', () => {
 
   it('handles Gemini service errors with 503', async () => {
     vi.mocked(geminiModule.callGeminiStructured).mockRejectedValueOnce(
-      new geminiModule.GeminiApiError('Service busy', 503)
+      new geminiModule.GeminiApiError('Service busy', 503, true, 'AI_BUSY')
     );
 
     const req = new Request('http://localhost:3000/api/plan/generate', {
@@ -209,6 +209,7 @@ describe('API /api/plan/generate', () => {
     expect(res.status).toBe(503);
     const data = await res.json();
     expect(data.error).toBe('AI Planning Service Alert');
+    expect(data.code).toBe('AI_BUSY');
   });
 
   it('enforces rate limits with 429 when threshold exceeded', async () => {

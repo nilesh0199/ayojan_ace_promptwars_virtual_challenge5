@@ -1,9 +1,19 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePlan } from '../plan-context';
 import { TIMELINE_PHASES } from '@/lib/constants';
 import { triggerIcsDownload, generateTimelineIcs } from '@/lib/ics';
+import {
+  getCalendarAccessToken,
+  requestGoogleCalendarAccess,
+} from '@/lib/firebase/auth';
+import {
+  syncTasksToGoogleCalendar,
+  removeGoogleCalendarReminders,
+  MAX_CALENDAR_EVENTS_SYNC,
+  SyncProgress,
+} from '@/lib/google-calendar';
 import {
   Calendar,
   CalendarCheck,
@@ -12,6 +22,13 @@ import {
   User,
   Tag,
   Info,
+  Bell,
+  Clock,
+  Trash2,
+  Loader2,
+  Check,
+  AlertCircle,
+  ExternalLink,
 } from 'lucide-react';
 
 export function TabTimeline() {
@@ -19,10 +36,34 @@ export function TabTimeline() {
     activePlan,
     toggleTaskCompletion,
     updateEventDate,
+    updateTimelineTasks,
     dateReflowNotice,
   } = usePlan();
 
   const [newEventDateInput, setNewEventDateInput] = useState(activePlan?.date || '');
+
+  // Google Calendar Reminders panel state
+  const [isCalendarConnected, setIsCalendarConnected] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
+  const [removeProgress, setRemoveProgress] = useState<{ current: number; total: number } | null>(
+    null
+  );
+  const [remindersNotice, setRemindersNotice] = useState<{
+    type: 'success' | 'error' | 'info';
+    message: string;
+  } | null>(null);
+
+  // Initialize selected tasks and calendar connection status
+  useEffect(() => {
+    if (activePlan) {
+      setSelectedTaskIds(activePlan.timeline.map((t) => t.id));
+      setIsCalendarConnected(Boolean(getCalendarAccessToken()));
+    }
+  }, [activePlan]);
 
   if (!activePlan) return null;
 
@@ -34,8 +75,164 @@ export function TabTimeline() {
 
   const handleExportIcs = () => {
     const icsContent = generateTimelineIcs(activePlan.title, activePlan.timeline);
-    triggerIcsDownload(`${activePlan.title.toLowerCase().replace(/\s+/g, '-')}-timeline.ics`, icsContent);
+    triggerIcsDownload(
+      `${activePlan.title.toLowerCase().replace(/\s+/g, '-')}-timeline.ics`,
+      icsContent
+    );
   };
+
+  const handleConnectCalendar = async () => {
+    setIsConnecting(true);
+    setRemindersNotice(null);
+    try {
+      await requestGoogleCalendarAccess();
+      setIsCalendarConnected(true);
+      setRemindersNotice({
+        type: 'success',
+        message: 'Connected to Google Calendar! You can now sync milestone reminders.',
+      });
+    } catch (err) {
+      setRemindersNotice({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to authorize Google Calendar.',
+      });
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  const handleToggleSelectAll = () => {
+    if (selectedTaskIds.length === activePlan.timeline.length) {
+      setSelectedTaskIds([]);
+    } else {
+      setSelectedTaskIds(activePlan.timeline.map((t) => t.id));
+    }
+  };
+
+  const handleToggleTask = (taskId: string) => {
+    setSelectedTaskIds((prev) =>
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+    );
+  };
+
+  const handleSyncReminders = async () => {
+    let token = getCalendarAccessToken();
+    if (!token) {
+      try {
+        token = await requestGoogleCalendarAccess();
+        setIsCalendarConnected(true);
+      } catch (err) {
+        setRemindersNotice({
+          type: 'error',
+          message:
+            err instanceof Error ? err.message : 'Please connect Google Calendar to sync reminders.',
+        });
+        return;
+      }
+    }
+
+    const tasksToSync = activePlan.timeline.filter((t) => selectedTaskIds.includes(t.id));
+    if (tasksToSync.length === 0) {
+      setRemindersNotice({
+        type: 'info',
+        message: 'Please select at least one task to sync reminders.',
+      });
+      return;
+    }
+
+    if (tasksToSync.length > MAX_CALENDAR_EVENTS_SYNC) {
+      setRemindersNotice({
+        type: 'error',
+        message: `Maximum ${MAX_CALENDAR_EVENTS_SYNC} events per sync. Please deselect some tasks.`,
+      });
+      return;
+    }
+
+    setIsSyncing(true);
+    setRemindersNotice(null);
+
+    try {
+      const result = await syncTasksToGoogleCalendar({
+        tasks: tasksToSync,
+        planId: activePlan.id,
+        planTitle: activePlan.title,
+        token,
+        onProgress: (p) => setSyncProgress(p),
+      });
+
+      // Merge updated tasks back into active plan timeline
+      const updatedMap = new Map(result.updatedTasks.map((t) => [t.id, t]));
+      const mergedTimeline = activePlan.timeline.map((t) => updatedMap.get(t.id) || t);
+      updateTimelineTasks(mergedTimeline);
+
+      setRemindersNotice({
+        type: 'success',
+        message: `Synced ${result.syncedCount} reminder(s) to Google Calendar with 1-day email & 1-hour popup alert.${
+          result.errors.length > 0 ? ` (${result.errors.length} failed)` : ''
+        }`,
+      });
+    } catch (err) {
+      setRemindersNotice({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to sync to Google Calendar.',
+      });
+    } finally {
+      setIsSyncing(false);
+      setSyncProgress(null);
+    }
+  };
+
+  const handleRemoveReminders = async () => {
+    let token = getCalendarAccessToken();
+    if (!token) {
+      try {
+        token = await requestGoogleCalendarAccess();
+        setIsCalendarConnected(true);
+      } catch (err) {
+        setRemindersNotice({
+          type: 'error',
+          message: 'Please connect Google Calendar to remove existing reminders.',
+        });
+        return;
+      }
+    }
+
+    const tasksWithReminders = activePlan.timeline.filter((t) => Boolean(t.googleCalendarEventId));
+    if (tasksWithReminders.length === 0) {
+      setRemindersNotice({
+        type: 'info',
+        message: 'No synced Google Calendar reminders found to remove.',
+      });
+      return;
+    }
+
+    setIsRemoving(true);
+    setRemindersNotice(null);
+
+    try {
+      const result = await removeGoogleCalendarReminders({
+        tasks: activePlan.timeline,
+        token,
+        onProgress: (p) => setRemoveProgress(p),
+      });
+
+      updateTimelineTasks(result.updatedTasks);
+      setRemindersNotice({
+        type: 'success',
+        message: `Successfully removed ${result.removedCount} event(s) from your Google Calendar.`,
+      });
+    } catch (err) {
+      setRemindersNotice({
+        type: 'error',
+        message: err instanceof Error ? err.message : 'Failed to remove reminders.',
+      });
+    } finally {
+      setIsRemoving(false);
+      setRemoveProgress(null);
+    }
+  };
+
+  const scheduledCount = activePlan.timeline.filter((t) => Boolean(t.googleCalendarEventId)).length;
 
   return (
     <div className="space-y-8">
@@ -93,6 +290,186 @@ export function TabTimeline() {
         )}
       </div>
 
+      {/* Google Calendar Reminders Panel */}
+      <section
+        aria-labelledby="reminders-panel-title"
+        className="rounded-2xl border border-rule bg-paper-card p-6 shadow-xs space-y-5"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-rule">
+          <div className="flex items-start gap-3">
+            <div className="h-10 w-10 rounded-xl bg-accent-subtle text-accent flex items-center justify-center shrink-0">
+              <Bell className="h-5 w-5" aria-hidden="true" />
+            </div>
+            <div>
+              <h3 id="reminders-panel-title" className="font-serif font-bold text-lg text-ink">
+                Google Calendar Reminders
+              </h3>
+              <p className="text-xs text-ink-muted mt-0.5">
+                Automatically schedule 9:00 AM milestone events with 1-day email and 1-hour popup alerts.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {!isCalendarConnected ? (
+              <button
+                type="button"
+                onClick={handleConnectCalendar}
+                disabled={isConnecting}
+                className="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50"
+              >
+                {isConnecting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                )}
+                <span>Connect Google Calendar</span>
+              </button>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-medium border border-emerald-500/20">
+                <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Calendar Connected</span>
+              </span>
+            )}
+
+            {scheduledCount > 0 && (
+              <button
+                type="button"
+                onClick={handleRemoveReminders}
+                disabled={isRemoving || isSyncing}
+                className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-xl border border-rule text-ink-muted hover:text-state-error hover:bg-state-error-subtle text-xs font-medium transition-colors disabled:opacity-50"
+              >
+                {isRemoving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                )}
+                <span>Remove Reminders ({scheduledCount})</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Live Status and Alerts */}
+        <div aria-live="polite" aria-atomic="true">
+          {remindersNotice && (
+            <div
+              className={`p-3.5 rounded-xl text-xs flex items-start gap-2.5 ${
+                remindersNotice.type === 'success'
+                  ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-800 dark:text-emerald-300'
+                  : remindersNotice.type === 'error'
+                  ? 'bg-state-error-subtle border border-state-error text-state-error'
+                  : 'bg-accent-subtle border border-accent/30 text-accent'
+              }`}
+            >
+              {remindersNotice.type === 'success' ? (
+                <CheckCircle2 className="h-4 w-4 shrink-0 mt-0.5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+              ) : (
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
+              )}
+              <span>{remindersNotice.message}</span>
+            </div>
+          )}
+
+          {isSyncing && syncProgress && (
+            <div className="p-3.5 rounded-xl bg-accent-subtle/80 border border-accent/30 text-xs text-accent space-y-2">
+              <div className="flex items-center justify-between">
+                <span>
+                  Syncing task {syncProgress.current} of {syncProgress.total}: &ldquo;{syncProgress.taskTitle}&rdquo;
+                </span>
+                <span className="font-mono">
+                  {Math.round((syncProgress.current / syncProgress.total) * 100)}%
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-paper rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-accent transition-all duration-200"
+                  style={{ width: `${(syncProgress.current / syncProgress.total) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {isRemoving && removeProgress && (
+            <div className="p-3.5 rounded-xl bg-paper-subtle border border-rule text-xs text-ink-muted">
+              Removing event {removeProgress.current} of {removeProgress.total} from Google Calendar...
+            </div>
+          )}
+        </div>
+
+        {/* Task Selection Area */}
+        <div className="space-y-3">
+          <div className="flex items-center justify-between text-xs text-ink-muted">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleToggleSelectAll}
+                className="font-medium text-accent hover:underline min-h-[32px] flex items-center"
+              >
+                {selectedTaskIds.length === activePlan.timeline.length
+                  ? 'Deselect All Tasks'
+                  : 'Select All Tasks'}
+              </button>
+              <span>·</span>
+              <span>
+                {selectedTaskIds.length} of {activePlan.timeline.length} tasks selected
+              </span>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleSyncReminders}
+              disabled={isSyncing || selectedTaskIds.length === 0}
+              className="inline-flex items-center gap-2 min-h-[40px] px-4 py-2 rounded-xl bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors shadow-xs disabled:opacity-50"
+            >
+              {isSyncing ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+              ) : (
+                <Clock className="h-4 w-4" aria-hidden="true" />
+              )}
+              <span>Sync Reminders ({selectedTaskIds.length})</span>
+            </button>
+          </div>
+
+          {/* Quick task checklist for selection */}
+          <div className="max-h-60 overflow-y-auto rounded-xl border border-rule bg-paper p-3 divide-y divide-rule/60 text-xs">
+            {activePlan.timeline.map((task) => {
+              const isSelected = selectedTaskIds.includes(task.id);
+              const isScheduled = Boolean(task.googleCalendarEventId);
+
+              return (
+                <label
+                  key={task.id}
+                  className="py-2.5 px-2 flex items-center justify-between gap-3 hover:bg-paper-subtle/60 rounded cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={() => handleToggleTask(task.id)}
+                      className="rounded border-rule text-accent focus:ring-accent h-4 w-4"
+                      aria-label={`Select ${task.title}`}
+                    />
+                    <span className={`truncate text-ink ${isSelected ? 'font-medium' : ''}`}>
+                      {task.title}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    {isScheduled && (
+                      <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                        Scheduled
+                      </span>
+                    )}
+                    <span className="font-mono text-ink-muted text-[11px]">{task.dueDate}</span>
+                  </div>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+
       {/* Phased Vertical Timeline Track */}
       <div className="space-y-8">
         {TIMELINE_PHASES.map((phase) => {
@@ -142,13 +519,24 @@ export function TabTimeline() {
                           )}
                         </button>
                         <div>
-                          <h4
-                            className={`text-sm font-semibold text-ink ${
-                              task.completed ? 'line-through text-ink-muted' : ''
-                            }`}
-                          >
-                            {task.title}
-                          </h4>
+                          <div className="flex items-center gap-2">
+                            <h4
+                              className={`text-sm font-semibold text-ink ${
+                                task.completed ? 'line-through text-ink-muted' : ''
+                              }`}
+                            >
+                              {task.title}
+                            </h4>
+                            {task.googleCalendarEventId && (
+                              <span
+                                title="Synced to Google Calendar"
+                                className="inline-flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20"
+                              >
+                                <Bell className="h-2.5 w-2.5" aria-hidden="true" />
+                                <span>Reminder Active</span>
+                              </span>
+                            )}
+                          </div>
                           <p className="mt-1 text-xs text-ink-muted leading-relaxed">
                             {task.description}
                           </p>

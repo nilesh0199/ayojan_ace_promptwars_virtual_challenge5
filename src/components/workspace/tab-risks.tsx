@@ -3,11 +3,13 @@
 import React from 'react';
 import { usePlan } from '../plan-context';
 import { RiskSeverity } from '@/lib/constants';
+import { getFriendlyAiError } from '@/lib/gemini';
 import {
   AlertTriangle,
   ShieldCheck,
   RefreshCw,
   ShieldAlert,
+  BookOpen,
 } from 'lucide-react';
 
 const SEVERITY_BADGES: Record<RiskSeverity, { bg: string; text: string }> = {
@@ -18,7 +20,16 @@ const SEVERITY_BADGES: Record<RiskSeverity, { bg: string; text: string }> = {
 };
 
 export function TabRisks() {
-  const { activePlan, activeRisks, generateRisks, isLoadingRisks, error } = usePlan();
+  const {
+    activePlan,
+    activeRisks,
+    generateRisks,
+    isLoadingRisks,
+    error,
+    errorCode,
+    retryLastAction,
+    loadSavedExample,
+  } = usePlan();
 
   if (!activePlan) return null;
 
@@ -59,8 +70,43 @@ export function TabRisks() {
       </div>
 
       {error && (
-        <div className="p-4 rounded-xl border border-state-error bg-state-error-subtle text-xs text-state-error">
-          {error}
+        <div
+          role="alert"
+          className="p-4 rounded-xl border border-state-error bg-state-error-subtle text-xs text-state-error flex items-start gap-3"
+        >
+          <AlertTriangle className="h-5 w-5 shrink-0 mt-0.5 text-state-error" aria-hidden="true" />
+          <div className="flex-1">
+            <h4 className="font-serif font-bold text-sm text-state-error">
+              {getFriendlyAiError(errorCode).title}
+            </h4>
+            <p className="mt-1 leading-relaxed text-state-error">{error}</p>
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (retryLastAction) {
+                    retryLastAction();
+                  } else {
+                    generateRisks();
+                  }
+                }}
+                className="inline-flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-md bg-accent text-accent-contrast text-xs font-semibold hover:opacity-90 transition-opacity"
+                aria-label="Retry safeguards assessment"
+              >
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                Retry
+              </button>
+              <button
+                type="button"
+                onClick={() => loadSavedExample('wedding')}
+                className="inline-flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-md bg-paper-card text-ink border border-rule text-xs font-semibold hover:bg-paper-subtle transition-colors"
+                aria-label="Load pre-built saved example celebration plan"
+              >
+                <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                Load saved example
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

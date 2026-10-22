@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { usePlan } from '../plan-context';
 import { formatCurrency } from '@/lib/budget';
+import { getFriendlyAiError } from '@/lib/gemini';
 import {
   X,
   SlidersHorizontal,
@@ -12,6 +13,7 @@ import {
   ArrowRight,
   TrendingUp,
   TrendingDown,
+  BookOpen,
 } from 'lucide-react';
 
 interface ReplanModalProps {
@@ -28,6 +30,9 @@ export function ReplanModal({ isOpen, onClose }: ReplanModalProps) {
     rejectReplan,
     isReplanning,
     error,
+    errorCode,
+    retryLastAction,
+    loadSavedExample,
   } = usePlan();
 
   const [editBudget, setEditBudget] = useState<number | string>('');
@@ -143,9 +148,46 @@ export function ReplanModal({ isOpen, onClose }: ReplanModalProps) {
         </div>
 
         {error && (
-          <div className="mb-6 rounded-lg border border-state-error bg-state-error-subtle p-3 text-xs text-state-error flex items-start gap-2">
+          <div
+            role="alert"
+            className="mb-6 rounded-lg border border-state-error bg-state-error-subtle p-3 text-xs text-state-error flex items-start gap-2.5"
+          >
             <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
-            <span>{error}</span>
+            <div className="flex-1">
+              <h4 className="font-semibold text-xs text-state-error">
+                {getFriendlyAiError(errorCode).title}
+              </h4>
+              <p className="mt-0.5 leading-relaxed">{error}</p>
+              <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (retryLastAction) {
+                      retryLastAction();
+                    } else {
+                      handleStartReplan(new Event('submit') as unknown as React.FormEvent);
+                    }
+                  }}
+                  className="inline-flex items-center gap-1 min-h-[36px] px-2.5 py-1 rounded-md bg-accent text-accent-contrast text-xs font-semibold hover:opacity-90 transition-opacity"
+                  aria-label="Retry recalculating celebration plan updates"
+                >
+                  <RefreshCw className="h-3 w-3" aria-hidden="true" />
+                  Retry
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    loadSavedExample('wedding');
+                    onClose();
+                  }}
+                  className="inline-flex items-center gap-1 min-h-[36px] px-2.5 py-1 rounded-md bg-paper-card text-ink border border-rule text-xs font-semibold hover:bg-paper-subtle transition-colors"
+                  aria-label="Load pre-built saved example celebration plan"
+                >
+                  <BookOpen className="h-3 w-3" aria-hidden="true" />
+                  Load saved example
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

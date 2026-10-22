@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
-import { GeminiApiError } from './gemini';
+import { GeminiApiError, mapGeminiError } from './gemini';
 import { apiLimiter, getClientIp } from './ratelimit';
 
 export const MAX_BODY_BYTES = 300 * 1024; // 300 KB ceiling to prevent DoS
@@ -25,6 +25,7 @@ export function checkRequestSafety(request: Request): SafetyCheckResult {
       response: NextResponse.json(
         {
           error: 'Payload Too Large',
+          code: 'PAYLOAD_TOO_LARGE',
           message: `Request body exceeds maximum permissible size of ${MAX_BODY_BYTES / 1024}KB`,
         },
         { status: 413 }
@@ -40,6 +41,7 @@ export function checkRequestSafety(request: Request): SafetyCheckResult {
       response: NextResponse.json(
         {
           error: 'Too Many Requests',
+          code: 'RATE_LIMIT_EXCEEDED',
           message: `Rate limit reached. Please wait ${rateCheck.retryAfterSeconds} seconds before trying again.`,
           retryAfterSeconds: rateCheck.retryAfterSeconds,
         },
@@ -58,13 +60,15 @@ export function checkRequestSafety(request: Request): SafetyCheckResult {
 
 /**
  * Global API error mapper that converts domain errors into consistent JSON responses.
- * Never leaks secrets or full stack traces to the client.
+ * Never leaks raw upstream error JSON, stack traces, or secrets to the client.
+ * Returns typed error codes and friendly, positive messages.
  */
 export function handleApiError(err: unknown): NextResponse {
   if (err instanceof ZodError) {
     return NextResponse.json(
       {
         error: 'Validation Error',
+        code: 'AI_VALIDATION_FAILED',
         message: 'Invalid request payload format or parameters',
         issues: err.issues.map((i) => ({
           path: i.path.join('.'),
@@ -79,21 +83,20 @@ export function handleApiError(err: unknown): NextResponse {
     return NextResponse.json(
       {
         error: 'AI Planning Service Alert',
+        code: err.code,
         message: err.message,
       },
       { status: err.statusCode }
     );
   }
 
-  const genericMessage =
-    err instanceof Error ? err.message : 'An unexpected server error occurred';
-
+  const mapped = mapGeminiError(err);
   return NextResponse.json(
     {
-      error: 'Internal Server Error',
-      message: 'Failed to process plan request. Please retry.',
-      debugMessage: process.env.NODE_ENV === 'development' ? genericMessage : undefined,
+      error: 'AI Planning Service Alert',
+      code: mapped.code,
+      message: mapped.message,
     },
-    { status: 500 }
+    { status: mapped.statusCode }
   );
 }

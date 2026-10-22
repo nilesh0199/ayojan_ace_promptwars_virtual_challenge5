@@ -70,6 +70,30 @@ export default function PrivacyPage() {
           </section>
 
           <section className="rounded-2xl border border-rule bg-paper-card p-6 shadow-xs space-y-3">
+            <div className="flex items-center gap-2 text-accent">
+              <Lock className="h-5 w-5" aria-hidden="true" />
+              <h2 className="font-serif font-bold text-lg text-ink">Google Sign-in &amp; Optional Google Calendar Integration</h2>
+            </div>
+            <p>
+              {APP_NAME} provides an optional integration with Google Calendar to help you stay on schedule with milestone deadlines:
+            </p>
+            <ul className="list-disc list-inside space-y-1.5 text-xs">
+              <li>
+                <strong>Requested Scopes:</strong> When you connect your calendar, we request the narrow <code>https://www.googleapis.com/auth/calendar.events</code> permission, allowing the app solely to create and manage the specific milestone events you select.
+              </li>
+              <li>
+                <strong>In-Memory Token Storage ONLY:</strong> OAuth access tokens are stored strictly in client runtime memory and expire naturally. We <em>never</em> persist Google OAuth access tokens or refresh tokens in Firestore, localStorage, session cookies, or server logs.
+              </li>
+              <li>
+                <strong>No Background Calendar Access:</strong> We never read your existing personal calendar events, never inspect other calendars, and never access your calendar in the background without explicit user interaction.
+              </li>
+              <li>
+                <strong>Revocation &amp; Removal:</strong> You can delete all synced reminder events anytime with one click using the &ldquo;Remove Reminders&rdquo; control in the Timeline tab, or revoke permission at any time through your Google Account security permissions.
+              </li>
+            </ul>
+          </section>
+
+          <section className="rounded-2xl border border-rule bg-paper-card p-6 shadow-xs space-y-3">
             <h2 className="font-serif font-bold text-lg text-ink">Data Retention and Deletion</h2>
             <p>
               You maintain total control over your celebration plans. You can rename or permanently delete any saved plan at any time from the Saved Plans screen. Deleting a plan completely purges its records from Firestore.
