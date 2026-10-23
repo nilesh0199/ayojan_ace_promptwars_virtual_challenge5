@@ -61,6 +61,44 @@ describe('API /api/plan/risks', () => {
     expect(data.risks).toHaveLength(3);
   });
 
+  it('falls back to deterministic template risks when AI providers fail', async () => {
+    vi.mocked(geminiModule.callGeminiStructured).mockRejectedValueOnce(
+      new geminiModule.GeminiApiError('Service unavailable', 503, true, 'AI_BUSY')
+    );
+
+    const req = new Request('http://localhost:3000/api/plan/risks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(SAMPLE_WEDDING_PLAN),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.risks.length).toBeGreaterThan(0);
+    expect(data.assessedAt).toBeDefined();
+  });
+
+  it('propagates AI error when template fallback is explicitly disabled', async () => {
+    vi.mocked(geminiModule.callGeminiStructured).mockRejectedValueOnce(
+      new geminiModule.GeminiApiError('AI busy', 503, true, 'AI_BUSY')
+    );
+
+    const req = new Request('http://localhost:3000/api/plan/risks', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-disable-template-fallback': 'true',
+      },
+      body: JSON.stringify(SAMPLE_WEDDING_PLAN),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.code).toBe('AI_BUSY');
+  });
+
   it('returns 400 on invalid plan payload', async () => {
     const req = new Request('http://localhost:3000/api/plan/risks', {
       method: 'POST',

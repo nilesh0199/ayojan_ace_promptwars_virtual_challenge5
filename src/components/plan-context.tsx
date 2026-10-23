@@ -17,7 +17,11 @@ import { computePlanDiff, applyReplanDiff, PlanDiffView } from '@/lib/diff';
 import { reflowTimelineDates } from '@/lib/timeline';
 import { GeminiErrorCode, getFriendlyAiError } from '@/lib/gemini';
 import { useAuth } from './auth-context';
-import { saveUserPlan, savePlanVersion } from '@/lib/firebase/firestore';
+import {
+  saveUserPlan,
+  savePlanVersion,
+  getFriendlyFirestoreErrorMessage,
+} from '@/lib/firebase/firestore';
 
 interface PlanContextType {
   activePlan: EventPlan | null;
@@ -53,6 +57,8 @@ interface PlanContextType {
   updateVendorStatus: (vendorId: string, status: VendorStatus) => void;
   updateEventDate: (newDate: string) => void;
   saveToCloud: () => Promise<boolean>;
+  saveSuccessNotice: { message: string; link?: string } | null;
+  clearSaveSuccessNotice: () => void;
   setActivePlan: (plan: EventPlan | null) => void;
   clearError: () => void;
 }
@@ -62,8 +68,14 @@ const PlanContext = createContext<PlanContextType | undefined>(undefined);
 const LOCAL_STORAGE_KEY = 'aayojan_ace_active_plan';
 const LOCAL_STORAGE_HIST_KEY = 'aayojan_ace_plan_history';
 
-export function PlanProvider({ children }: { children: React.ReactNode }) {
-  const [activePlan, setActivePlanState] = useState<EventPlan | null>(null);
+export function PlanProvider({
+  children,
+  initialPlan = null,
+}: {
+  children: React.ReactNode;
+  initialPlan?: EventPlan | null;
+}) {
+  const [activePlan, setActivePlanState] = useState<EventPlan | null>(initialPlan);
   const [planHistory, setPlanHistory] = useState<EventPlan[]>([]);
   const [activeRisks, setActiveRisks] = useState<RiskRegister | null>(null);
   const [pendingDiff, setPendingDiff] = useState<PlanDiffView | null>(null);
@@ -82,12 +94,21 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   >([]);
   const [dateReflowNotice, setDateReflowNotice] = useState<string | null>(null);
   const [guestPlanPrompt, setGuestPlanPrompt] = useState<EventPlan | null>(null);
+  const [saveSuccessNotice, setSaveSuccessNotice] = useState<{
+    message: string;
+    link?: string;
+  } | null>(null);
 
   const { user, openSaveModal } = useAuth();
   const prevUserRef = useRef(user);
+  const pendingCloudSaveRef = useRef<boolean>(false);
 
   // Load from local storage on mount (Guest Mode schema-validated)
   useEffect(() => {
+    if (initialPlan) {
+      setActivePlanState(initialPlan);
+      return;
+    }
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (stored) {
@@ -105,7 +126,7 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
     } catch {
       // Ignore corrupt storage
     }
-  }, []);
+  }, [initialPlan]);
 
   // Handle user state transitions: Sign-out wipe & Sign-in guest import detection
   useEffect(() => {
@@ -132,20 +153,57 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
 
     // Transition: Signed in
     if (!prevUser && user) {
-      try {
-        const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
-        if (stored) {
-          const parsed = JSON.parse(stored);
-          const validated = eventPlanSchema.safeParse(parsed);
-          if (validated.success && !validated.data.isSavedExample) {
-            setGuestPlanPrompt(validated.data);
+      const hadPendingSave =
+        pendingCloudSaveRef.current ||
+        (typeof sessionStorage !== 'undefined' &&
+          sessionStorage.getItem('pending_cloud_save') === 'true');
+
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('pending_cloud_save');
+      }
+      pendingCloudSaveRef.current = false;
+
+      if (hadPendingSave && activePlan) {
+        // Automatically complete cloud save for the plan after sign-in
+        const planToSave: EventPlan = {
+          ...activePlan,
+          id: activePlan.id.startsWith('sample-')
+            ? (typeof crypto !== 'undefined' && crypto.randomUUID
+                ? crypto.randomUUID()
+                : `plan_${Date.now()}`)
+            : activePlan.id,
+          isSavedExample: false,
+          updatedAt: new Date().toISOString(),
+        };
+
+        saveUserPlan(user.uid, planToSave)
+          .then(() => savePlanVersion(user.uid, planToSave.id, planToSave))
+          .then(() => {
+            setActivePlanState(planToSave);
+            setSaveSuccessNotice({
+              message: `Plan "${planToSave.title}" saved successfully to your cloud account!`,
+              link: '/saved',
+            });
+          })
+          .catch((err) => {
+            setError(getFriendlyFirestoreErrorMessage(err));
+          });
+      } else {
+        try {
+          const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            const validated = eventPlanSchema.safeParse(parsed);
+            if (validated.success && !validated.data.isSavedExample) {
+              setGuestPlanPrompt(validated.data);
+            }
           }
+        } catch {
+          // Ignore
         }
-      } catch {
-        // Ignore
       }
     }
-  }, [user]);
+  }, [user, activePlan]);
 
   // Debounced auto-save to Firestore for signed-in users
   useEffect(() => {
@@ -487,16 +545,36 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
   const saveToCloud = async (): Promise<boolean> => {
     if (!activePlan) return false;
     if (!user) {
+      pendingCloudSaveRef.current = true;
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('pending_cloud_save', 'true');
+      }
       openSaveModal();
       return false;
     }
 
     try {
-      await saveUserPlan(user.uid, activePlan);
-      await savePlanVersion(user.uid, activePlan.id, activePlan);
+      const planToSave: EventPlan = {
+        ...activePlan,
+        id: activePlan.id.startsWith('sample-')
+          ? (typeof crypto !== 'undefined' && crypto.randomUUID
+              ? crypto.randomUUID()
+              : `plan_${Date.now()}`)
+          : activePlan.id,
+        isSavedExample: false,
+        updatedAt: new Date().toISOString(),
+      };
+
+      await saveUserPlan(user.uid, planToSave);
+      await savePlanVersion(user.uid, planToSave.id, planToSave);
+      setActivePlanState(planToSave);
+      setSaveSuccessNotice({
+        message: `Plan "${planToSave.title}" saved successfully to your cloud account!`,
+        link: '/saved',
+      });
       return true;
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save plan to Firebase');
+      setError(getFriendlyFirestoreErrorMessage(err));
       return false;
     }
   };
@@ -537,6 +615,8 @@ export function PlanProvider({ children }: { children: React.ReactNode }) {
         updateVendorStatus,
         updateEventDate,
         saveToCloud,
+        saveSuccessNotice,
+        clearSaveSuccessNotice: () => setSaveSuccessNotice(null),
         setActivePlan,
         clearError: () => {
           setError(null);

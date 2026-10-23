@@ -13,6 +13,7 @@ import { TabVendors } from '@/components/workspace/tab-vendors';
 import { TabIdeas } from '@/components/workspace/tab-ideas';
 import { TabRisks } from '@/components/workspace/tab-risks';
 import { TabHistory } from '@/components/workspace/tab-history';
+import { FullEventReport } from '@/components/workspace/full-event-report';
 import {
   LayoutDashboard,
   Coins,
@@ -38,7 +39,7 @@ const TABS = [
 type TabId = (typeof TABS)[number]['id'];
 
 export default function WorkspacePage() {
-  const { activePlan, loadSavedExample } = usePlan();
+  const { activePlan, activeRisks, loadSavedExample } = usePlan();
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [isReplanOpen, setIsReplanOpen] = useState(false);
 
@@ -79,59 +80,68 @@ export default function WorkspacePage() {
           /* Loaded Workspace */
           <div>
             {/* Header Banner */}
-            <WorkspaceHeader onOpenReplan={() => setIsReplanOpen(true)} />
+            <WorkspaceHeader
+              onOpenReplan={() => setIsReplanOpen(true)}
+              activeTabName={TABS.find((t) => t.id === activeTab)?.label}
+            />
 
-            {/* Navigation Tabs */}
-            <div
-              role="tablist"
-              aria-label="Workspace plan sections"
-              className="flex items-center gap-1 overflow-x-auto border-b border-rule pb-px mb-8 scrollbar-none no-print"
-            >
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isSelected = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    id={`tab-${tab.id}`}
-                    role="tab"
-                    type="button"
-                    aria-selected={isSelected}
-                    aria-controls={`panel-${tab.id}`}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`inline-flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-medium transition-all border-b-2 whitespace-nowrap min-h-[44px] rounded-t-lg ${
-                      isSelected
-                        ? 'border-accent text-accent font-bold bg-accent-subtle/50'
-                        : 'border-transparent text-ink-muted hover:text-ink hover:bg-paper-subtle/70'
-                    }`}
-                  >
-                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
+            {/* Screen Tab Container (Hidden in print when data-print-scope="full") */}
+            <div className="workspace-tab-container">
+              {/* Navigation Tabs */}
+              <div
+                role="tablist"
+                aria-label="Workspace plan sections"
+                className="flex items-center gap-1 overflow-x-auto border-b border-rule pb-px mb-8 scrollbar-none no-print"
+              >
+                {TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  const isSelected = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      id={`tab-${tab.id}`}
+                      role="tab"
+                      type="button"
+                      aria-selected={isSelected}
+                      aria-controls={`panel-${tab.id}`}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`inline-flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-medium transition-all border-b-2 whitespace-nowrap min-h-[44px] rounded-t-lg ${
+                        isSelected
+                          ? 'border-accent text-accent font-bold bg-accent-subtle/50'
+                          : 'border-transparent text-ink-muted hover:text-ink hover:bg-paper-subtle/70'
+                      }`}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Tab Panels */}
+              <div
+                id={`panel-${activeTab}`}
+                role="tabpanel"
+                aria-labelledby={`tab-${activeTab}`}
+                tabIndex={0}
+                className="focus:outline-hidden"
+              >
+                {activeTab === 'overview' && (
+                  <TabOverview onSelectTab={(t) => setActiveTab(t as TabId)} />
+                )}
+                {activeTab === 'budget' && (
+                  <TabBudget onOpenReplan={() => setIsReplanOpen(true)} />
+                )}
+                {activeTab === 'timeline' && <TabTimeline />}
+                {activeTab === 'vendors' && <TabVendors />}
+                {activeTab === 'ideas' && <TabIdeas />}
+                {activeTab === 'risks' && <TabRisks />}
+                {activeTab === 'history' && <TabHistory />}
+              </div>
             </div>
 
-            {/* Tab Panels */}
-            <div
-              id={`panel-${activeTab}`}
-              role="tabpanel"
-              aria-labelledby={`tab-${activeTab}`}
-              tabIndex={0}
-              className="focus:outline-hidden"
-            >
-              {activeTab === 'overview' && (
-                <TabOverview onSelectTab={(t) => setActiveTab(t as TabId)} />
-              )}
-              {activeTab === 'budget' && (
-                <TabBudget onOpenReplan={() => setIsReplanOpen(true)} />
-              )}
-              {activeTab === 'timeline' && <TabTimeline />}
-              {activeTab === 'vendors' && <TabVendors />}
-              {activeTab === 'ideas' && <TabIdeas />}
-              {activeTab === 'risks' && <TabRisks />}
-              {activeTab === 'history' && <TabHistory />}
-            </div>
+            {/* Dedicated Print Report (Rendered exclusively for printing full report) */}
+            <FullEventReport plan={activePlan} risks={activeRisks} />
 
             {/* Modal for Replanning Hero feature */}
             <ReplanModal

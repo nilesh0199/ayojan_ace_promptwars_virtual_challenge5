@@ -90,17 +90,50 @@ body {
   padding-top: env(safe-area-inset-top, 1rem);
 }
 
-/* Print-friendly stylesheet (Save as PDF) */
+/* Print-friendly stylesheet (Save as PDF & Physical Print) */
 @media print {
   @page {
     margin: 1.5cm;
-    size: auto;
+    size: A4 portrait;
   }
 
+  /* Force light theme colors regardless of user's active screen theme */
+  :root,
+  .dark,
+  html,
   body {
+    --color-paper: #ffffff !important;
+    --color-paper-card: #ffffff !important;
+    --color-paper-subtle: #f8f8f8 !important;
+    --color-ink: #111111 !important;
+    --color-ink-muted: #333333 !important;
+    --color-ink-faint: #555555 !important;
+    --color-rule: #333333 !important;
+    --color-accent: #0D5852 !important;
     background-color: #ffffff !important;
-    color: #000000 !important;
-    font-size: 11pt;
+    color: #111111 !important;
+    font-size: 11pt !important;
+    print-color-adjust: exact !important;
+    -webkit-print-color-adjust: exact !important;
+  }
+
+  /* Ensure text is high-contrast near-black (>= 7:1) in print */
+  p, h1, h2, h3, h4, span, div, td, th {
+    color: #111111 !important;
+  }
+
+  .text-ink-muted,
+  .text-ink-faint {
+    color: #333333 !important;
+  }
+
+  /* Dark readable borders */
+  .border,
+  .border-b,
+  .border-t,
+  .border-l,
+  .border-r {
+    border-color: #444444 !important;
   }
 
   html,
@@ -112,6 +145,7 @@ body {
     min-height: 0 !important;
   }
 
+  /* Hide screen-only interactive navigation and controls */
   .no-print,
   aside,
   nav,
@@ -122,14 +156,22 @@ body {
     display: none !important;
   }
 
-  .print-break-inside-avoid {
-    break-inside: avoid;
-    page-break-inside: avoid;
+  /* Print Scoping: Full Report vs Current Tab */
+  body[data-print-scope="full"] .workspace-tab-container {
+    display: none !important;
   }
 
-  .print-break-before {
-    break-before: page;
-    page-break-before: always;
+  body[data-print-scope="full"] .dedicated-print-report {
+    display: block !important;
+  }
+
+  body[data-print-scope="tab"] .dedicated-print-report {
+    display: none !important;
+  }
+
+  /* Hidden on screen by default */
+  .dedicated-print-report {
+    display: none;
   }
 
   /* Expand full width for paper */
@@ -141,10 +183,21 @@ body {
     padding: 0 !important;
   }
 
-  /* Ledger borders in print */
-  .border,
-  .border-b,
-  .border-t {
-    border-color: #cccccc !important;
+  /* Repeat table headers across multi-page printouts */
+  thead {
+    display: table-header-group !important;
+  }
+
+  /* Avoid awkward page breaks inside cards, table rows, and sections */
+  tr,
+  .print-card,
+  .print-break-inside-avoid {
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+
+  .print-break-before {
+    break-before: page !important;
+    page-break-before: always !important;
   }
 }

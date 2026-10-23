@@ -9,10 +9,10 @@ This document outlines the threat model, mitigation strategies, defense-in-depth
 | Threat Vector | Severity | Attack Scenario | Implemented Mitigation |
 | :--- | :--- | :--- | :--- |
 | **Prompt Injection / Jailbreak** | High | Attacker embeds instructions in event inputs (e.g. non-negotiables) attempting to alter system instructions, extract server keys, or output toxic content. | All user input is wrapped inside strict `<<<USER_INPUT_DATA>>>` delimiters with explicit instructions to ignore commands. Responses are restricted to structured JSON and validated against Zod schemas. |
-| **API Denial of Service / Exhaustion** | High | Automated scripts spam `/api/plan/generate` or `/api/plan/replan` to exhaust Google Gemini API quota and incur financial cost. | In-memory token bucket rate limiter (`TokenBucketLimiter`) per client IP, 300KB request body size cap, and in-memory LRU cache on duplicate inputs. |
-| **Secret Exfiltration** | Critical | Client-side bundles expose `GEMINI_API_KEY` or service account credentials. | `GEMINI_API_KEY` is strictly server-only. It is accessed only in route handlers and excluded from client bundles. Strict `.gitignore` prevents secret check-in. |
-| **OAuth Token Interception / Storage Leak** | High | Access tokens for Google Calendar are persisted in local storage or cloud databases where third-party scripts could access them. | Google Calendar OAuth access tokens are stored strictly in client runtime memory (`inMemoryCalendarToken`) and expire naturally. They are never written to localStorage, Firestore, cookies, or logs. |
-| **Unauthorized Data Access in Cloud** | Critical | Malicious authenticated user tries to read, mutate, or delete another user's saved plans in Firestore. | Firestore security rules enforce `request.auth.uid == userId` under `/users/{userId}/plans/{planId}` and all subcollection versions `/users/{userId}/plans/{planId}/versions/{versionId}`. Root collections have `allow read, write: if false;`. |
+| **API Denial of Service / Exhaustion** | High | Automated scripts spam `/api/plan/generate` or `/api/plan/replan` to exhaust Google Gemini API quota and incur financial cost. | In-memory token bucket rate limiter (`TokenBucketLimiter`) per client IP, 300KB request body size cap, in-memory LRU cache on duplicate inputs, secondary GCP project backup key, Groq Cloud failover, and built-in template planner. |
+| **Secret Exfiltration** | Critical | Client-side bundles expose `GEMINI_API_KEY`, `GROQ_API_KEY`, or service account credentials. | `GEMINI_API_KEY`, `GEMINI_API_KEY_FALLBACK`, and `GROQ_API_KEY` are strictly server-only. Accessed solely in server route handlers and excluded from client bundles. Strict `.gitignore` prevents secret check-in. |
+| **OAuth Token Interception / Storage Leak** | High | Access tokens for Google Calendar are persisted in local storage or cloud databases where third-party scripts could access them. | Google Calendar default path requires zero OAuth (direct URL template & .ics download). Advanced OAuth auto-sync stores access tokens strictly in client runtime memory and clears immediately on 401, session close, or sign-out. Never written to localStorage, Firestore, cookies, or logs. |
+| **Unauthorized Data Access in Cloud** | Critical | Malicious authenticated user tries to read, mutate, or delete another user's saved plans in Firestore. | Firestore security rules enforce `request.auth.uid == userId` under `/users/{userId}/plans/{planId}` and all subcollection versions `/users/{userId}/plans/{planId}/versions/{versionId}`. Root collections have `allow read, write: if false;`. Sparse fields with `undefined` values are omitted prior to serialization. |
 | **Cross-Site Scripting (XSS)** | High | Injected malicious script in event notes or user profile renders in browser. | React automated entity encoding; zero usage of `dangerouslySetInnerHTML` for user content; strict Content Security Policy (CSP) defined in `next.config.mjs`. |
 | **Clickjacking / Frame Hijacking** | Medium | Attacker embeds Aayojan Ace in an iframe to trick user clicks. | Security headers: `X-Frame-Options: DENY` and `frame-ancestors 'none'` in CSP. |
 
@@ -71,11 +71,15 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 2. **Safe Server-Only Operational Logging**:
    - Server-side error alerts log high-level metadata only (`[Gemini Server Alert] type=Quota code=AI_BUSY status=429 attempt=1 model=gemini-3.8-flash`).
    - Strictly omits prompt contents, user input text, credentials, or API keys.
-3. **Overload Hardening & In-Memory Circuit Breaker**:
-   - *Transient Retries*: On HTTP 503, 429, or `UNAVAILABLE` responses, calls retry up to 2 times with exponential backoff and random jitter (`400ms * 2^attempt + jitter`).
-   - *Fallback Switching*: After primary model retries are exhausted, calls automatically route to `GEMINI_FALLBACK_MODEL` (`gemini-3.5-flash`, with 1 retry).
-   - *In-Memory Circuit Breaker*: After 3 consecutive overload failures on the primary model, an in-memory circuit breaker trips for 60 seconds, bypassing the primary model and directly utilizing the fallback model to prevent repeated timeout latency.
-   - *Time Budgets*: Enforces a 25-second overall ceiling and 8-second per-attempt timeout so requests terminate predictably before edge/serverless gateway timeouts.
+3. **Overload Hardening, Multi-Provider Failover & Circuit Breakers**:
+   - *Cascading Execution Order*:
+     1. Primary Key (`GEMINI_API_KEY`) + Primary Model (`gemini-3.8-flash`) [up to 2 retries with exponential backoff & jitter]
+     2. Primary Key + Fallback Model (`gemini-3.5-flash`) [1 retry]
+     3. Groq Provider (if `GROQ_API_KEY` configured, on overload / quota / timeout / invalid-key) [1 retry]. Hardened against demo expiration (`GROQ_KEY_EXPIRES_ON`) and 401/403 authorization rejection: maps to `AI_BACKUP_KEY_EXPIRED`, disables the provider for process lifetime (>= 1 hour) with safe single-instance logging, and continues seamlessly to the template planner.
+     4. Built-in Deterministic Template Planner (zero network transmission, complete schema-verified plan)
+   - *Independent Per-Combination Circuit Breakers*: Each `(provider, model)` pair maintains its own failure counter and 60-second cooldown timer. If a model trips due to repeated overloads, subsequent requests immediately bypass it and invoke the working combination without latency penalties.
+   - *Targeted Schema Repair Retry*: If a model returns malformed JSON or invalid schema properties, an automated single repair instruction is dispatched before declaring the attempt failed.
+   - *Total Time Budget*: Strict 25-second total budget and 8-second per-attempt timeout guarantee requests terminate cleanly before platform gateway limits.
 
 ---
 
@@ -87,7 +91,7 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
    - `getMissingFirebaseConfigVars()` validates the config on mount and detects missing, empty, whitespace-only, or obvious placeholder templates (values starting with `<`, `your_`, `mock-`, etc.) without ever disclosing or logging actual credentials.
    - **Important Operations Note**: Because `NEXT_PUBLIC_*` values are baked into client JS bundles at build time, any changes to Firebase environment variables in Vercel require triggering a **Redeploy**. For local development, set values in `.env.local` and **restart the Next.js dev server** (`npm run dev`).
 2. **Server Health Check (`/api/health`)**:
-   Protected by IP-based token bucket rate limiting. Returns only abstract booleans and status strings (`{ status: "ok" | "degraded", gemini: "configured" | "missing", model: "configured" | "missing" }`). Never returns environment values, API keys, or stack traces.
+   Protected by IP-based token bucket rate limiting. Returns only abstract booleans and status strings (`{ status: "ok" | "degraded", gemini: "configured" | "missing", groq: "configured" | "missing" | "expired", fallbackKey: "configured" | "missing", model: "configured" | "missing" }`). Never returns environment values, API keys, or stack traces.
 
 ---
 

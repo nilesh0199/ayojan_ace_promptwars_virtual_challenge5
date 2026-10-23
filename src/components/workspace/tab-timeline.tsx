@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { usePlan } from '../plan-context';
+import { useAuth } from '../auth-context';
 import { TIMELINE_PHASES } from '@/lib/constants';
 import { triggerIcsDownload, generateTimelineIcs } from '@/lib/ics';
 import {
@@ -11,9 +12,11 @@ import {
 import {
   syncTasksToGoogleCalendar,
   removeGoogleCalendarReminders,
+  buildGoogleCalendarTemplateUrl,
   MAX_CALENDAR_EVENTS_SYNC,
   SyncProgress,
 } from '@/lib/google-calendar';
+import { DraftInviteModal } from './draft-invite-modal';
 import {
   Calendar,
   CalendarCheck,
@@ -29,6 +32,11 @@ import {
   Check,
   AlertCircle,
   ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Share2,
+  AlertTriangle,
+  Download,
 } from 'lucide-react';
 
 export function TabTimeline() {
@@ -39,6 +47,7 @@ export function TabTimeline() {
     updateTimelineTasks,
     dateReflowNotice,
   } = usePlan();
+  const { user } = useAuth();
 
   const [newEventDateInput, setNewEventDateInput] = useState(activePlan?.date || '');
 
@@ -48,6 +57,8 @@ export function TabTimeline() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [showAdvancedSync, setShowAdvancedSync] = useState(false);
+  const [draftInviteTask, setDraftInviteTask] = useState<any>(null);
   const [syncProgress, setSyncProgress] = useState<SyncProgress | null>(null);
   const [removeProgress, setRemoveProgress] = useState<{ current: number; total: number } | null>(
     null
@@ -85,7 +96,7 @@ export function TabTimeline() {
     setIsConnecting(true);
     setRemindersNotice(null);
     try {
-      await requestGoogleCalendarAccess();
+      await requestGoogleCalendarAccess(user?.email || undefined);
       setIsCalendarConnected(true);
       setRemindersNotice({
         type: 'success',
@@ -119,7 +130,7 @@ export function TabTimeline() {
     let token = getCalendarAccessToken();
     if (!token) {
       try {
-        token = await requestGoogleCalendarAccess();
+        token = await requestGoogleCalendarAccess(user?.email || undefined);
         setIsCalendarConnected(true);
       } catch (err) {
         setRemindersNotice({
@@ -186,7 +197,7 @@ export function TabTimeline() {
     let token = getCalendarAccessToken();
     if (!token) {
       try {
-        token = await requestGoogleCalendarAccess();
+        token = await requestGoogleCalendarAccess(user?.email || undefined);
         setIsCalendarConnected(true);
       } catch (err) {
         setRemindersNotice({
@@ -253,8 +264,8 @@ export function TabTimeline() {
             onClick={handleExportIcs}
             className="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl border border-rule bg-paper text-ink text-xs font-semibold hover:bg-paper-subtle transition-colors shrink-0"
           >
-            <CalendarCheck className="h-4 w-4 text-accent" aria-hidden="true" />
-            <span>Export to .ics Calendar</span>
+            <Download className="h-4 w-4 text-accent" aria-hidden="true" />
+            <span>Download All as .ics</span>
           </button>
         </div>
 
@@ -290,7 +301,7 @@ export function TabTimeline() {
         )}
       </div>
 
-      {/* Google Calendar Reminders Panel */}
+      {/* Google Calendar Reminders Panel - Warning-Free Default Path */}
       <section
         aria-labelledby="reminders-panel-title"
         className="rounded-2xl border border-rule bg-paper-card p-6 shadow-xs space-y-5"
@@ -302,52 +313,172 @@ export function TabTimeline() {
             </div>
             <div>
               <h3 id="reminders-panel-title" className="font-serif font-bold text-lg text-ink">
-                Google Calendar Reminders
+                Calendar Reminders &amp; Direct Schedule
               </h3>
               <p className="text-xs text-ink-muted mt-0.5">
-                Automatically schedule 9:00 AM milestone events with 1-day email and 1-hour popup alerts.
+                Add milestones directly to Google Calendar or export all events to an .ics file with 1-day reminders. No sign-in or permissions required.
               </p>
             </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 shrink-0">
-            {!isCalendarConnected ? (
-              <button
-                type="button"
-                onClick={handleConnectCalendar}
-                disabled={isConnecting}
-                className="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50"
-              >
-                {isConnecting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                )}
-                <span>Connect Google Calendar</span>
-              </button>
-            ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-medium border border-emerald-500/20">
-                <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Calendar Connected</span>
-              </span>
-            )}
-
-            {scheduledCount > 0 && (
-              <button
-                type="button"
-                onClick={handleRemoveReminders}
-                disabled={isRemoving || isSyncing}
-                className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-xl border border-rule text-ink-muted hover:text-state-error hover:bg-state-error-subtle text-xs font-medium transition-colors disabled:opacity-50"
-              >
-                {isRemoving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-                ) : (
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                )}
-                <span>Remove Reminders ({scheduledCount})</span>
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={handleExportIcs}
+              className="inline-flex items-center gap-2 min-h-[44px] px-4 py-2 rounded-xl bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors shadow-xs"
+            >
+              <Download className="h-4 w-4" aria-hidden="true" />
+              <span>Download All as .ics</span>
+            </button>
           </div>
+        </div>
+
+        {/* Primary Explanation: Warning-Free Options */}
+        <div className="p-3.5 rounded-xl bg-paper-subtle/70 border border-rule text-xs text-ink-muted space-y-1.5">
+          <p className="font-medium text-ink">
+            <strong>Warning-Free Default Path:</strong>
+          </p>
+          <p>
+            Each timeline task below includes an <strong>&ldquo;Add to Google Calendar&rdquo;</strong> direct link. Clicking it opens a pre-filled event template in a new tab without requesting OAuth scopes or showing unverified app screens. Reminders follow your own personal calendar preferences.
+          </p>
+        </div>
+
+        {/* Advanced: Collapsible OAuth Auto-Sync Section */}
+        <div className="pt-2 border-t border-rule/60">
+          <button
+            type="button"
+            onClick={() => setShowAdvancedSync(!showAdvancedSync)}
+            className="flex items-center justify-between w-full text-left py-2 text-xs font-semibold text-accent hover:underline min-h-[36px]"
+          >
+            <span>Advanced: Auto-sync all selected tasks with email &amp; popup reminders</span>
+            {showAdvancedSync ? (
+              <ChevronUp className="h-4 w-4" aria-hidden="true" />
+            ) : (
+              <ChevronDown className="h-4 w-4" aria-hidden="true" />
+            )}
+          </button>
+
+          {showAdvancedSync && (
+            <div className="mt-4 p-4 rounded-xl border border-rule bg-paper space-y-4">
+              {/* Calm reassurance note regarding Google Unverified App screen */}
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-2.5">
+                <Info className="h-4 w-4 shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+                <div className="leading-relaxed">
+                  <strong>Verification Notice:</strong> Because Aayojan Ace is an independent community planner, Google may show a &ldquo;Google hasn&apos;t verified this app&rdquo; screen. To continue, click <strong>Advanced</strong>, then <strong>Go to Aayojan Ace</strong>. This application strictly creates the calendar events you explicitly choose and never reads or modifies your personal calendar.
+                </div>
+              </div>
+
+              {/* OAuth Action Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  {!isCalendarConnected ? (
+                    <button
+                      type="button"
+                      onClick={handleConnectCalendar}
+                      disabled={isConnecting}
+                      className="inline-flex items-center gap-2 min-h-[40px] px-3.5 py-2 rounded-xl bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors disabled:opacity-50"
+                    >
+                      {isConnecting ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <ExternalLink className="h-4 w-4" aria-hidden="true" />
+                      )}
+                      <span>Connect Google Calendar</span>
+                    </button>
+                  ) : (
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 text-xs font-medium border border-emerald-500/20">
+                      <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                      <span>Calendar Connected</span>
+                    </span>
+                  )}
+
+                  {scheduledCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleRemoveReminders}
+                      disabled={isRemoving || isSyncing}
+                      className="inline-flex items-center gap-1.5 min-h-[40px] px-3 py-1.5 rounded-xl border border-rule text-ink-muted hover:text-state-error hover:bg-state-error-subtle text-xs font-medium transition-colors disabled:opacity-50"
+                    >
+                      {isRemoving ? (
+                        <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" aria-hidden="true" />
+                      )}
+                      <span>Remove Reminders ({scheduledCount})</span>
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleSyncReminders}
+                  disabled={isSyncing || selectedTaskIds.length === 0}
+                  className="inline-flex items-center gap-2 min-h-[40px] px-4 py-2 rounded-xl bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors shadow-xs disabled:opacity-50"
+                >
+                  {isSyncing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Clock className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  <span>Sync Selected ({selectedTaskIds.length})</span>
+                </button>
+              </div>
+
+              {/* Task Checklist for OAuth Sync */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-xs text-ink-muted">
+                  <button
+                    type="button"
+                    onClick={handleToggleSelectAll}
+                    className="font-medium text-accent hover:underline min-h-[28px] flex items-center"
+                  >
+                    {selectedTaskIds.length === activePlan.timeline.length
+                      ? 'Deselect All Tasks'
+                      : 'Select All Tasks'}
+                  </button>
+                  <span>
+                    {selectedTaskIds.length} of {activePlan.timeline.length} selected
+                  </span>
+                </div>
+
+                <div className="max-h-52 overflow-y-auto rounded-xl border border-rule bg-paper p-2.5 divide-y divide-rule/60 text-xs">
+                  {activePlan.timeline.map((task) => {
+                    const isSelected = selectedTaskIds.includes(task.id);
+                    const isScheduled = Boolean(task.googleCalendarEventId);
+
+                    return (
+                      <label
+                        key={task.id}
+                        className="py-2 px-2 flex items-center justify-between gap-3 hover:bg-paper-subtle rounded cursor-pointer transition-colors"
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => handleToggleTask(task.id)}
+                            className="rounded border-rule text-accent focus:ring-accent h-4 w-4"
+                            aria-label={`Select ${task.title}`}
+                          />
+                          <span className={`truncate text-ink ${isSelected ? 'font-medium' : ''}`}>
+                            {task.title}
+                          </span>
+                        </div>
+
+                        <div className="flex items-center gap-2 shrink-0">
+                          {isScheduled && (
+                            <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                              Synced
+                            </span>
+                          )}
+                          <span className="font-mono text-ink-muted text-[11px]">{task.dueDate}</span>
+                        </div>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Live Status and Alerts */}
@@ -396,78 +527,6 @@ export function TabTimeline() {
             </div>
           )}
         </div>
-
-        {/* Task Selection Area */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between text-xs text-ink-muted">
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleToggleSelectAll}
-                className="font-medium text-accent hover:underline min-h-[32px] flex items-center"
-              >
-                {selectedTaskIds.length === activePlan.timeline.length
-                  ? 'Deselect All Tasks'
-                  : 'Select All Tasks'}
-              </button>
-              <span>·</span>
-              <span>
-                {selectedTaskIds.length} of {activePlan.timeline.length} tasks selected
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={handleSyncReminders}
-              disabled={isSyncing || selectedTaskIds.length === 0}
-              className="inline-flex items-center gap-2 min-h-[40px] px-4 py-2 rounded-xl bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors shadow-xs disabled:opacity-50"
-            >
-              {isSyncing ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-              ) : (
-                <Clock className="h-4 w-4" aria-hidden="true" />
-              )}
-              <span>Sync Reminders ({selectedTaskIds.length})</span>
-            </button>
-          </div>
-
-          {/* Quick task checklist for selection */}
-          <div className="max-h-60 overflow-y-auto rounded-xl border border-rule bg-paper p-3 divide-y divide-rule/60 text-xs">
-            {activePlan.timeline.map((task) => {
-              const isSelected = selectedTaskIds.includes(task.id);
-              const isScheduled = Boolean(task.googleCalendarEventId);
-
-              return (
-                <label
-                  key={task.id}
-                  className="py-2.5 px-2 flex items-center justify-between gap-3 hover:bg-paper-subtle/60 rounded cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <input
-                      type="checkbox"
-                      checked={isSelected}
-                      onChange={() => handleToggleTask(task.id)}
-                      className="rounded border-rule text-accent focus:ring-accent h-4 w-4"
-                      aria-label={`Select ${task.title}`}
-                    />
-                    <span className={`truncate text-ink ${isSelected ? 'font-medium' : ''}`}>
-                      {task.title}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-2.5 shrink-0">
-                    {isScheduled && (
-                      <span className="text-[10px] font-mono text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
-                        Scheduled
-                      </span>
-                    )}
-                    <span className="font-mono text-ink-muted text-[11px]">{task.dueDate}</span>
-                  </div>
-                </label>
-              );
-            })}
-          </div>
-        </div>
       </section>
 
       {/* Phased Vertical Timeline Track */}
@@ -492,84 +551,146 @@ export function TabTimeline() {
 
               {/* Task Items vertical track */}
               <div className="ml-1.5 pl-6 border-l-2 border-rule space-y-3 mt-3">
-                {tasksInPhase.map((task) => (
-                  <div
-                    key={task.id}
-                    className={`rounded-xl border p-4 transition-all ${
-                      task.completed
-                        ? 'border-rule/60 bg-paper-subtle/30 opacity-75'
-                        : 'border-rule bg-paper-card shadow-xs hover:border-accent'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      {/* Checkbox and Title */}
-                      <div className="flex items-start gap-3">
-                        <button
-                          type="button"
-                          onClick={() => toggleTaskCompletion(task.id)}
-                          aria-label={`Mark task "${task.title}" as ${
-                            task.completed ? 'incomplete' : 'complete'
-                          }`}
-                          className="mt-0.5 rounded-full p-1 text-accent hover:bg-accent-subtle transition-colors focus-visible:ring-2 focus-visible:ring-accent"
-                        >
-                          {task.completed ? (
-                            <CheckCircle2 className="h-5 w-5 text-state-success" aria-hidden="true" />
-                          ) : (
-                            <Circle className="h-5 w-5 text-ink-faint hover:text-accent" aria-hidden="true" />
-                          )}
-                        </button>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <h4
-                              className={`text-sm font-semibold text-ink ${
-                                task.completed ? 'line-through text-ink-muted' : ''
-                              }`}
-                            >
-                              {task.title}
-                            </h4>
-                            {task.googleCalendarEventId && (
-                              <span
-                                title="Synced to Google Calendar"
-                                className="inline-flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.2 rounded border border-emerald-500/20"
-                              >
-                                <Bell className="h-2.5 w-2.5" aria-hidden="true" />
-                                <span>Reminder Active</span>
-                              </span>
+                {tasksInPhase.map((task) => {
+                  const googleCalUrl = buildGoogleCalendarTemplateUrl({
+                    taskTitle: task.title,
+                    planTitle: activePlan.title,
+                    dueDate: task.dueDate,
+                  });
+
+                  return (
+                    <div
+                      key={task.id}
+                      className={`rounded-xl border p-4 transition-all ${
+                        task.completed
+                          ? 'border-rule/60 bg-paper-subtle/30 opacity-75'
+                          : 'border-rule bg-paper-card shadow-xs hover:border-accent'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                        {/* Checkbox and Title */}
+                        <div className="flex items-start gap-3">
+                          <button
+                            type="button"
+                            onClick={() => toggleTaskCompletion(task.id)}
+                            aria-label={`Mark task "${task.title}" as ${
+                              task.completed ? 'incomplete' : 'complete'
+                            }`}
+                            className="mt-0.5 rounded-full p-1 text-accent hover:bg-accent-subtle transition-colors focus-visible:ring-2 focus-visible:ring-accent"
+                          >
+                            {task.completed ? (
+                              <CheckCircle2 className="h-5 w-5 text-state-success" aria-hidden="true" />
+                            ) : (
+                              <Circle className="h-5 w-5 text-ink-faint hover:text-accent" aria-hidden="true" />
                             )}
+                          </button>
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <h4
+                                className={`text-sm font-semibold text-ink ${
+                                  task.completed ? 'line-through text-ink-muted' : ''
+                                }`}
+                              >
+                                {task.title}
+                              </h4>
+
+                              {/* Time-sensitive indicator */}
+                              {task.isTimeSensitive && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 dark:text-amber-200 bg-amber-500/20 px-2 py-0.5 rounded border border-amber-500/40">
+                                  <AlertTriangle className="h-3 w-3 text-amber-600 dark:text-amber-400" aria-hidden="true" />
+                                  <span>Time-sensitive</span>
+                                </span>
+                              )}
+
+                              {/* Guest milestone badge */}
+                              {task.isGuestMilestone && (
+                                <span className="inline-flex items-center gap-1 text-[10px] font-medium text-purple-800 dark:text-purple-300 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+                                  <span>Guest Communication</span>
+                                </span>
+                              )}
+
+                              {task.googleCalendarEventId && (
+                                <span
+                                  title="Synced to Google Calendar"
+                                  className="inline-flex items-center gap-1 text-[10px] text-emerald-700 dark:text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20"
+                                >
+                                  <Bell className="h-2.5 w-2.5" aria-hidden="true" />
+                                  <span>Reminder Active</span>
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="mt-1 text-xs text-ink-muted leading-relaxed">
+                              {task.description}
+                            </p>
+
+                            {/* Action links row */}
+                            <div className="mt-2.5 flex flex-wrap items-center gap-3">
+                              {/* Warning-free direct Google Calendar URL */}
+                              <a
+                                href={googleCalUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+                                aria-label={`Add "${task.title}" to Google Calendar in a new tab`}
+                              >
+                                <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                                <span>Add to Google Calendar</span>
+                              </a>
+
+                              {/* Draft invite button on invitation tasks */}
+                              {task.isGuestMilestone && (
+                                <button
+                                  type="button"
+                                  onClick={() => setDraftInviteTask(task)}
+                                  className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:bg-accent-subtle/80 bg-accent-subtle px-2 py-0.5 rounded-md transition-colors"
+                                >
+                                  <Share2 className="h-3 w-3" aria-hidden="true" />
+                                  <span>Draft invite</span>
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          <p className="mt-1 text-xs text-ink-muted leading-relaxed">
-                            {task.description}
-                          </p>
+                        </div>
+
+                        {/* Due Date & Owner */}
+                        <div className="sm:text-right shrink-0 pl-9 sm:pl-0">
+                          <span className="inline-flex items-center gap-1 text-xs font-mono font-medium text-ink">
+                            <Calendar className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
+                            {task.dueDate}
+                          </span>
+                          {task.owner && (
+                            <span className="mt-1 flex items-center sm:justify-end gap-1 text-[11px] text-ink-muted">
+                              <User className="h-3 w-3" aria-hidden="true" />
+                              {task.owner}
+                            </span>
+                          )}
+                          {task.estimatedCostLink && (
+                            <span className="mt-1 flex items-center sm:justify-end gap-1 text-[10px] text-ink-faint">
+                              <Tag className="h-3 w-3" aria-hidden="true" />
+                              {task.estimatedCostLink}
+                            </span>
+                          )}
                         </div>
                       </div>
-
-                      {/* Due Date & Owner */}
-                      <div className="text-right shrink-0">
-                        <span className="inline-flex items-center gap-1 text-xs font-mono font-medium text-ink">
-                          <Calendar className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-                          {task.dueDate}
-                        </span>
-                        {task.owner && (
-                          <span className="mt-1 flex items-center justify-end gap-1 text-[11px] text-ink-muted">
-                            <User className="h-3 w-3" aria-hidden="true" />
-                            {task.owner}
-                          </span>
-                        )}
-                        {task.estimatedCostLink && (
-                          <span className="mt-1 flex items-center justify-end gap-1 text-[10px] text-ink-faint">
-                            <Tag className="h-3 w-3" aria-hidden="true" />
-                            {task.estimatedCostLink}
-                          </span>
-                        )}
-                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
         })}
       </div>
+
+      {/* Accessible Draft Invite Modal */}
+      {draftInviteTask && (
+        <DraftInviteModal
+          isOpen={Boolean(draftInviteTask)}
+          onClose={() => setDraftInviteTask(null)}
+          plan={activePlan}
+          task={draftInviteTask}
+        />
+      )}
     </div>
   );
 }

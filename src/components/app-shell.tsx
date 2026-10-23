@@ -7,7 +7,8 @@ import { SavePromptModal } from './save-prompt-modal';
 import { ThemeToggle } from './theme-toggle';
 import { useAuth } from './auth-context';
 import { usePlan } from './plan-context';
-import { LogIn, LogOut, AlertTriangle, AlertCircle, Sparkles, X } from 'lucide-react';
+import { GoogleSignInButton } from './google-sign-in-button';
+import { LogOut, AlertTriangle, AlertCircle, Sparkles, X } from 'lucide-react';
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, signIn, signOut, loading, authError, clearAuthError, missingConfigVars } = useAuth();
@@ -109,14 +110,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-2">
             <ThemeToggle />
             {!loading && !user && (
-              <button
-                type="button"
-                onClick={signIn}
-                className="flex items-center gap-1.5 text-xs font-semibold bg-accent text-accent-text px-3 py-1.5 rounded-lg hover:bg-accent-hover transition-colors"
-              >
-                <LogIn className="h-3.5 w-3.5" aria-hidden="true" />
-                <span>Sign in</span>
-              </button>
+              <div className="w-28">
+                <GoogleSignInButton
+                  onClick={signIn}
+                  label="Sign in"
+                  className="min-h-[36px] py-1 px-2 text-xs"
+                />
+              </div>
             )}
             {!loading && user && (
               <div className="flex items-center gap-1.5">

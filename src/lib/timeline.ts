@@ -1,5 +1,5 @@
 import { TimelineTask } from './schemas';
-import { TimelinePhase } from './constants';
+import { TimelinePhase, GUEST_MILESTONE_OFFSETS } from './constants';
 
 export interface DateReflowResult {
   updatedTasks: TimelineTask[];
@@ -10,6 +10,135 @@ export interface DateReflowResult {
     shiftedLaterCount: number;
     daysDelta: number;
   };
+}
+
+/**
+ * Normalizes a task title for robust duplicate comparison.
+ */
+export function normalizeTaskTitle(title: string): string {
+  return title
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+export interface GuestMilestoneDef {
+  key: string;
+  title: string;
+  description: string;
+  offsetDays: number;
+  weddingOnly?: boolean;
+  matchTerms: string[];
+}
+
+export const GUEST_MILESTONE_DEFS: GuestMilestoneDef[] = [
+  {
+    key: 'save-the-date',
+    title: 'Send save-the-date announcements',
+    description: 'Share celebration date with out-of-town guests and key families.',
+    offsetDays: GUEST_MILESTONE_OFFSETS.SAVE_THE_DATE_DAYS,
+    weddingOnly: true,
+    matchTerms: ['save the date', 'save-the-date'],
+  },
+  {
+    key: 'invitations',
+    title: 'Send invitations to guests',
+    description: 'Distribute physical or digital invitations with venue and RSVP instructions.',
+    offsetDays: GUEST_MILESTONE_OFFSETS.INVITATIONS_DAYS,
+    matchTerms: ['invitation', 'invite guest', 'send invite', 'send invitations'],
+  },
+  {
+    key: 'rsvp-followup',
+    title: 'Follow up on RSVPs',
+    description: 'Contact pending guests to confirm attendance and dietary preferences.',
+    offsetDays: GUEST_MILESTONE_OFFSETS.RSVP_FOLLOWUP_DAYS,
+    matchTerms: ['follow up on rsvp', 'rsvp follow', 'confirm rsvp', 'track rsvp', 'rsvp'],
+  },
+  {
+    key: 'headcount-caterer',
+    title: 'Share final headcount with caterer and venue',
+    description: 'Lock in final attendee numbers with hospitality and catering teams.',
+    offsetDays: GUEST_MILESTONE_OFFSETS.FINAL_HEADCOUNT_DAYS,
+    matchTerms: ['headcount', 'final count', 'caterer count', 'venue headcount'],
+  },
+];
+
+/**
+ * Injects deterministic guest communication milestones into every plan.
+ * Avoids duplicate tasks if a similar task already exists.
+ * If event is closer than an offset allows, sets deadline to tomorrow and marks as Time-sensitive.
+ */
+export function injectGuestMilestones(
+  tasks: TimelineTask[],
+  eventDate: string,
+  eventType: string,
+  referenceDate: string = formatDateISO(new Date())
+): TimelineTask[] {
+  const eventDateTime = parseDateISO(eventDate).getTime();
+  const refDateTime = parseDateISO(referenceDate).getTime();
+  const msPerDay = 1000 * 60 * 60 * 24;
+  const tomorrowTime = refDateTime + msPerDay;
+
+  const resultTasks = [...tasks];
+
+  for (const def of GUEST_MILESTONE_DEFS) {
+    if (def.weddingOnly && eventType !== 'Wedding') {
+      continue;
+    }
+
+    // Check if tasks already have a matching task
+    const existingIndex = resultTasks.findIndex((t) => {
+      const norm = normalizeTaskTitle(t.title);
+      return def.matchTerms.some((term) => norm.includes(term));
+    });
+
+    if (existingIndex !== -1) {
+      resultTasks[existingIndex] = {
+        ...resultTasks[existingIndex],
+        isGuestMilestone: true,
+      };
+      continue;
+    }
+
+    // Calculate due date
+    const idealDueTime = eventDateTime - def.offsetDays * msPerDay;
+    const isTooClose = idealDueTime <= refDateTime;
+    const effectiveDueTime = isTooClose
+      ? Math.min(tomorrowTime, eventDateTime)
+      : idealDueTime;
+    const effectiveDueDate = new Date(effectiveDueTime);
+    const dueDateStr = formatDateISO(effectiveDueDate);
+
+    const daysUntilTask = Math.round((effectiveDueTime - refDateTime) / msPerDay);
+    const daysBeforeEvent = Math.max(
+      0,
+      Math.round((eventDateTime - effectiveDueTime) / msPerDay)
+    );
+    const phase = assignPhaseForDueDate(daysUntilTask, daysBeforeEvent);
+
+    const newTask: TimelineTask = {
+      id: `milestone-${def.key}`,
+      phase,
+      title: def.title,
+      description: def.description,
+      dueDate: dueDateStr,
+      owner: 'Host / Host Family',
+      completed: false,
+      daysBeforeEvent,
+      isGuestMilestone: true,
+      isTimeSensitive: isTooClose,
+    };
+
+    resultTasks.push(newTask);
+  }
+
+  return resultTasks.sort((a, b) => {
+    if (a.dueDate !== b.dueDate) {
+      return a.dueDate.localeCompare(b.dueDate);
+    }
+    return b.daysBeforeEvent - a.daysBeforeEvent;
+  });
 }
 
 /**
@@ -105,11 +234,16 @@ export function reflowTimelineDates(
 
     const newPhase = assignPhaseForDueDate(daysUntilTask, daysBeforeEvent);
 
+    const isTimeSensitive = Boolean(
+      task.isTimeSensitive || (task.isGuestMilestone && daysUntilTask <= 2 && daysBeforeEvent > 0)
+    );
+
     return {
       ...task,
       dueDate: updatedDueDateStr,
       phase: newPhase,
       daysBeforeEvent,
+      isTimeSensitive,
     };
   });
 

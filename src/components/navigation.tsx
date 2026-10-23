@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from './auth-context';
 import { ThemeToggle } from './theme-toggle';
+import { GoogleSignInButton } from './google-sign-in-button';
 import {
   Sparkles,
   LayoutDashboard,
@@ -82,6 +83,16 @@ export function DesktopNavRail() {
 
       {/* Footer Controls & User Status - Fixed direct visibility at left bottom */}
       <div className="pt-4 border-t border-rule flex flex-col gap-3 shrink-0">
+        {/* Guest Mode Sign-in Card */}
+        {!user && !loading && (
+          <div className="rounded-xl border border-rule bg-paper p-3 space-y-2.5 shadow-xs">
+            <p className="text-xs font-medium text-ink leading-snug">
+              Want to save your plans? Sign in with Google.
+            </p>
+            <GoogleSignInButton onClick={signIn} />
+          </div>
+        )}
+
         {/* User Card */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5 overflow-hidden">
@@ -131,17 +142,7 @@ export function DesktopNavRail() {
               >
                 <LogOut className="h-4 w-4" aria-hidden="true" />
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={signIn}
-                title="Sign in with Google"
-                aria-label="Sign in with Google"
-                className="p-1.5 rounded-md text-ink-muted hover:text-accent hover:bg-accent-subtle transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
-              >
-                <LogIn className="h-4 w-4" aria-hidden="true" />
-              </button>
-            ))}
+            ) : null)}
         </div>
 
         {/* Theme Toggle */}
@@ -156,6 +157,7 @@ export function DesktopNavRail() {
 
 export function MobileNavBar() {
   const pathname = usePathname();
+  const { user, signIn, loading } = useAuth();
 
   const navItems = [
     { href: '/', label: 'Plan', icon: Sparkles },
@@ -169,6 +171,18 @@ export function MobileNavBar() {
       aria-label="Mobile bottom navigation bar"
       className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-paper-card/95 backdrop-blur-md border-t border-rule pb-safe shadow-lg no-print"
     >
+      {/* Mobile Guest Sign-in Card */}
+      {!user && !loading && (
+        <div className="border-b border-rule bg-paper px-3 py-2 flex items-center justify-between gap-2">
+          <p className="text-[11px] font-medium text-ink truncate">
+            Want to save your plans? Sign in with Google.
+          </p>
+          <div className="shrink-0 w-36">
+            <GoogleSignInButton onClick={signIn} label="Sign in" className="min-h-[36px] py-1 px-2 text-xs" />
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-4 h-16 items-center px-2">
         {navItems.map((item) => {
           const Icon = item.icon;

@@ -166,7 +166,8 @@ describe('API /api/plan/generate', () => {
     const plan = await res.json();
     expect(plan.id).toBeDefined();
     expect(plan.budget.categories).toHaveLength(3);
-    expect(plan.timeline).toHaveLength(5);
+    expect(plan.timeline.length).toBeGreaterThanOrEqual(5);
+    expect(plan.timeline.some((t: { isGuestMilestone?: boolean }) => t.isGuestMilestone)).toBe(true);
     expect(plan.vendors).toHaveLength(3);
     expect(res.headers.get('X-Cache')).toBe('MISS');
   });
@@ -194,7 +195,7 @@ describe('API /api/plan/generate', () => {
     expect(geminiModule.callGeminiStructured).toHaveBeenCalledTimes(1);
   });
 
-  it('handles Gemini service errors with 503', async () => {
+  it('falls back to built-in template planner when AI service is busy', async () => {
     vi.mocked(geminiModule.callGeminiStructured).mockRejectedValueOnce(
       new geminiModule.GeminiApiError('Service busy', 503, true, 'AI_BUSY')
     );
@@ -202,6 +203,72 @@ describe('API /api/plan/generate', () => {
     const req = new Request('http://localhost:3000/api/plan/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ intake: validIntake }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const plan = await res.json();
+    expect(plan.generationSource).toBe('template');
+    expect(plan.budget.categories.length).toBeGreaterThanOrEqual(4);
+    expect(plan.timeline.length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('attaches calm provider notice to template plan when backup provider key is expired', async () => {
+    vi.useFakeTimers();
+    process.env.GROQ_API_KEY = 'gsk_validDemoKey';
+    process.env.GROQ_KEY_EXPIRES_ON = '2026-12-22';
+    vi.setSystemTime(new Date('2026-12-23T00:00:01Z'));
+
+    vi.mocked(geminiModule.callGeminiStructured).mockRejectedValueOnce(
+      new geminiModule.GeminiApiError('Primary overloaded', 503, true, 'AI_BUSY')
+    );
+
+    const req = new Request('http://localhost:3000/api/plan/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ intake: validIntake }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const plan = await res.json();
+    expect(plan.generationSource).toBe('template');
+    expect(plan.providerNotice).toContain('The backup AI provider is no longer active.');
+    expect(plan.providerNotice).toContain('PromptWars Challenge 5');
+
+    vi.useRealTimers();
+    delete process.env.GROQ_KEY_EXPIRES_ON;
+    delete process.env.GROQ_API_KEY;
+  });
+
+  it('attaches main provider notice to template plan when main Gemini key is invalid', async () => {
+    vi.mocked(geminiModule.callGeminiStructured).mockRejectedValueOnce(
+      new geminiModule.GeminiApiError('Gemini key unauthorized', 401, false, 'AI_INVALID_KEY')
+    );
+
+    const req = new Request('http://localhost:3000/api/plan/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ intake: validIntake }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const plan = await res.json();
+    expect(plan.generationSource).toBe('template');
+    expect(plan.providerNotice).toContain('The main AI provider is no longer active.');
+    expect(plan.providerNotice).toContain('PromptWars Challenge 5');
+  });
+
+  it('handles Gemini service errors with 503 when fallback is disabled', async () => {
+    vi.mocked(geminiModule.callGeminiStructured).mockRejectedValueOnce(
+      new geminiModule.GeminiApiError('Service busy', 503, true, 'AI_BUSY')
+    );
+
+    const req = new Request('http://localhost:3000/api/plan/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'x-disable-template-fallback': 'true' },
       body: JSON.stringify({ intake: validIntake }),
     });
 

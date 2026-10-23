@@ -2,7 +2,8 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useAuth } from './auth-context';
-import { Lock, X, LogIn } from 'lucide-react';
+import { Lock, X } from 'lucide-react';
+import { GoogleSignInButton } from './google-sign-in-button';
 
 interface SavePromptModalProps {
   onSuccess?: () => void;
@@ -85,14 +86,7 @@ export function SavePromptModal({ onSuccess }: SavePromptModalProps) {
         </p>
 
         <div className="flex flex-col gap-3">
-          <button
-            type="button"
-            onClick={handleSignIn}
-            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg bg-accent px-4 py-2.5 font-medium text-accent-text hover:bg-accent-hover transition-colors shadow-sm focus-visible:ring-2 focus-visible:ring-accent"
-          >
-            <LogIn className="h-5 w-5" aria-hidden="true" />
-            <span>Sign in with Google</span>
-          </button>
+          <GoogleSignInButton onClick={handleSignIn} />
 
           <button
             type="button"

@@ -25,6 +25,39 @@ export interface BudgetSummary {
   }>;
 }
 
+export interface BudgetTotals {
+  categoriesSum: number;
+  contingencyAmount: number;
+  taxAmount: number;
+  totalAllocated: number;
+  varianceRatio: number;
+}
+
+/**
+ * Calculates raw category sums, contingency, tax, and overall allocation.
+ */
+export function calculateBudgetTotals(
+  categories: Array<{ targetEstimate: number }>,
+  contingencyPercent: number = 0,
+  taxServiceChargePercent: number = 0,
+  targetBudget: number = 0
+): BudgetTotals {
+  const safeCategories = categories || [];
+  const categoriesSum = safeCategories.reduce((sum, c) => sum + (c.targetEstimate || 0), 0);
+  const contingencyAmount = Math.round((categoriesSum * Math.max(0, contingencyPercent || 0)) / 100);
+  const taxAmount = Math.round((categoriesSum * Math.max(0, taxServiceChargePercent || 0)) / 100);
+  const totalAllocated = categoriesSum + contingencyAmount + taxAmount;
+  const varianceRatio = targetBudget > 0 ? (categoriesSum / targetBudget) * 100 : 0;
+
+  return {
+    categoriesSum,
+    contingencyAmount,
+    taxAmount,
+    totalAllocated,
+    varianceRatio,
+  };
+}
+
 /**
  * Calculates deterministic budget ledger values strictly in pure TypeScript code.
  * AI proposals are validated against declared constraints.

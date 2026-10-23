@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { intakeFormSchema, followUpResponseSchema } from '@/lib/schemas';
 import { buildFollowUpPrompt } from '@/lib/prompts';
 import { callGeminiStructured } from '@/lib/gemini';
+import { executeAiCascade } from '@/lib/ai';
 import { checkRequestSafety, handleApiError } from '@/lib/api-helper';
 
 const requestPayloadSchema = z.object({
@@ -28,9 +29,13 @@ export async function POST(request: Request) {
     }
 
     const prompt = buildFollowUpPrompt(intake, previousFollowUpsCount);
-    const result = await callGeminiStructured(prompt, followUpResponseSchema);
-
-    return NextResponse.json(result);
+    try {
+      const cascadeResult = await executeAiCascade(prompt, followUpResponseSchema);
+      return NextResponse.json(cascadeResult.data);
+    } catch {
+      const result = await callGeminiStructured(prompt, followUpResponseSchema);
+      return NextResponse.json(result);
+    }
   } catch (err) {
     return handleApiError(err);
   }

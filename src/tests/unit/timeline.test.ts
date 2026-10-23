@@ -4,6 +4,8 @@ import {
   assignPhaseForDueDate,
   formatDateISO,
   parseDateISO,
+  injectGuestMilestones,
+  normalizeTaskTitle,
 } from '@/lib/timeline';
 import { TimelineTask } from '@/lib/schemas';
 
@@ -103,5 +105,72 @@ describe('reflowTimelineDates pure logic', () => {
     expect(fullIso.getUTCDate()).toBe(15);
 
     expect(formatDateISO(parsed)).toBe('2026-11-15');
+  });
+
+  describe('injectGuestMilestones (Deterministic Guest Communications)', () => {
+    it('injects all 4 guest milestones for weddings (save-the-date, invitations, rsvp, headcount)', () => {
+      const emptyTasks: TimelineTask[] = [];
+      const eventDate = '2026-11-20';
+      const refDate = '2026-05-01';
+
+      const result = injectGuestMilestones(emptyTasks, eventDate, 'Wedding', refDate);
+      expect(result.length).toBe(4);
+
+      const titles = result.map((t) => t.title.toLowerCase());
+      expect(titles.some((t) => t.includes('save-the-date'))).toBe(true);
+      expect(titles.some((t) => t.includes('invitations'))).toBe(true);
+      expect(titles.some((t) => t.includes('rsvp'))).toBe(true);
+      expect(titles.some((t) => t.includes('headcount'))).toBe(true);
+    });
+
+    it('injects 3 guest milestones for non-weddings (omits save-the-date)', () => {
+      const emptyTasks: TimelineTask[] = [];
+      const result = injectGuestMilestones(emptyTasks, '2026-11-20', 'Birthday', '2026-05-01');
+      expect(result.length).toBe(3);
+
+      const titles = result.map((t) => t.title.toLowerCase());
+      expect(titles.some((t) => t.includes('save-the-date'))).toBe(false);
+      expect(titles.some((t) => t.includes('invitations'))).toBe(true);
+      expect(titles.some((t) => t.includes('rsvp'))).toBe(true);
+      expect(titles.some((t) => t.includes('headcount'))).toBe(true);
+    });
+
+    it('avoids creating duplicate tasks if a similar milestone already exists by normalized title', () => {
+      const existingTasks: TimelineTask[] = [
+        {
+          id: 'pre-existing-invite',
+          phase: 'Next 30 days',
+          title: 'Distribute Digital & Print Invitations to Guests',
+          description: 'Custom cards',
+          dueDate: '2026-10-30',
+          owner: 'Host',
+          completed: false,
+          daysBeforeEvent: 21,
+        },
+      ];
+
+      const result = injectGuestMilestones(existingTasks, '2026-11-20', 'Birthday', '2026-05-01');
+      // Should mark the existing task as guest milestone rather than adding a duplicate
+      expect(result.length).toBe(3); // 1 existing + 2 newly injected
+      const matching = result.find((t) => t.id === 'pre-existing-invite');
+      expect(matching?.isGuestMilestone).toBe(true);
+    });
+
+    it('sets due date to earliest practical date (tomorrow) and marks Time-sensitive when event is closer than offset allows', () => {
+      const refDate = '2026-11-15';
+      const closeEventDate = '2026-11-18'; // only 3 days away! Offset for invitations is 21 days
+
+      const result = injectGuestMilestones([], closeEventDate, 'Birthday', refDate);
+      const inviteTask = result.find((t) => t.title.toLowerCase().includes('invitations'));
+
+      expect(inviteTask).toBeDefined();
+      expect(inviteTask!.isTimeSensitive).toBe(true);
+      // Deadline set to tomorrow: 2026-11-16
+      expect(inviteTask!.dueDate).toBe('2026-11-16');
+    });
+
+    it('normalizes task titles for matching', () => {
+      expect(normalizeTaskTitle('  Send Invitations (To Guests)!  ')).toBe('send invitations to guests');
+    });
   });
 });

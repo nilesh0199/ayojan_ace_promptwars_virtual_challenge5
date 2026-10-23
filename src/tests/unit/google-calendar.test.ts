@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   buildEventTimes,
   buildGoogleCalendarEventBody,
+  buildGoogleCalendarTemplateUrl,
   syncTasksToGoogleCalendar,
   removeGoogleCalendarReminders,
   MAX_CALENDAR_EVENTS_SYNC,
@@ -194,6 +195,39 @@ describe('Google Calendar Integration Utilities', () => {
           token: 'token',
         })
       ).rejects.toThrow(`Cannot sync more than ${MAX_CALENDAR_EVENTS_SYNC} events at once`);
+    });
+  });
+
+  describe('buildGoogleCalendarTemplateUrl (Warning-Free Direct Path)', () => {
+    it('constructs a valid, properly encoded Google Calendar TEMPLATE URL', () => {
+      const urlString = buildGoogleCalendarTemplateUrl({
+        taskTitle: 'Send invitations to guests',
+        planTitle: 'Royal Rajasthani Wedding',
+        dueDate: '2026-11-05',
+        timeZone: 'Asia/Kolkata',
+        appUrl: 'https://ayojan-ace.vercel.app',
+      });
+
+      expect(urlString).toContain('https://calendar.google.com/calendar/render?');
+      expect(urlString).toContain('action=TEMPLATE');
+      expect(urlString).toContain('text=%5BRoyal+Rajasthani+Wedding%5D+Send+invitations+to+guests');
+      expect(urlString).toContain('dates=20261105T090000%2F20261105T093000');
+      expect(urlString).toContain('ctz=Asia%2FKolkata');
+      expect(urlString).toContain('https%3A%2F%2Fayojan-ace.vercel.app%2Fworkspace');
+    });
+
+    it('caps overly long titles cleanly to prevent URL length limits', () => {
+      const longTitle = 'A'.repeat(150);
+      const urlString = buildGoogleCalendarTemplateUrl({
+        taskTitle: longTitle,
+        planTitle: 'Plan',
+        dueDate: '2026-11-05',
+      });
+
+      const parsedUrl = new URL(urlString);
+      const textParam = parsedUrl.searchParams.get('text');
+      expect(textParam).toBeDefined();
+      expect(textParam!.length).toBeLessThanOrEqual(100);
     });
   });
 

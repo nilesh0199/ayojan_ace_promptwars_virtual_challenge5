@@ -120,13 +120,45 @@ When the event date shifts from $D_{\text{old}}$ to $D_{\text{new}}$:
    - Plans are held in React context and mirrored to browser `localStorage` under `aayojan_ace_active_plan`.
    - Allows users to explore, customize, export `.ics`, and print without forcing upfront login.
 2. **Cloud Tier (Google Auth + Firestore)**:
-   - When the user presses "Save to Cloud", guest users are prompted with an accessible OAuth modal.
+   - When the user presses "Save to Cloud", guest users are prompted with an accessible OAuth modal with the official Google-branded button.
    - Plans are stored under `/users/{uid}/plans/{planId}`.
-   - Strict Firestore security rules enforce authentication, user ownership, schema verification, and document size ceilings (<400KB).
+   - Sparse undefined fields (`estimatedCostLink`, `googleCalendarEventId`) are eliminated prior to serialization to comply with Firestore SDK requirements.
+   - Strict Firestore security rules enforce authentication, user ownership, exact key enumeration (`keys().hasOnly([...])`), bounded array lists, string length caps, immutable versions (`allow update: if false`), and Firestore's native 1 MiB document ceiling.
 
 ---
 
-## 6. Layout & Responsiveness Strategy
+## 6. Integrations & Advanced Resilience
+
+### 6.1. Warning-Free Google Calendar & Calendar Session Architecture
+- **Warning-Free Primary Path**: Direct web template URLs (`calendar.google.com/calendar/render?action=TEMPLATE&text=...&dates=...&details=...&ctz=...`) let users add individual milestones to their Google Calendar without OAuth verification screens. A prominent `.ics` export bundles all milestones with 1-day advance alarm reminders (`VALARM`).
+- **Advanced OAuth Auto-Sync**: An optional collapsible panel requests narrow `calendar.events` scope with `login_hint` and `include_granted_scopes`. Tokens are stored strictly in-memory per session and immediately purged on 401 or user sign-out.
+
+### 6.2. AI Provider Abstraction, Multi-Provider Cascading & Built-in Template Planner
+- **Universal Provider Abstraction (`AiProvider`)**: All AI generation conforms to the `AiProvider` interface (`id`, `name`, `defaultModel`, `isConfigured()`, `generateStructured()`), featuring timeout and abort signal support via `AbortController`.
+- **GroqProvider (Secondary AI)**: Server-only implementation calling Groq's OpenAI-compatible completions endpoint (`GROQ_COMPLETIONS_ENDPOINT`) with JSON object mode (`llama-3.3-70b-versatile`). Enabled only when `GROQ_API_KEY` is present.
+- **Automated Schema Repair Retry**: If any provider emits malformed JSON or invalid schema properties, an automatic targeted repair instruction with error details is sent once before declaring failure.
+- **Multi-Stage Failover Hierarchy**:
+  1. Gemini Primary Model (`gemini-3.8-flash`) [up to 2 retries with exponential backoff & jitter]
+  2. Gemini Fallback Model (`gemini-3.5-flash`) [1 retry]
+  3. Groq Provider (if configured, on overload / quota / timeout / invalid-key) [1 retry]
+  4. Built-in Deterministic Template Planner (zero network fallback)
+- **Built-in Deterministic Template Planner (`template-planner.ts`)**: Pure code fallback engine generating complete celebration plans from intake parameters: proportional category budget splits (with 10% contingency & 5% tax), phased timeline with injected guest milestones, vendor screening questions, creative cultural ideas, and risk register. Runs offline in <1ms.
+- **Independent Circuit Breakers**: Failure tracking and 60-second cooldown timers managed per `(provider, model)` pair.
+- **UI Non-Primary Plan Indicators**: Plans drafted by backup AI or template display an accessible notification banner and badge (`Cpu` / `FileText` icon + descriptive text), with an instant **"Try again with AI"** button.
+
+### 6.3. Code-Injected Guest Communication Milestones
+- **Deterministic Milestone Injection**: Pure TypeScript function `injectGuestMilestones()` embeds milestones with fixed timing offsets: Save-the-date (8 weeks, wedding only), Invitations (3 weeks, all), RSVP follow-up (10 days), Final headcount (5 days).
+- **Tight Schedule Clamping**: If event date is closer than offset allows, task due date clamps to tomorrow and is marked `isTimeSensitive` with visual alert badge.
+- **Draft Invite Modal**: Interactive modal generating customizable invitation messages with live preview, copy feedback, WhatsApp (`wa.me`), and Email (`mailto`) actions.
+
+### 6.4. Multi-Scope Print & PDF Export Architecture
+- **Print Scope Control**: Users choose between "Full event report" (default) or "Current tab only".
+- **Dedicated Report Component**: `<FullEventReport />` renders an executive summary fact sheet, comprehensive budget ledger with assumptions, complete timeline with guest milestones, vendor interview questions, creative cultural ideas, operational risk register, and planning disclaimer.
+- **Print Stylesheet**: `@media print` forces a light paper theme (`#111111` on white) regardless of active dark mode, readable borders, repeating table headers (`thead`), and page-break avoidance.
+
+---
+
+## 7. Layout & Responsiveness Strategy
 
 - **Full-Width Canvas**: The app shell occupies 100% viewport width and `min-height: 100dvh`. No artificial container bottlenecks leaving blank side margins.
 - **Responsive Navigation**:

@@ -53,6 +53,50 @@ describe('API /api/plan/replan', () => {
     expect(data.affectedBudgetCategories).toHaveLength(1);
   });
 
+  it('falls back to deterministic template rebalance when AI providers fail', async () => {
+    vi.mocked(geminiModule.callGeminiStructured).mockRejectedValueOnce(
+      new geminiModule.GeminiApiError('Service unavailable', 503, true, 'AI_BUSY')
+    );
+
+    const req = new Request('http://localhost:3000/api/plan/replan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        currentPlan: SAMPLE_WEDDING_PLAN,
+        changes: { guestCount: 350 },
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(data.summaryOfChanges).toContain('Budget rebalanced');
+    expect(data.affectedBudgetCategories.length).toBeGreaterThan(0);
+  });
+
+  it('propagates AI error when template fallback is explicitly disabled', async () => {
+    vi.mocked(geminiModule.callGeminiStructured).mockRejectedValueOnce(
+      new geminiModule.GeminiApiError('AI temporarily busy', 503, true, 'AI_BUSY')
+    );
+
+    const req = new Request('http://localhost:3000/api/plan/replan', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-disable-template-fallback': 'true',
+      },
+      body: JSON.stringify({
+        currentPlan: SAMPLE_WEDDING_PLAN,
+        changes: { guestCount: 350 },
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(503);
+    const data = await res.json();
+    expect(data.code).toBe('AI_BUSY');
+  });
+
   it('rejects invalid payloads with 400', async () => {
     const req = new Request('http://localhost:3000/api/plan/replan', {
       method: 'POST',

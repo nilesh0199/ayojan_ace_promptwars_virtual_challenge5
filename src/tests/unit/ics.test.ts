@@ -43,6 +43,10 @@ describe('ICS Calendar Export', () => {
     expect(ics).toContain('SUMMARY:[Aayojan Ace] Tasting & Menu Finalization\\, Jaipur');
     expect(ics).toContain('STATUS:CONFIRMED');
     expect(ics).toContain('STATUS:COMPLETED'); // task-2 completed
+    expect(ics).toContain('BEGIN:VALARM');
+    expect(ics).toContain('ACTION:DISPLAY');
+    expect(ics).toContain('TRIGGER:-P1D');
+    expect(ics).toContain('END:VALARM');
     expect(ics).toContain('END:VEVENT');
     expect(ics).toContain('END:VCALENDAR');
   });

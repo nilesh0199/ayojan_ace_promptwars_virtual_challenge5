@@ -407,4 +407,172 @@ describe('Gemini SDK Integration, Resilience & Circuit Breaker', () => {
       }
     });
   });
+
+  describe('Backup Gemini API Key & Multi-Stage Execution Order', () => {
+    it('executes fallback key with primary model specifically on quota (429/RESOURCE_EXHAUSTED) errors', async () => {
+      const callLog: Array<{ keyType: string; model: string }> = [];
+      const mockSchema = z.object({ success: z.boolean() });
+
+      const clientProvider = (keyType: 'primary' | 'fallback') => {
+        return {
+          models: {
+            generateContent: vi.fn().mockImplementation(async ({ model }: { model: string }) => {
+              callLog.push({ keyType, model });
+              if (keyType === 'primary' && model === 'gemini-3.8-flash') {
+                throw new GeminiApiError('429 RESOURCE_EXHAUSTED Quota Exceeded', 429, true, 'AI_BUSY');
+              }
+              return {
+                text: JSON.stringify({ success: true }),
+              };
+            }),
+          },
+        } as unknown as GoogleGenAI;
+      };
+
+      const result = await callGeminiStructured('test prompt', mockSchema, {
+        clientProvider,
+        primaryMaxRetries: 0,
+      });
+
+      expect(result.success).toBe(true);
+      expect(callLog).toEqual([
+        { keyType: 'primary', model: 'gemini-3.8-flash' },
+        { keyType: 'fallback', model: 'gemini-3.8-flash' },
+      ]);
+    });
+
+    it('skips fallback key on primary model when failure is general 503 overload and proceeds to fallback model', async () => {
+      const callLog: Array<{ keyType: string; model: string }> = [];
+      const mockSchema = z.object({ success: z.boolean() });
+
+      const clientProvider = (keyType: 'primary' | 'fallback') => {
+        return {
+          models: {
+            generateContent: vi.fn().mockImplementation(async ({ model }: { model: string }) => {
+              callLog.push({ keyType, model });
+              if (model === 'gemini-3.8-flash') {
+                // 503 service unavailable is server overload, not quota
+                throw new GeminiApiError('503 Service Unavailable', 503, true, 'AI_BUSY');
+              }
+              return {
+                text: JSON.stringify({ success: true }),
+              };
+            }),
+          },
+        } as unknown as GoogleGenAI;
+      };
+
+      const result = await callGeminiStructured('test prompt', mockSchema, {
+        clientProvider,
+        primaryMaxRetries: 0,
+      });
+
+      expect(result.success).toBe(true);
+      // Because 503 is not quota, fallback key with primary model is skipped, routing directly to primary key + fallback model
+      expect(callLog).toEqual([
+        { keyType: 'primary', model: 'gemini-3.8-flash' },
+        { keyType: 'primary', model: 'gemini-3.5-flash' },
+      ]);
+    });
+
+    it('cascades to fallback model with fallback key if primary key on fallback model also fails', async () => {
+      const callLog: Array<{ keyType: string; model: string }> = [];
+      const mockSchema = z.object({ success: z.boolean() });
+
+      const clientProvider = (keyType: 'primary' | 'fallback') => {
+        return {
+          models: {
+            generateContent: vi.fn().mockImplementation(async ({ model }: { model: string }) => {
+              callLog.push({ keyType, model });
+              if (keyType === 'primary') {
+                throw new GeminiApiError('503 Overloaded', 503, true, 'AI_BUSY');
+              }
+              return {
+                text: JSON.stringify({ success: true }),
+              };
+            }),
+          },
+        } as unknown as GoogleGenAI;
+      };
+
+      const result = await callGeminiStructured('test prompt', mockSchema, {
+        clientProvider,
+        primaryMaxRetries: 0,
+        fallbackMaxRetries: 0,
+      });
+
+      expect(result.success).toBe(true);
+      expect(callLog).toEqual([
+        { keyType: 'primary', model: 'gemini-3.8-flash' },
+        { keyType: 'primary', model: 'gemini-3.5-flash' },
+        { keyType: 'fallback', model: 'gemini-3.5-flash' },
+      ]);
+    });
+
+    it('tracks circuit breakers per key and model combination independently', async () => {
+      // Trip primary key on primary model
+      tripCircuitBreakerForTesting(60000, Date.now(), 'primary', 'gemini-3.8-flash');
+
+      const callLog: Array<{ keyType: string; model: string }> = [];
+      const mockSchema = z.object({ success: z.boolean() });
+
+      const clientProvider = (keyType: 'primary' | 'fallback') => {
+        return {
+          models: {
+            generateContent: vi.fn().mockImplementation(async ({ model }: { model: string }) => {
+              callLog.push({ keyType, model });
+              return {
+                text: JSON.stringify({ success: true }),
+              };
+            }),
+          },
+        } as unknown as GoogleGenAI;
+      };
+
+      const result = await callGeminiStructured('test prompt', mockSchema, {
+        clientProvider,
+        primaryMaxRetries: 0,
+      });
+
+      expect(result.success).toBe(true);
+      // Primary:gemini-3.8-flash was tripped, so it routes directly to primary:gemini-3.5-flash!
+      expect(callLog).toEqual([
+        { keyType: 'primary', model: 'gemini-3.5-flash' },
+      ]);
+    });
+
+    it('guarantees neither primary nor fallback API keys are logged or returned', async () => {
+      process.env.GEMINI_API_KEY = 'super-secret-primary-key-888';
+      process.env.GEMINI_API_KEY_FALLBACK = 'super-secret-backup-key-999';
+
+      const client = getGeminiClient('primary');
+      expect(client).toBeDefined();
+
+      const fallbackClient = getGeminiClient('fallback');
+      expect(fallbackClient).toBeDefined();
+
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+      try {
+        await callGeminiStructured(
+          'prompt',
+          z.object({ item: z.string() }),
+          {
+            primaryMaxRetries: 0,
+            customClient: {
+              models: {
+                generateContent: vi.fn().mockRejectedValue(new Error('Auth failed for key super-secret-primary-key-888')),
+              },
+            } as unknown as GoogleGenAI,
+          }
+        );
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err);
+        expect(errMsg).not.toContain('super-secret-primary-key-888');
+        expect(errMsg).not.toContain('super-secret-backup-key-999');
+      }
+
+      consoleSpy.mockRestore();
+    });
+  });
 });

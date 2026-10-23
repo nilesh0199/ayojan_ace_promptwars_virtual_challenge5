@@ -1,4 +1,5 @@
 import { TimelineTask } from './schemas';
+import { clearCalendarAccessToken } from './firebase/auth';
 
 export const MAX_CALENDAR_EVENTS_SYNC = 60;
 export const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
@@ -112,6 +113,57 @@ export function buildGoogleCalendarEventBody(
 }
 
 /**
+ * Constructs a direct Google Calendar Web event template URL (Warning-free, zero OAuth permissions required).
+ * URL format: https://calendar.google.com/calendar/render?action=TEMPLATE&text=...&dates=...&details=...&ctz=...
+ * Opens in a new tab with rel="noopener noreferrer", scheduling a 9:00 AM milestone task with title, plan name and app link.
+ */
+export function buildGoogleCalendarTemplateUrl(options: {
+  taskTitle: string;
+  planTitle: string;
+  dueDate: string;
+  timeZone?: string;
+  appUrl?: string;
+}): string {
+  const { taskTitle, planTitle, dueDate } = options;
+
+  const timeZone =
+    options.timeZone ||
+    (typeof Intl !== 'undefined'
+      ? Intl.DateTimeFormat().resolvedOptions().timeZone || 'Asia/Kolkata'
+      : 'Asia/Kolkata');
+
+  const appOrigin =
+    options.appUrl ||
+    (typeof window !== 'undefined' && window.location?.origin
+      ? window.location.origin
+      : 'https://ayojan-ace.vercel.app');
+
+  // Title: "[Plan Name] Task Title" (capped cleanly)
+  const text = `[${planTitle}] ${taskTitle}`.slice(0, 100);
+
+  // Dates: standard 9:00 AM - 9:30 AM on task dueDate (YYYYMMDDTHHMMSS/YYYYMMDDTHHMMSS)
+  const dateFormatted = dueDate.replace(/-/g, '');
+  const dates = `${dateFormatted}T090000/${dateFormatted}T093000`;
+
+  // Details: Task milestone, plan name, and workspace link
+  const details = [
+    `Milestone: ${taskTitle}`,
+    `Plan: ${planTitle}`,
+    `View in Aayojan Ace: ${appOrigin}/workspace`,
+  ].join('\n');
+
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text,
+    dates,
+    details,
+    ctz: timeZone,
+  });
+
+  return `https://calendar.google.com/calendar/render?${params.toString()}`;
+}
+
+/**
  * Makes an authenticated request to Google Calendar REST API with retry backoff for rate limits.
  */
 async function callCalendarApi(
@@ -132,6 +184,7 @@ async function callCalendarApi(
     });
 
     if (res.status === 401) {
+      clearCalendarAccessToken();
       throw new Error(
         'Google Calendar authorization expired. Please click "Connect Google Calendar" to re-authenticate.'
       );

@@ -15,9 +15,12 @@ export type GeminiErrorCode =
   | 'AI_TIMEOUT'
   | 'AI_NOT_CONFIGURED'
   | 'AI_INVALID_KEY'
+  | 'AI_BACKUP_KEY_EXPIRED'
   | 'AI_MODEL_NOT_FOUND'
   | 'AI_VALIDATION_FAILED'
   | 'AI_ERROR';
+
+export type GeminiKeyType = 'primary' | 'fallback';
 
 export interface GeminiCallOptions {
   totalBudgetMs?: number;
@@ -26,6 +29,8 @@ export interface GeminiCallOptions {
   fallbackMaxRetries?: number;
   temperature?: number;
   customClient?: GoogleGenAI;
+  customFallbackClient?: GoogleGenAI;
+  clientProvider?: (keyType: GeminiKeyType) => GoogleGenAI;
   jitterFn?: () => number;
 }
 
@@ -49,64 +54,107 @@ export class GeminiApiError extends Error {
 }
 
 /**
- * In-memory Circuit Breaker state.
- * After repeated overload failures (threshold = 3), skips the primary model
- * for ~60 seconds and utilizes the fallback model directly.
+ * In-memory Circuit Breaker state tracking per (keyType, model) combination.
+ * After repeated overload failures (threshold = 3), skips the combination
+ * for ~60 seconds.
  */
-interface CircuitBreakerState {
+export interface CircuitBreakerState {
   consecutiveFailures: number;
   trippedUntil: number;
 }
 
-const primaryCircuitState: CircuitBreakerState = {
-  consecutiveFailures: 0,
-  trippedUntil: 0,
-};
+const combinationCircuits = new Map<string, CircuitBreakerState>();
 
-export function isPrimaryCircuitOpen(nowMs = Date.now()): boolean {
-  return primaryCircuitState.trippedUntil > nowMs;
+export function getCircuitKey(keyType: GeminiKeyType, model: string): string {
+  return `${keyType}:${model}`;
 }
 
-export function recordPrimaryFailure(isOverload: boolean, nowMs = Date.now()): void {
+export function isCombinationCircuitOpen(
+  keyType: GeminiKeyType,
+  model: string,
+  nowMs = Date.now()
+): boolean {
+  const key = getCircuitKey(keyType, model);
+  const state = combinationCircuits.get(key);
+  return Boolean(state && state.trippedUntil > nowMs);
+}
+
+export function recordCombinationFailure(
+  keyType: GeminiKeyType,
+  model: string,
+  isOverload: boolean,
+  nowMs = Date.now()
+): void {
   if (!isOverload) return;
-  primaryCircuitState.consecutiveFailures += 1;
-  if (primaryCircuitState.consecutiveFailures >= CIRCUIT_BREAKER_FAIL_THRESHOLD) {
-    primaryCircuitState.trippedUntil = nowMs + CIRCUIT_BREAKER_COOLDOWN_MS;
+  const key = getCircuitKey(keyType, model);
+  const state = combinationCircuits.get(key) || { consecutiveFailures: 0, trippedUntil: 0 };
+  state.consecutiveFailures += 1;
+  if (state.consecutiveFailures >= CIRCUIT_BREAKER_FAIL_THRESHOLD) {
+    state.trippedUntil = nowMs + CIRCUIT_BREAKER_COOLDOWN_MS;
     if (process.env.NODE_ENV !== 'test') {
       console.warn(
-        `[Circuit Breaker] Primary model tripped after ${primaryCircuitState.consecutiveFailures} consecutive overload failures. Directing calls to fallback model for 60 seconds.`
+        `[Circuit Breaker] Combination (${keyType} key, model ${model}) tripped after ${state.consecutiveFailures} consecutive overload failures. Routing away for 60 seconds.`
       );
     }
   }
+  combinationCircuits.set(key, state);
+}
+
+export function recordCombinationSuccess(keyType: GeminiKeyType, model: string): void {
+  const key = getCircuitKey(keyType, model);
+  combinationCircuits.set(key, { consecutiveFailures: 0, trippedUntil: 0 });
+}
+
+export function resetAllCircuitBreakers(): void {
+  combinationCircuits.clear();
+}
+
+export function isPrimaryCircuitOpen(nowMs = Date.now()): boolean {
+  const primaryModel = process.env.GEMINI_MODEL || DEFAULT_PRIMARY_MODEL;
+  return isCombinationCircuitOpen('primary', primaryModel, nowMs);
+}
+
+export function recordPrimaryFailure(isOverload: boolean, nowMs = Date.now()): void {
+  const primaryModel = process.env.GEMINI_MODEL || DEFAULT_PRIMARY_MODEL;
+  recordCombinationFailure('primary', primaryModel, isOverload, nowMs);
 }
 
 export function recordPrimarySuccess(): void {
-  primaryCircuitState.consecutiveFailures = 0;
-  primaryCircuitState.trippedUntil = 0;
+  const primaryModel = process.env.GEMINI_MODEL || DEFAULT_PRIMARY_MODEL;
+  recordCombinationSuccess('primary', primaryModel);
 }
 
 export function resetCircuitBreaker(): void {
-  primaryCircuitState.consecutiveFailures = 0;
-  primaryCircuitState.trippedUntil = 0;
+  resetAllCircuitBreakers();
 }
 
 export function tripCircuitBreakerForTesting(
   cooldownMs = CIRCUIT_BREAKER_COOLDOWN_MS,
-  nowMs = Date.now()
+  nowMs = Date.now(),
+  keyType: GeminiKeyType = 'primary',
+  model = process.env.GEMINI_MODEL || DEFAULT_PRIMARY_MODEL
 ): void {
-  primaryCircuitState.consecutiveFailures = CIRCUIT_BREAKER_FAIL_THRESHOLD;
-  primaryCircuitState.trippedUntil = nowMs + cooldownMs;
+  const key = getCircuitKey(keyType, model);
+  combinationCircuits.set(key, {
+    consecutiveFailures: CIRCUIT_BREAKER_FAIL_THRESHOLD,
+    trippedUntil: nowMs + cooldownMs,
+  });
 }
 
-export function getCircuitBreakerState(): {
+export function getCircuitBreakerState(
+  keyType: GeminiKeyType = 'primary',
+  model = process.env.GEMINI_MODEL || DEFAULT_PRIMARY_MODEL
+): {
   isOpen: boolean;
   consecutiveFailures: number;
   resetAt: number;
 } {
+  const key = getCircuitKey(keyType, model);
+  const state = combinationCircuits.get(key) || { consecutiveFailures: 0, trippedUntil: 0 };
   return {
-    isOpen: isPrimaryCircuitOpen(),
-    consecutiveFailures: primaryCircuitState.consecutiveFailures,
-    resetAt: primaryCircuitState.trippedUntil,
+    isOpen: isCombinationCircuitOpen(keyType, model),
+    consecutiveFailures: state.consecutiveFailures,
+    resetAt: state.trippedUntil,
   };
 }
 
@@ -181,8 +229,15 @@ export function getFriendlyAiError(
       return {
         title: 'AI Authorization Update Needed',
         message:
-          'Gemini API key is invalid or unauthorized. You can still explore and edit all celebration plans with our curated examples.',
+          'The main AI provider is no longer active. This app was built for the PromptWars Challenge 5, and its demo access key was valid for about two months. Plans still work with curated examples and the built-in planner.',
         actionHint: 'Explore pre-built plans or verify server API credentials.',
+      };
+    case 'AI_BACKUP_KEY_EXPIRED':
+      return {
+        title: 'Backup AI Provider Expired',
+        message:
+          'The backup AI provider is no longer active. This app was built for the PromptWars Challenge 5, and its demo access key was valid for about two months. Plans still work with the main AI and the built-in planner.',
+        actionHint: 'Plans continue seamlessly using the main AI or built-in template planner.',
       };
     case 'AI_MODEL_NOT_FOUND':
       return {
@@ -337,13 +392,48 @@ export function mapGeminiError(err: unknown): GeminiApiError {
 }
 
 /**
- * Creates or retrieves the GoogleGenAI client using server-only environment variables.
+ * Checks whether an error is specifically quota or resource exhaustion (429 / RESOURCE_EXHAUSTED).
  */
-export function getGeminiClient(): GoogleGenAI {
-  const apiKey = process.env.GEMINI_API_KEY;
+export function isQuotaError(err: unknown): boolean {
+  if (err instanceof GeminiApiError) {
+    if (err.statusCode === 429) return true;
+    const msg = err.message.toLowerCase();
+    return msg.includes('429') || msg.includes('quota') || msg.includes('resource_exhausted');
+  }
+  const msg = err instanceof Error ? err.message : String(err || '');
+  const lower = msg.toLowerCase();
+  return (
+    lower.includes('429') ||
+    lower.includes('quota') ||
+    lower.includes('resource_exhausted')
+  );
+}
+
+/**
+ * Checks whether an optional backup Gemini API key is configured.
+ */
+export function hasFallbackApiKey(): boolean {
+  return Boolean(
+    process.env.GEMINI_API_KEY_FALLBACK &&
+      process.env.GEMINI_API_KEY_FALLBACK.trim().length > 0
+  );
+}
+
+/**
+ * Creates or retrieves the GoogleGenAI client using server-only environment variables.
+ * Never logs, exposes, or returns the raw API key.
+ */
+export function getGeminiClient(keyType: GeminiKeyType = 'primary'): GoogleGenAI {
+  const apiKey =
+    keyType === 'fallback'
+      ? process.env.GEMINI_API_KEY_FALLBACK
+      : process.env.GEMINI_API_KEY;
+
   if (!apiKey || apiKey.trim().length === 0) {
     throw new GeminiApiError(
-      'Server configuration error: GEMINI_API_KEY is not set. Please ensure GEMINI_API_KEY is configured in environment variables, or explore our saved example plans.',
+      keyType === 'fallback'
+        ? 'Server configuration error: GEMINI_API_KEY_FALLBACK is not set.'
+        : 'Server configuration error: GEMINI_API_KEY is not set. Please ensure GEMINI_API_KEY is configured in environment variables, or explore our saved example plans.',
       500,
       false,
       'AI_NOT_CONFIGURED'
@@ -354,14 +444,20 @@ export function getGeminiClient(): GoogleGenAI {
 
 /**
  * Executes a Gemini request with structured output, retries, jittered exponential backoff,
- * per-attempt timeouts, overall time budget, fallback model switching, and circuit breaker.
+ * per-attempt timeouts, overall time budget, fallback key support, fallback model switching,
+ * and per-combination circuit breakers.
+ *
+ * Execution order on transient overload/quota:
+ * 1. Primary key with primary model (with existing retries)
+ * 2. Fallback key with primary model for quota errors (429 / RESOURCE_EXHAUSTED)
+ * 3. Fallback model with primary key
+ * 4. Fallback model with fallback key
  */
 export async function callGeminiStructured<T>(
   prompt: string,
-  schema: z.ZodType<T>,
+  schema: z.ZodType<T, any, any>,
   options: GeminiCallOptions = {}
 ): Promise<T> {
-  const client = options.customClient ?? getGeminiClient();
   const totalBudgetMs = options.totalBudgetMs ?? DEFAULT_TOTAL_BUDGET_MS;
   const perAttemptTimeoutMs = options.perAttemptTimeoutMs ?? DEFAULT_PER_ATTEMPT_TIMEOUT_MS;
   const primaryMaxRetries = options.primaryMaxRetries ?? PRIMARY_MAX_RETRIES;
@@ -370,48 +466,93 @@ export async function callGeminiStructured<T>(
   const primaryModel = process.env.GEMINI_MODEL || DEFAULT_PRIMARY_MODEL;
   const fallbackModel = process.env.GEMINI_FALLBACK_MODEL || DEFAULT_FALLBACK_MODEL;
 
+  const hasFallbackKey =
+    hasFallbackApiKey() ||
+    Boolean(options.customFallbackClient) ||
+    Boolean(options.clientProvider);
+
+  const resolveClientForStage = (keyType: GeminiKeyType): GoogleGenAI => {
+    if (options.clientProvider) {
+      return options.clientProvider(keyType);
+    }
+    if (keyType === 'fallback' && options.customFallbackClient) {
+      return options.customFallbackClient;
+    }
+    if (options.customClient) {
+      return options.customClient;
+    }
+    return getGeminiClient(keyType);
+  };
+
   const startTime = Date.now();
   const deadline = startTime + totalBudgetMs;
 
-  // Determine stage execution plan according to circuit breaker
-  interface ModelStage {
+  interface StageDefinition {
+    keyType: GeminiKeyType;
     model: string;
     maxRetries: number;
-    isPrimary: boolean;
+    isQuotaOnlyFallback?: boolean;
   }
 
-  const stages: ModelStage[] = [];
-  if (isPrimaryCircuitOpen()) {
-    if (process.env.NODE_ENV !== 'test') {
-      console.warn(
-        `[Gemini Resilience] Primary model circuit is OPEN. Bypassing primary and routing directly to fallback model (${fallbackModel}).`
-      );
-    }
-    stages.push({
+  const stageCandidates: StageDefinition[] = [];
+
+  // Stage 1: Primary key + Primary model
+  stageCandidates.push({
+    keyType: 'primary',
+    model: primaryModel,
+    maxRetries: primaryMaxRetries,
+  });
+
+  // Stage 2: Fallback key + Primary model (for quota errors)
+  if (hasFallbackKey) {
+    stageCandidates.push({
+      keyType: 'fallback',
+      model: primaryModel,
+      maxRetries: 1,
+      isQuotaOnlyFallback: true,
+    });
+  }
+
+  // Stage 3: Primary key + Fallback model (if fallback model differs from primary)
+  if (fallbackModel !== primaryModel) {
+    stageCandidates.push({
+      keyType: 'primary',
       model: fallbackModel,
       maxRetries: fallbackMaxRetries,
-      isPrimary: false,
     });
-  } else {
-    stages.push({
-      model: primaryModel,
-      maxRetries: primaryMaxRetries,
-      isPrimary: true,
-    });
-    // Add fallback stage if different from primary
-    if (fallbackModel !== primaryModel) {
-      stages.push({
+
+    // Stage 4: Fallback key + Fallback model
+    if (hasFallbackKey) {
+      stageCandidates.push({
+        keyType: 'fallback',
         model: fallbackModel,
         maxRetries: fallbackMaxRetries,
-        isPrimary: false,
       });
     }
   }
 
   let lastError: unknown = null;
+  let previousWasQuota = false;
 
-  for (let stageIdx = 0; stageIdx < stages.length; stageIdx++) {
-    const stage = stages[stageIdx];
+  for (let sIdx = 0; sIdx < stageCandidates.length; sIdx++) {
+    const stage = stageCandidates[sIdx];
+
+    // If stage is specifically a fallback key for quota errors, only execute if previous failure was quota
+    if (stage.isQuotaOnlyFallback && !previousWasQuota) {
+      continue;
+    }
+
+    // Check circuit breaker for this specific combination
+    if (isCombinationCircuitOpen(stage.keyType, stage.model, Date.now())) {
+      if (process.env.NODE_ENV !== 'test') {
+        console.warn(
+          `[Gemini Resilience] Circuit is OPEN for (${stage.keyType} key, model ${stage.model}). Skipping to next available candidate.`
+        );
+      }
+      continue;
+    }
+
+    const client = resolveClientForStage(stage.keyType);
 
     for (let attempt = 0; attempt <= stage.maxRetries; attempt++) {
       const remainingBudget = deadline - Date.now();
@@ -486,23 +627,20 @@ export async function callGeminiStructured<T>(
           );
         }
 
-        // On successful primary call, reset circuit breaker consecutive failure counter
-        if (stage.isPrimary) {
-          recordPrimarySuccess();
-        }
+        // On successful call, reset combination circuit failures
+        recordCombinationSuccess(stage.keyType, stage.model);
 
         return validatedResult.data;
       } catch (err: unknown) {
         lastError = err;
         const isOverload = isOverloadOrTransientError(err);
+        previousWasQuota = isQuotaError(err);
 
-        if (stage.isPrimary) {
-          recordPrimaryFailure(isOverload);
-        }
+        recordCombinationFailure(stage.keyType, stage.model, isOverload);
 
-        // Check if we should retry on the current model
+        // Check if we should retry on the current combination
         if (attempt < stage.maxRetries && isOverload) {
-          const baseMs = Math.pow(2, attempt) * 400; // 400ms for attempt 0, 800ms for attempt 1
+          const baseMs = Math.pow(2, attempt) * 400;
           const jitter = (options.jitterFn ? options.jitterFn() : Math.random()) * 250;
           const backoffMs = Math.floor(baseMs + jitter);
           const currentRemaining = deadline - Date.now();
@@ -514,7 +652,7 @@ export async function callGeminiStructured<T>(
           continue;
         }
 
-        // Retries exhausted for this model or non-retryable error; fall through to next stage (fallback model)
+        // Retries exhausted for this combination; fall through to next candidate stage
         break;
       } finally {
         if (timerId !== undefined) {

@@ -99,6 +99,17 @@ export const TIMELINE_PHASES = [
 ] as const;
 export type TimelinePhase = (typeof TIMELINE_PHASES)[number];
 
+/**
+ * Standard guest communication milestone offsets (in days before celebration).
+ * Configured as named constants so offsets are transparent and maintainable.
+ */
+export const GUEST_MILESTONE_OFFSETS = {
+  SAVE_THE_DATE_DAYS: 56, // 8 weeks before (Weddings only)
+  INVITATIONS_DAYS: 21, // 3 weeks before (All event types)
+  RSVP_FOLLOWUP_DAYS: 10, // 10 days before
+  FINAL_HEADCOUNT_DAYS: 5, // 5 days before
+} as const;
+
 export const VENDOR_STATUSES = [
   'Shortlisted',
   'Contacted',

@@ -3,6 +3,8 @@ import path from 'path';
 import { describe, it, expect } from 'vitest';
 import { SAVED_EXAMPLES } from '@/data/savedExamples';
 import { toFirestoreDoc } from '@/lib/firebase/mappers';
+import { getFriendlyFirestoreErrorMessage } from '@/lib/firebase/firestore';
+import { injectGuestMilestones, reflowTimelineDates } from '@/lib/timeline';
 import { EventPlan } from '@/lib/schemas';
 
 /**
@@ -322,6 +324,82 @@ describe('Firestore Rules Schema & Shape Compatibility', () => {
           SAVED_EXAMPLES.wedding.id
         )
       ).toBe(false);
+    });
+  });
+
+  describe('Firestore Error Mapping to Friendly Positive Copy', () => {
+    it('maps permission-denied to clear guidance on publishing security rules', () => {
+      const msg = getFriendlyFirestoreErrorMessage({ code: 'permission-denied' });
+      expect(msg).toContain('Cloud save permission denied');
+      expect(msg).toContain('Firestore Security Rules');
+    });
+
+    it('maps not-found and unavailable to database initialization guidance', () => {
+      const msgNotFound = getFriendlyFirestoreErrorMessage({ code: 'not-found' });
+      expect(msgNotFound).toContain('database is currently unavailable');
+
+      const msgUnavailable = getFriendlyFirestoreErrorMessage({ code: 'unavailable' });
+      expect(msgUnavailable).toContain('database is currently unavailable');
+    });
+
+    it('maps unauthenticated to session expiration message', () => {
+      const msg = getFriendlyFirestoreErrorMessage({ code: 'unauthenticated' });
+      expect(msg).toContain('Authentication session expired');
+      expect(msg).toContain('sign in with Google');
+    });
+
+    it('maps resource-exhausted to quota reassurance without panic', () => {
+      const msg = getFriendlyFirestoreErrorMessage({ code: 'resource-exhausted' });
+      expect(msg).toContain('quota reached');
+      expect(msg).toContain('safely saved in your browser');
+    });
+
+    it('maps network errors to connection guidance without leaking raw stack trace', () => {
+      const msg = getFriendlyFirestoreErrorMessage(new Error('Failed to fetch from internal firestore endpoint at 10.0.0.1'));
+      expect(msg).toContain('Network connection issue');
+      expect(msg).not.toContain('10.0.0.1');
+    });
+  });
+
+  describe('Comprehensive Shape Validation for Every Plan the App Produces', () => {
+    it('passes validation for plans after guest milestones injection and date reflow', () => {
+      const plan = SAVED_EXAMPLES.wedding;
+      const enrichedTimeline = injectGuestMilestones(
+        plan.timeline,
+        '2026-12-15',
+        'Wedding',
+        '2026-05-01'
+      );
+      const reflowResult = reflowTimelineDates(enrichedTimeline, plan.date, '2026-12-15');
+
+      const updatedPlan: EventPlan = {
+        ...plan,
+        date: '2026-12-15',
+        timeline: reflowResult.updatedTasks,
+        updatedAt: new Date().toISOString(),
+      };
+
+      const docData = toFirestoreDoc(updatedPlan);
+      expect(simulateIsValidPlanData(docData as unknown as Record<string, unknown>, updatedPlan.id)).toBe(true);
+    });
+
+    it('guarantees toFirestoreDoc never emits undefined property values for any task shape', () => {
+      const planWithSparseTasks: EventPlan = {
+        ...SAVED_EXAMPLES.birthday,
+        timeline: SAVED_EXAMPLES.birthday.timeline.map((task) => ({
+          ...task,
+          estimatedCostLink: undefined,
+          googleCalendarEventId: undefined,
+        })),
+      };
+
+      const firestoreDoc = toFirestoreDoc(planWithSparseTasks);
+      const taskOutput = firestoreDoc.timeline[0];
+
+      // Must NOT contain undefined properties which crash Firestore SDK
+      expect('estimatedCostLink' in taskOutput).toBe(false);
+      expect('googleCalendarEventId' in taskOutput).toBe(false);
+      expect(simulateIsValidPlanData(firestoreDoc as unknown as Record<string, unknown>, planWithSparseTasks.id)).toBe(true);
     });
   });
 });

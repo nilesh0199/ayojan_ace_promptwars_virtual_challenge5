@@ -35,6 +35,8 @@ export interface FirestorePlanDoc {
     completed: boolean;
     daysBeforeEvent: number;
     googleCalendarEventId?: string;
+    isGuestMilestone?: boolean;
+    isTimeSensitive?: boolean;
   }>;
   vendors: Array<{
     id: string;
@@ -88,18 +90,31 @@ export function toFirestoreDoc(plan: EventPlan): FirestorePlanDoc {
       taxServiceChargePercent: validPlan.budget.taxServiceChargePercent,
       statedAssumptions: validPlan.budget.statedAssumptions,
     },
-    timeline: validPlan.timeline.map((t) => ({
-      id: t.id,
-      phase: t.phase,
-      title: t.title,
-      description: t.description,
-      dueDate: t.dueDate,
-      owner: t.owner,
-      estimatedCostLink: t.estimatedCostLink,
-      completed: t.completed,
-      daysBeforeEvent: t.daysBeforeEvent,
-      googleCalendarEventId: t.googleCalendarEventId,
-    })),
+    timeline: validPlan.timeline.map((t) => {
+      const item: Record<string, unknown> = {
+        id: t.id,
+        phase: t.phase,
+        title: t.title,
+        description: t.description,
+        dueDate: t.dueDate,
+        owner: t.owner,
+        completed: Boolean(t.completed),
+        daysBeforeEvent: t.daysBeforeEvent,
+      };
+      if (t.estimatedCostLink !== undefined && t.estimatedCostLink !== null && t.estimatedCostLink !== '') {
+        item.estimatedCostLink = t.estimatedCostLink;
+      }
+      if (t.googleCalendarEventId) {
+        item.googleCalendarEventId = t.googleCalendarEventId;
+      }
+      if (t.isGuestMilestone) {
+        item.isGuestMilestone = true;
+      }
+      if (t.isTimeSensitive) {
+        item.isTimeSensitive = true;
+      }
+      return item as FirestorePlanDoc['timeline'][number];
+    }),
     vendors: validPlan.vendors.map((v) => ({
       id: v.id,
       categoryName: v.categoryName,

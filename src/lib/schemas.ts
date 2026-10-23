@@ -113,6 +113,8 @@ export const timelineTaskSchema = z.object({
   completed: z.boolean().default(false),
   daysBeforeEvent: z.number().int(),
   googleCalendarEventId: z.string().optional(),
+  isGuestMilestone: z.boolean().optional(),
+  isTimeSensitive: z.boolean().optional(),
 });
 
 export type TimelineTask = z.infer<typeof timelineTaskSchema>;
@@ -144,6 +146,9 @@ export const personalizedIdeasSchema = z.object({
 
 export type PersonalizedIdeas = z.infer<typeof personalizedIdeasSchema>;
 
+export const PLAN_GENERATION_SOURCES = ['primary', 'backup', 'template'] as const;
+export type PlanGenerationSource = (typeof PLAN_GENERATION_SOURCES)[number];
+
 /**
  * Complete Full Event Plan Schema
  */
@@ -166,6 +171,8 @@ export const eventPlanSchema = z.object({
   updatedAt: z.string(),
   version: z.number().int().default(1),
   isSavedExample: z.boolean().default(false),
+  generationSource: z.enum(PLAN_GENERATION_SOURCES).default('primary').optional(),
+  providerNotice: z.string().optional(),
 });
 
 export type EventPlan = z.infer<typeof eventPlanSchema>;

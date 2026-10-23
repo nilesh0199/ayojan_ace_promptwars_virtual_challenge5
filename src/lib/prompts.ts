@@ -81,6 +81,7 @@ MANDATORY PLANNING RULES:
 2. TIMELINE:
    - Provide 8 to 15 actionable tasks distributed logically across phases: 'Now', 'Next 7 days', 'Next 30 days', 'Event week', 'Event day'.
    - Each task must have a realistic due date formatted as YYYY-MM-DD on or before the event date (${intake.date}).
+   - Align with standard guest communication milestones: save-the-date cards 8 weeks before (for weddings), formal guest invitations 3 weeks before, RSVP follow-up 10 days before, and final headcount confirmation with caterer/venue 5 days before.
    - Assign appropriate free-text owners (e.g. 'Lead Host', 'Family Coordinator', 'Designated Sibling') and specify daysBeforeEvent.
 
 3. VENDOR CHECKLIST:

@@ -57,6 +57,11 @@ export function generateTimelineIcs(eventTitle: string, tasks: TimelineTask[]): 
       `SUMMARY:${escapeIcsText(`[Aayojan Ace] ${task.title}`)}`,
       `DESCRIPTION:${escapeIcsText(descriptionText)}`,
       `STATUS:${task.completed ? 'COMPLETED' : 'CONFIRMED'}`,
+      'BEGIN:VALARM',
+      'ACTION:DISPLAY',
+      `DESCRIPTION:${escapeIcsText(`Reminder: ${task.title}`)}`,
+      'TRIGGER:-P1D',
+      'END:VALARM',
       'END:VEVENT'
     );
   }

@@ -59,15 +59,34 @@ Every core capability mandated by the challenge brief is delivered with dedicate
   - *Guest Mode*: Guest plans persist in schema-validated localStorage; upon sign-in, an accessible one-click banner prompts to import the guest plan directly into Firestore.
   - *Source File*: [`src/lib/firebase/firestore.ts`](file:///src/lib/firebase/firestore.ts) and [`firestore.rules`](file:///firestore.rules).
 
-- **Google Calendar Milestone Reminders**:
+- **Google Calendar Milestone Reminders & Zero-OAuth Path**:
   - *Screen*: Workspace Timeline Tab Reminders Panel ([`src/components/workspace/tab-timeline.tsx`](file:///src/components/workspace/tab-timeline.tsx)).
-  - *Feature*: "Connect Google Calendar" requesting narrow `calendar.events` scope via `GoogleAuthProvider`. Access tokens stored in memory ONLY (never in Firestore, localStorage, or logs). Automatically creates 9:00 AM local time events with 1-day email (1440 min) and 1-hour popup (60 min) alerts via Google Calendar REST API. Idempotent sync updates existing events using `task.googleCalendarEventId`. Includes "Remove Reminders" control, hard cap of 60 events, concurrency limits, and retry backoff on 429/503.
-  - *Source File*: [`src/lib/google-calendar.ts`](file:///src/lib/google-calendar.ts) and [`src/lib/firebase/auth.ts`](file:///src/lib/firebase/auth.ts).
+  - *Warning-Free Default Path*: Each timeline task includes a direct "Add to Google Calendar" link opening `calendar.google.com/calendar/render?action=TEMPLATE` in a new tab without OAuth warnings or sign-in requirements. Includes a prominent "Download all as .ics" button generating standard iCalendar files with 1-day advance alarm reminders (`VALARM`) compatible with Apple Calendar, Google Calendar, and Outlook.
+  - *Advanced OAuth Auto-Sync*: Collapsible advanced panel with calm unverified-app explanation for non-commercial competition projects. Uses `GoogleAuthProvider` requesting narrow `calendar.events` scope, passing `login_hint` and `include_granted_scopes`. Access tokens stored strictly in client runtime memory (never in Firestore, localStorage, cookies, or logs) and cleared on 401 or sign-out. Idempotently creates 9:00 AM local events with 1-day email and 1-hour popup alerts.
+  - *Source File*: [`src/lib/google-calendar.ts`](file:///src/lib/google-calendar.ts), [`src/lib/ics.ts`](file:///src/lib/ics.ts), and [`src/lib/firebase/auth.ts`](file:///src/lib/firebase/auth.ts).
 
-- **Server Config Health Check & Error Mapping**:
+- **Guest Invitations in the Timeline & Draft Modal**:
+  - *Screen*: Workspace Timeline Tab ([`src/components/workspace/tab-timeline.tsx`](file:///src/components/workspace/tab-timeline.tsx)) and Draft Invite Modal ([`src/components/workspace/draft-invite-modal.tsx`](file:///src/components/workspace/draft-invite-modal.tsx)).
+  - *Code-Injected Milestones*: Automatically embeds essential milestones with strict timing offsets: Save-the-date (8 weeks, weddings only), Invitations (3 weeks, all), RSVP follow-up (10 days), Final headcount (5 days). If an event is closer than an offset allows, due date is clamped to tomorrow and marked `isTimeSensitive` with an alert icon and visible text label.
+  - *Draft Invite Modal*: Invitation tasks provide a "Draft invite" button opening an accessible modal with live customizable event details (host names, date/time, venue, RSVP contact, dietary requests), editable message textarea with live character counter, one-click Copy to clipboard with live region feedback, WhatsApp sharing via `wa.me`, and Email sharing via `mailto`.
+  - *Source File*: [`src/lib/timeline.ts`](file:///src/lib/timeline.ts) and [`src/components/workspace/draft-invite-modal.tsx`](file:///src/components/workspace/draft-invite-modal.tsx).
+
+- **Multi-Scope Print & PDF Export**:
+  - *Screen*: Workspace Header Print Control ([`src/components/workspace/workspace-header.tsx`](file:///src/components/workspace/workspace-header.tsx)) and Full Report ([`src/components/workspace/full-event-report.tsx`](file:///src/components/workspace/full-event-report.tsx)).
+  - *Feature*: Accessible dialog allowing users to choose between "Full event report" (default) or "Current tab only". The Full Event Report renders a comprehensive executive summary fact sheet, comprehensive budget ledger with assumptions, complete timeline with guest milestones, vendor interview questions, creative cultural ideas, operational risk register, and planning disclaimer.
+  - *Print Stylesheet*: Enforces clean light theme on paper/PDF regardless of current dark mode setting, high-contrast dark text ($\ge 7:1$), readable borders, repeats table headers (`thead`), and prevents page breaks inside cards.
+  - *Source File*: [`src/components/workspace/print-modal.tsx`](file:///src/components/workspace/print-modal.tsx) and [`src/app/globals.css`](file:///src/app/globals.css).
+
+- **Server Config Health Check & Backup Gemini API Key**:
   - *Screen*: API Health Endpoint ([`src/app/api/health/route.ts`](file:///src/app/api/health/route.ts)) and Global Alert Banners.
-  - *Feature*: Rate-limited health check returning short status booleans/strings (`{ status: "ok" | "degraded", gemini: "configured" | "missing", model: "configured" | "missing" }`) without ever exposing secrets. Startup check detects missing `NEXT_PUBLIC_FIREBASE_*` variables and names them. Granular client error mapping for missing API key, invalid key, model not found, quota/busy, and timeout.
+  - *Feature*: Rate-limited health check returning short status booleans/strings (`{ status: "ok" | "degraded", gemini: "configured" | "missing", fallbackKey: "configured" | "missing", model: "configured" | "missing" }`) without ever exposing secrets. Startup check detects missing `NEXT_PUBLIC_FIREBASE_*` variables and names them.
+  - *Backup Gemini Key & 4-Stage Fallback*: Supports `GEMINI_API_KEY_FALLBACK` from a secondary Google Cloud project. Automatically cascades: Primary Key + Primary Model &rarr; Fallback Key + Primary Model (on 429 quota exhaustion) &rarr; Primary Key + Fallback Model &rarr; Fallback Key + Fallback Model. Independent in-memory circuit breakers protect each combination.
   - *Source File*: [`src/app/api/health/route.ts`](file:///src/app/api/health/route.ts) and [`src/lib/gemini.ts`](file:///src/lib/gemini.ts).
+
+- **Cloud Save Hardening & Session Security**:
+  - *Screen*: Workspace Header ([`src/components/workspace/workspace-header.tsx`](file:///src/components/workspace/workspace-header.tsx)) and Navigation Rail ([`src/components/navigation.tsx`](file:///src/components/navigation.tsx)).
+  - *Feature*: Official Google-branded Sign-in button with inline SVG vector 'G' displayed in desktop sidebar and mobile navigation. Uses Firebase `browserSessionPersistence` so sessions persist only during active browsing and cleanly reset on sign-out. Auto-saves plans immediately upon guest sign-in. Eliminates `undefined` sparse properties to prevent Firestore SDK rejection, and maps Firestore errors to reassuring, positive feedback.
+  - *Source File*: [`src/lib/firebase/mappers.ts`](file:///src/lib/firebase/mappers.ts) and [`src/lib/firebase/firestore.ts`](file:///src/lib/firebase/firestore.ts).
 
 - **Budget-Aware Replanning (The Hero Feature)**:
   - *Screen*: Workspace Header & Replan Modal ([`src/components/workspace/replan-modal.tsx`](file:///src/components/workspace/replan-modal.tsx)).
@@ -135,7 +154,7 @@ Every core capability mandated by the challenge brief is delivered with dedicate
   - Branches: **84.35%** (Threshold $\ge 80\%$ met)
   - Functions: **100.00%**
   - Lines: **95.81%** (Threshold $\ge 85\%$ met)
-  - Total Tests: **26 test suites passed, 155 unit/API/component/a11y tests passed cleanly (0 failed)**.
+  - Total Tests: **27 test suites passed, 180 unit/API/component/a11y tests passed cleanly (0 failed)**.
 - **Coverage By Module**:
   - `src/app/api/health/route.ts`: 100% lines, 93.33% branches
   - `src/app/api/plan/followup`: 100% lines, 100% branches
@@ -168,15 +187,16 @@ Every core capability mandated by the challenge brief is delivered with dedicate
 
 ---
 
-## Google Services & Tools Used
+## Services, AI Providers & Tools Used
 
-- **Google Gemini API**: Server-side planning intelligence via the official `@google/genai` SDK using `gemini-3.8-flash` with fallback to `gemini-3.5-flash`.
+- **Google Gemini API (Primary AI)**: Server-side planning intelligence via the official `@google/genai` SDK using `gemini-3.8-flash` with fallback to `gemini-3.5-flash`.
+- **Groq Cloud API (Optional Backup AI Provider)**: Server-only secondary AI provider calling Groq's OpenAI-compatible chat completions endpoint with native JSON output mode (`llama-3.3-70b-versatile`). Enabled strictly when `GROQ_API_KEY` is configured.
+- **Built-in Deterministic Template Planner (Zero-Network Fallback)**: Pure code planning engine that constructs complete, schema-verified celebration plans instantly during network outages or total AI congestion.
 - **Firebase Authentication**: Google OAuth with popup and mobile redirect fallback enabling seamless guest-to-cloud transition.
 - **Cloud Firestore**: User-isolated persistent storage for celebration plans and versions subcollections (`users/{uid}/plans/{planId}/versions`).
-- **Google Calendar REST API**: Milestone reminder scheduling via `https://www.googleapis.com/calendar/v3/calendars/primary/events` with 1-day email and 1-hour popup reminders and private properties.
+- **Google Calendar REST API**: Milestone reminder scheduling via `https://www.googleapis.com/calendar/v3/calendars/primary/events` with 1-day email and 1-hour popup reminders.
 - **Google Antigravity**: Advanced agentic coding assistant used to design, build, test, and verify the application.
 - **Vercel**: Global edge deployment target for Next.js App Router.
-*(No other third-party services or tools are utilized.)*
 
 ---
 
@@ -233,10 +253,22 @@ All calls to Gemini use the official `@google/genai` SDK from server-side route 
   - *Purpose*: Identifies operational risks, seasonal factors, and permit deadlines with mitigations.
   - *Schema*: `riskRegisterSchema`.
 
-### Model Hierarchy & Guardrails
-- **Primary Model**: `gemini-3.8-flash` configured via `GEMINI_MODEL`.
-- **Automatic Fallback**: `gemini-3.5-flash` configured via `GEMINI_FALLBACK_MODEL`, automatically invoked if the primary model encounters transient overload (HTTP 429/503).
-- **Vendor Guardrail**: Strict system prompts instruct the model: *"ABSOLUTE RULE: NEVER INVENT SPECIFIC VENDOR NAMES, PHONE NUMBERS, OR EXACT QUOTES. Suggest vendor TYPES and questions to ask."*
+### AI Provider Hierarchy, Fallback Order & Guardrails
+
+Aayojan Ace implements a four-tier resilient planning cascade:
+1. **Google Gemini Primary Model**: `gemini-3.8-flash` configured via `GEMINI_MODEL` (with up to 2 retries on HTTP 429/503 with exponential backoff & jitter).
+2. **Google Gemini Fallback Model**: `gemini-3.5-flash` configured via `GEMINI_FALLBACK_MODEL` (1 retry).
+3. **Groq Cloud API (Optional Backup)**: Invoked on overload, quota (429), timeout (504), or authorization (401) failures from Gemini. Calls Groq's OpenAI-compatible completions endpoint with JSON mode (`GROQ_MODEL`, default `llama-3.3-70b-versatile`).
+   - *Backup Key Expiration Window (`GROQ_KEY_EXPIRES_ON`)*: Optional ISO date (e.g. `2026-12-22`) defining demo access key validity for PromptWars Challenge 5 (~2 months). If the date has passed, Groq is skipped entirely without network roundtrips.
+   - *Key Rejection Graceful Handling*: If Groq returns 401 or 403, it maps to `AI_BACKUP_KEY_EXPIRED`, logs once on the server without secrets, disables Groq for the process lifetime ($\ge 1$ hour), and seamlessly continues the fallback cascade to the template planner.
+   - *Calm, Accessible Status Notice*: When the backup provider is unavailable due to demo key expiration or rejection, a calm, dismissible notice (`role="status"`, with an icon and text) explains the demo validity window and reassures users that plans still work with the main AI and built-in planner. If the main Gemini key is invalid or expired, an equivalent message is displayed for the main AI. Notices never display when the main AI operates normally.
+4. **Built-in Deterministic Template Planner**: Last-resort pure TypeScript planner that executes with zero network transmission, constructing a complete, schema-verified plan from the intake form.
+
+- **Non-Primary Plan Indicators**: When a plan is drafted by a secondary provider or template, an accessible status banner and badge display:
+  - *"Generated by a backup AI provider"* or *"Built-in template plan (AI is busy)"*
+  - Includes a prominent **"Try again with AI"** button allowing immediate re-generation when primary AI availability recovers.
+- **Vendor Guardrail**: Strict system prompts instruct models: *"ABSOLUTE RULE: NEVER INVENT SPECIFIC VENDOR NAMES, PHONE NUMBERS, OR EXACT QUOTES. Suggest vendor TYPES and questions to ask."*
+- **Schema Repair Retry**: If any model outputs malformed JSON or fails Zod validation, a targeted single repair instruction is sent automatically.
 
 ---
 
@@ -257,9 +289,13 @@ Copy `.env.example` to `.env.local`:
 cp .env.example .env.local
 ```
 Configure the variables:
-- `GEMINI_API_KEY`: Server-only secret key from Google AI Studio.
+- `GEMINI_API_KEY`: Server-only secret key from Google AI Studio (Primary).
+- `GEMINI_API_KEY_FALLBACK`: Optional server-only secret key from a secondary Google Cloud project (for quota exhaustion failover).
 - `GEMINI_MODEL`: Primary Gemini model (default: `gemini-3.8-flash`).
 - `GEMINI_FALLBACK_MODEL`: Fallback Gemini model (default: `gemini-3.5-flash`).
+- `GROQ_API_KEY`: Optional server-only secret key from Groq Console (for secondary AI provider failover).
+- `GROQ_MODEL`: Optional Groq model (default: `llama-3.3-70b-versatile`).
+- `GROQ_KEY_EXPIRES_ON`: Optional ISO date (e.g. `2026-12-22`) defining the expiration date for the backup demo key.
 - `NEXT_PUBLIC_FIREBASE_API_KEY`: Firebase Web API key.
 - `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`: Firebase auth domain for Google Sign-in.
 - `NEXT_PUBLIC_FIREBASE_PROJECT_ID`: Firebase project identifier.

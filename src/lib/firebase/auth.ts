@@ -4,6 +4,8 @@ import {
   getRedirectResult,
   signOut as fbSignOut,
   onAuthStateChanged as fbOnAuthStateChanged,
+  setPersistence,
+  browserSessionPersistence,
   User,
   GoogleAuthProvider,
 } from 'firebase/auth';
@@ -82,6 +84,12 @@ export function isMobileBrowser(): boolean {
 export async function signInWithGoogle(): Promise<PlanUser> {
   const auth = getFirebaseAuth();
   const provider = getGoogleAuthProvider();
+
+  try {
+    await setPersistence(auth, browserSessionPersistence);
+  } catch {
+    // Ignore persistence errors in test or SSR environments
+  }
 
   if (isMobileBrowser()) {
     try {
@@ -198,12 +206,22 @@ export function clearCalendarAccessToken(): void {
 /**
  * Requests Google Calendar events scope (https://www.googleapis.com/auth/calendar.events)
  * via GoogleAuthProvider and securely stores the token in memory ONLY.
+ * Includes granted scopes and passes login_hint to reduce repeated prompt friction.
  */
-export async function requestGoogleCalendarAccess(): Promise<string> {
+export async function requestGoogleCalendarAccess(loginHint?: string): Promise<string> {
   const auth = getFirebaseAuth();
   const provider = new GoogleAuthProvider();
   provider.addScope('https://www.googleapis.com/auth/calendar.events');
-  provider.setCustomParameters({ prompt: 'consent' });
+
+  const customParams: Record<string, string> = {
+    prompt: 'consent',
+    include_granted_scopes: 'true',
+  };
+  const effectiveHint = loginHint || auth.currentUser?.email;
+  if (effectiveHint) {
+    customParams.login_hint = effectiveHint;
+  }
+  provider.setCustomParameters(customParams);
 
   try {
     const result = await signInWithPopup(auth, provider);

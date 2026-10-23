@@ -20,6 +20,56 @@ import { toFirestoreDoc, fromFirestoreDoc } from './mappers';
 
 export const MAX_VERSIONS_PER_PLAN = 20;
 
+/**
+ * Maps raw Firestore / Firebase SDK errors to clear, friendly user-facing messages
+ * without ever exposing internal database paths or raw error dumps.
+ */
+export function getFriendlyFirestoreErrorMessage(error: unknown): string {
+  const code =
+    typeof error === 'object' && error !== null && 'code' in error
+      ? String((error as { code: unknown }).code)
+      : String(error || '');
+
+  const lowerMsg = (
+    typeof error === 'object' && error !== null && 'message' in error
+      ? String((error as { message: unknown }).message)
+      : String(error || '')
+  ).toLowerCase();
+
+  if (code === 'permission-denied' || lowerMsg.includes('permission-denied')) {
+    return 'Cloud save permission denied. Please ensure your Firestore Security Rules are published in Firebase Console and match the current plan schema.';
+  }
+  if (
+    code === 'not-found' ||
+    code === 'unavailable' ||
+    lowerMsg.includes('not-found') ||
+    lowerMsg.includes('unavailable') ||
+    lowerMsg.includes('database')
+  ) {
+    return 'Cloud database is currently unavailable. Please verify your Firestore Database has been created in the Firebase Console.';
+  }
+  if (code === 'unauthenticated' || lowerMsg.includes('unauthenticated')) {
+    return 'Authentication session expired. Please sign in with Google to save your plan to the cloud.';
+  }
+  if (
+    code === 'resource-exhausted' ||
+    lowerMsg.includes('resource-exhausted') ||
+    lowerMsg.includes('quota')
+  ) {
+    return 'Firestore cloud storage quota reached for today. Your celebration plan remains safely saved in your browser.';
+  }
+  if (
+    code === 'failed-precondition' ||
+    code === 'deadline-exceeded' ||
+    lowerMsg.includes('network') ||
+    lowerMsg.includes('failed to fetch')
+  ) {
+    return 'Network connection issue while communicating with Cloud Firestore. Please check your internet connection.';
+  }
+
+  return 'Unable to save celebration plan to Cloud right now. Your plan is safely preserved in local browser memory.';
+}
+
 export interface PlanVersionRecord {
   id: string;
   versionNumber: number;
