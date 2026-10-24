@@ -9,10 +9,17 @@ import {
   CurrencyCode,
   EventType,
   PLANNER_DISCLAIMER,
+  POPULAR_INDIAN_CITIES,
+  QUICK_GUEST_PICKS,
+  QUICK_BUDGET_PICKS,
+  STYLE_CULTURE_CHIPS,
+  NON_NEGOTIABLE_CHIPS,
+  EVENT_NAME_EXAMPLES,
 } from '@/lib/constants';
 import { intakeFormSchema } from '@/lib/schemas';
 import { getFriendlyAiError } from '@/lib/gemini';
 import { usePlan } from './plan-context';
+import { AiLoader } from './ai-loader';
 import {
   Sparkles,
   ArrowRight,
@@ -21,6 +28,11 @@ import {
   HelpCircle,
   AlertCircle,
   RefreshCw,
+  Clock,
+  Plus,
+  X,
+  Check,
+  Loader2,
 } from 'lucide-react';
 
 export function IntakeForm() {
@@ -35,12 +47,13 @@ export function IntakeForm() {
     followUp,
     submitFollowUp,
     skipFollowUp,
+    cancelGeneration,
   } = usePlan();
 
   const [eventType, setEventType] = useState<EventType>('Wedding');
+  const [eventName, setEventName] = useState('');
   const [city, setCity] = useState('Jaipur');
   const [date, setDate] = useState(() => {
-    // Default to ~4 months in future
     const d = new Date();
     d.setMonth(d.getMonth() + 4);
     return d.toISOString().split('T')[0];
@@ -55,8 +68,30 @@ export function IntakeForm() {
     'Strict Jain catering counter with separate kitchen, live Shehnai, venue with open lawn'
   );
 
+  // Muhurat fields
+  const [muhuratTime, setMuhuratTime] = useState('');
+  const [muhuratLabel, setMuhuratLabel] = useState('');
+  const [showMuhuratCustom, setShowMuhuratCustom] = useState(false);
+
+  // Accessible live announcements for chips
+  const [chipAnnouncement, setChipAnnouncement] = useState('');
+
+  // AI Name Suggestion state
+  const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
+  const [suggestedNames, setSuggestedNames] = useState<string[]>([]);
+  const [isFetchingNames, setIsFetchingNames] = useState(false);
+
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [followUpAnswer, setFollowUpAnswer] = useState('');
+
+  // Whether muhurat fields should display by default
+  const isMuhuratDefault =
+    eventType === 'Wedding' ||
+    styleCulture.toLowerCase().includes('pooja') ||
+    styleCulture.toLowerCase().includes('diwali') ||
+    styleCulture.toLowerCase().includes('griha pravesh');
+
+  const shouldShowMuhurat = isMuhuratDefault || showMuhuratCustom || Boolean(muhuratTime);
 
   const applyPreset = (presetId: string) => {
     const preset = EVENT_PRESETS.find((p) => p.id === presetId);
@@ -68,6 +103,7 @@ export function IntakeForm() {
     setStyleCulture(preset.styleCulture);
     setNonNegotiables(preset.nonNegotiables);
     setFormErrors({});
+    setChipAnnouncement(`Loaded ${preset.title} preset`);
   };
 
   const handleQuickLoad = (key: string) => {
@@ -75,11 +111,91 @@ export function IntakeForm() {
     router.push('/workspace');
   };
 
+  // Chip Pick Handlers
+  const handlePickName = (name: string) => {
+    setEventName(name);
+    setChipAnnouncement(`Selected event name: ${name}`);
+  };
+
+  const handlePickCity = (cityName: string) => {
+    setCity(cityName);
+    setChipAnnouncement(`Selected city: ${cityName}`);
+  };
+
+  const handlePickGuests = (count: number) => {
+    setGuestCount(count);
+    setChipAnnouncement(`Selected guest count: ${count}`);
+  };
+
+  const handlePickBudget = (val: number, label: string) => {
+    setTotalBudget(val);
+    setChipAnnouncement(`Selected budget: ${label}`);
+  };
+
+  const handleAppendStyle = (chip: string) => {
+    const existing = styleCulture
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    if (existing.includes(chip.toLowerCase())) {
+      setChipAnnouncement(`"${chip}" is already added to style`);
+      return;
+    }
+    const updated = styleCulture.trim() ? `${styleCulture.trim()}, ${chip}` : chip;
+    setStyleCulture(updated);
+    setChipAnnouncement(`Added "${chip}" to style & culture`);
+  };
+
+  const handleAppendNonNegotiable = (chip: string) => {
+    const existing = nonNegotiables
+      .split(',')
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean);
+    if (existing.includes(chip.toLowerCase())) {
+      setChipAnnouncement(`"${chip}" is already added to non-negotiables`);
+      return;
+    }
+    const updated = nonNegotiables.trim() ? `${nonNegotiables.trim()}, ${chip}` : chip;
+    setNonNegotiables(updated);
+    setChipAnnouncement(`Added "${chip}" to non-negotiables`);
+  };
+
+  // AI Name Suggestions Fetcher
+  const handleOpenSuggestModal = async () => {
+    setIsSuggestModalOpen(true);
+    setIsFetchingNames(true);
+    setSuggestedNames([]);
+
+    try {
+      const res = await fetch('/api/plan/names', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eventType,
+          city: city.trim() || 'Mumbai',
+          styleCulture: styleCulture.trim() || 'Festive Celebration',
+          guestCount: Number(guestCount) || 100,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setSuggestedNames(data.suggestions || []);
+      }
+    } catch {
+      // Fallback to static examples
+      setSuggestedNames(EVENT_NAME_EXAMPLES[eventType] || EVENT_NAME_EXAMPLES.Wedding);
+    } finally {
+      setIsFetchingNames(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormErrors({});
 
     const rawData = {
+      eventName: eventName.trim() || undefined,
       eventType,
       city,
       date,
@@ -88,6 +204,8 @@ export function IntakeForm() {
       currency,
       styleCulture,
       nonNegotiables,
+      muhuratTime: muhuratTime.trim() || undefined,
+      muhuratLabel: muhuratLabel.trim() || undefined,
     };
 
     const validation = intakeFormSchema.safeParse(rawData);
@@ -116,8 +234,9 @@ export function IntakeForm() {
 
   return (
     <div className="w-full max-w-4xl mx-auto">
-      {/* Live region for accessibility announcements */}
+      {/* Live region for accessibility announcements and chip feedback */}
       <div aria-live="polite" className="sr-only">
+        {chipAnnouncement}
         {isLoading && 'Building celebration plan using Google Gemini AI...'}
         {error && `Error: ${error}`}
         {followUp && `Clarification question: ${followUp.questionText}`}
@@ -127,7 +246,7 @@ export function IntakeForm() {
       <div className="text-center md:text-left mb-8 pb-6 border-b border-rule">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-subtle text-accent text-xs font-semibold uppercase tracking-wider mb-3">
           <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-          <span>PromptWars Challenge 5 · Celebration Planner</span>
+          <span>AI Celebration &amp; Event Planner</span>
         </div>
         <h1 className="font-serif text-3xl sm:text-4xl lg:text-5xl font-bold text-ink tracking-tight">
           Create Your Celebration Plan
@@ -151,21 +270,21 @@ export function IntakeForm() {
             <button
               type="button"
               onClick={() => handleQuickLoad('wedding')}
-              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors"
+              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors min-h-[36px]"
             >
               Wedding Example
             </button>
             <button
               type="button"
               onClick={() => handleQuickLoad('birthday')}
-              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors"
+              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors min-h-[36px]"
             >
               Birthday Example
             </button>
             <button
               type="button"
               onClick={() => handleQuickLoad('community')}
-              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors"
+              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors min-h-[36px]"
             >
               Community Event Example
             </button>
@@ -196,7 +315,7 @@ export function IntakeForm() {
                       handleSubmit(new Event('submit') as unknown as React.FormEvent);
                     }
                   }}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-accent text-accent-contrast hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-accent text-accent-contrast hover:opacity-90 transition-opacity min-h-[36px]"
                   aria-label="Retry celebration planning"
                 >
                   <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
@@ -205,7 +324,7 @@ export function IntakeForm() {
                 <button
                   type="button"
                   onClick={() => handleQuickLoad('wedding')}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-paper-card text-ink border border-rule hover:bg-paper-subtle transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-paper-card text-ink border border-rule hover:bg-paper-subtle transition-colors min-h-[36px]"
                   aria-label="Load pre-built saved example celebration plan"
                 >
                   <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
@@ -214,6 +333,13 @@ export function IntakeForm() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Reusable AiLoader when generating */}
+      {isLoading && !followUp && (
+        <div className="mb-8">
+          <AiLoader onCancel={cancelGeneration} />
         </div>
       )}
 
@@ -301,14 +427,54 @@ export function IntakeForm() {
         </div>
       </div>
 
-      {/* Minimal Intake Form */}
+      {/* Main Intake Form */}
       <form
         onSubmit={handleSubmit}
         noValidate
-        className="rounded-2xl border border-rule bg-paper-card p-6 sm:p-8 shadow-sm"
+        className="rounded-2xl border border-rule bg-paper-card p-6 sm:p-8 shadow-sm space-y-6"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          {/* Event Type */}
+          {/* 1. Optional Celebration / Event Name */}
+          <div className="sm:col-span-2">
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="event-name" className="block text-sm font-medium text-ink">
+                Celebration Name <span className="text-xs text-ink-faint font-normal">(Optional)</span>
+              </label>
+              <button
+                type="button"
+                onClick={handleOpenSuggestModal}
+                className="inline-flex items-center gap-1 text-xs font-semibold text-accent hover:underline"
+              >
+                <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                <span>Suggest names</span>
+              </button>
+            </div>
+            <input
+              id="event-name"
+              type="text"
+              maxLength={80}
+              value={eventName}
+              onChange={(e) => setEventName(e.target.value)}
+              placeholder="e.g. Aarav & Diya’s Royal Pheras, Sneha’s Artisan 30th Soiree"
+              className="w-full min-h-[44px] rounded-lg border border-rule bg-paper px-3 py-2 text-sm text-ink focus:border-accent focus:outline-hidden"
+            />
+            {/* Idea Chips for Event Name */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Name suggestions">
+              <span className="text-[11px] text-ink-muted mr-1">Examples:</span>
+              {(EVENT_NAME_EXAMPLES[eventType] || EVENT_NAME_EXAMPLES.Wedding).map((sample) => (
+                <button
+                  key={sample}
+                  type="button"
+                  onClick={() => handlePickName(sample)}
+                  className="text-[11px] font-medium px-2.5 py-1 rounded-md border border-rule bg-paper-subtle hover:bg-paper hover:border-accent text-ink transition-colors min-h-[30px]"
+                >
+                  {sample}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* 2. Event Type */}
           <div>
             <label
               htmlFor="event-type"
@@ -336,7 +502,7 @@ export function IntakeForm() {
             )}
           </div>
 
-          {/* City */}
+          {/* 3. City / Location with Popular Indian Cities Chips */}
           <div>
             <label htmlFor="city" className="block text-sm font-medium text-ink mb-1.5">
               City / Location <span className="text-state-error">*</span>
@@ -346,7 +512,7 @@ export function IntakeForm() {
               type="text"
               value={city}
               onChange={(e) => setCity(e.target.value)}
-              placeholder="e.g. Jaipur, Bengaluru, Delhi"
+              placeholder="e.g. Jaipur, Bengaluru, Delhi NCR"
               aria-describedby={formErrors.city ? 'city-err' : undefined}
               className="w-full min-h-[44px] rounded-lg border border-rule bg-paper px-3 py-2 text-sm text-ink focus:border-accent focus:outline-hidden"
             />
@@ -355,9 +521,27 @@ export function IntakeForm() {
                 {formErrors.city}
               </p>
             )}
+            {/* Popular Cities Chips */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="City suggestions">
+              <span className="text-[11px] text-ink-muted mr-1">Popular:</span>
+              {POPULAR_INDIAN_CITIES.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => handlePickCity(c)}
+                  className={`text-[11px] font-medium px-2 py-0.5 rounded-md border transition-colors min-h-[28px] ${
+                    city.toLowerCase() === c.toLowerCase()
+                      ? 'border-accent bg-accent-subtle text-accent font-semibold'
+                      : 'border-rule bg-paper-subtle hover:bg-paper hover:border-accent text-ink'
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Date */}
+          {/* 4. Event Date */}
           <div>
             <label htmlFor="date" className="block text-sm font-medium text-ink mb-1.5">
               Event Date <span className="text-state-error">*</span>
@@ -377,7 +561,58 @@ export function IntakeForm() {
             )}
           </div>
 
-          {/* Guest Count */}
+          {/* 5. Auspicious Muhurat / Ritual Time */}
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label htmlFor="muhurat-time" className="block text-sm font-medium text-ink">
+                Auspicious Muhurat / Ritual Time
+              </label>
+              {!shouldShowMuhurat && (
+                <button
+                  type="button"
+                  onClick={() => setShowMuhuratCustom(true)}
+                  className="inline-flex items-center gap-1 text-xs text-accent hover:underline font-medium"
+                >
+                  <Plus className="h-3 w-3" />
+                  <span>Add ritual time</span>
+                </button>
+              )}
+            </div>
+
+            {shouldShowMuhurat ? (
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      id="muhurat-time"
+                      type="time"
+                      value={muhuratTime}
+                      onChange={(e) => setMuhuratTime(e.target.value)}
+                      className="w-full min-h-[44px] rounded-lg border border-rule bg-paper px-3 py-2 text-sm text-ink focus:border-accent focus:outline-hidden"
+                    />
+                  </div>
+                  <input
+                    id="muhurat-label"
+                    type="text"
+                    maxLength={40}
+                    placeholder="Label (e.g. Pheras, Pooja)"
+                    value={muhuratLabel}
+                    onChange={(e) => setMuhuratLabel(e.target.value)}
+                    className="w-1/2 min-h-[44px] rounded-lg border border-rule bg-paper px-3 py-2 text-sm text-ink focus:border-accent focus:outline-hidden"
+                  />
+                </div>
+                <p className="text-[11px] text-ink-muted">
+                  Auspicious timing for the main ritual. Automatically schedules the event day milestone and calendar export.
+                </p>
+              </div>
+            ) : (
+              <div className="min-h-[44px] flex items-center p-2 rounded-lg border border-dashed border-rule bg-paper-subtle/50 text-xs text-ink-muted">
+                <span>Optional for this celebration type. Click &ldquo;Add ritual time&rdquo; to specify.</span>
+              </div>
+            )}
+          </div>
+
+          {/* 6. Guest Count with Quick Picks */}
           <div>
             <label
               htmlFor="guest-count"
@@ -400,9 +635,27 @@ export function IntakeForm() {
                 {formErrors.guestCount}
               </p>
             )}
+            {/* Quick Guest Picks */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Suggested guest tiers">
+              <span className="text-[11px] text-ink-muted mr-1">Quick picks:</span>
+              {QUICK_GUEST_PICKS.map((num) => (
+                <button
+                  key={num}
+                  type="button"
+                  onClick={() => handlePickGuests(num)}
+                  className={`text-[11px] font-mono px-2 py-0.5 rounded-md border transition-colors min-h-[28px] ${
+                    Number(guestCount) === num
+                      ? 'border-accent bg-accent-subtle text-accent font-semibold'
+                      : 'border-rule bg-paper-subtle hover:bg-paper hover:border-accent text-ink'
+                  }`}
+                >
+                  {num}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Total Budget */}
+          {/* 7. Total Budget with Common Indian Tiers */}
           <div>
             <label
               htmlFor="total-budget"
@@ -440,9 +693,27 @@ export function IntakeForm() {
                 {formErrors.totalBudget}
               </p>
             )}
+            {/* Common Budget Tiers Chips */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Budget suggestions">
+              <span className="text-[11px] text-ink-muted mr-1">Tiers:</span>
+              {QUICK_BUDGET_PICKS.map((tier) => (
+                <button
+                  key={tier.value}
+                  type="button"
+                  onClick={() => handlePickBudget(tier.value, tier.label)}
+                  className={`text-[11px] font-medium px-2 py-0.5 rounded-md border transition-colors min-h-[28px] ${
+                    Number(totalBudget) === tier.value
+                      ? 'border-accent bg-accent-subtle text-accent font-semibold'
+                      : 'border-rule bg-paper-subtle hover:bg-paper hover:border-accent text-ink'
+                  }`}
+                >
+                  {tier.label}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Style / Culture */}
+          {/* 8. Style / Culture with Multi-Select Idea Chips */}
           <div className="sm:col-span-2">
             <label
               htmlFor="style-culture"
@@ -455,7 +726,7 @@ export function IntakeForm() {
               type="text"
               value={styleCulture}
               onChange={(e) => setStyleCulture(e.target.value)}
-              placeholder="e.g. Royal Rajasthani with Mehendi, Boho garden, Coastal South Indian"
+              placeholder="e.g. Royal Rajasthani with Mehendi, Boho garden, Classical South Indian"
               aria-describedby={formErrors.styleCulture ? 'style-culture-err' : undefined}
               className="w-full min-h-[44px] rounded-lg border border-rule bg-paper px-3 py-2 text-sm text-ink focus:border-accent focus:outline-hidden"
             />
@@ -464,9 +735,23 @@ export function IntakeForm() {
                 {formErrors.styleCulture}
               </p>
             )}
+            {/* Style Idea Chips */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Style suggestions">
+              <span className="text-[11px] text-ink-muted mr-1">Tap to add:</span>
+              {(STYLE_CULTURE_CHIPS[eventType] || STYLE_CULTURE_CHIPS.Wedding).map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => handleAppendStyle(chip)}
+                  className="text-[11px] font-medium px-2.5 py-1 rounded-md border border-rule bg-paper-subtle hover:bg-paper hover:border-accent text-ink transition-colors min-h-[30px]"
+                >
+                  + {chip}
+                </button>
+              ))}
+            </div>
           </div>
 
-          {/* Non-negotiables */}
+          {/* 9. Non-negotiables with Multi-Select Idea Chips */}
           <div className="sm:col-span-2">
             <label
               htmlFor="non-negotiables"
@@ -479,7 +764,7 @@ export function IntakeForm() {
               rows={3}
               value={nonNegotiables}
               onChange={(e) => setNonNegotiables(e.target.value)}
-              placeholder="e.g. Dedicated Jain catering kitchen, outdoor lawn, wheelchair accessible ramps, 10 PM sound cutoff"
+              placeholder="e.g. Pure vegetarian menu, dedicated Jain counter, wheelchair ramp, 10 PM sound cutoff"
               aria-describedby={formErrors.nonNegotiables ? 'non-negotiables-err' : undefined}
               className="w-full rounded-lg border border-rule bg-paper px-3 py-2 text-sm text-ink focus:border-accent focus:outline-hidden"
             />
@@ -488,19 +773,33 @@ export function IntakeForm() {
                 {formErrors.nonNegotiables}
               </p>
             )}
+            {/* Non-Negotiable Idea Chips */}
+            <div className="mt-2 flex flex-wrap items-center gap-1.5" role="group" aria-label="Constraint suggestions">
+              <span className="text-[11px] text-ink-muted mr-1">Tap to add:</span>
+              {(NON_NEGOTIABLE_CHIPS[eventType] || NON_NEGOTIABLE_CHIPS.Wedding).map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => handleAppendNonNegotiable(chip)}
+                  className="text-[11px] font-medium px-2.5 py-1 rounded-md border border-rule bg-paper-subtle hover:bg-paper hover:border-accent text-ink transition-colors min-h-[30px]"
+                >
+                  + {chip}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Disclaimer Notice */}
-        <div className="mt-6 flex items-start gap-2.5 p-3 rounded-lg bg-paper-subtle text-ink-muted text-xs leading-relaxed border border-rule">
+        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-paper-subtle text-ink-muted text-xs leading-relaxed border border-rule">
           <Info className="h-4 w-4 text-accent shrink-0 mt-0.5" aria-hidden="true" />
           <p>{PLANNER_DISCLAIMER}</p>
         </div>
 
         {/* Action Button */}
-        <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-rule">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-rule">
           <span className="text-xs text-ink-faint">
-            Generates realistic budget ledger, timeline track, and vendor checklist
+            Generates hard budget ceiling, timeline track, and vendor checklist
           </span>
           <button
             type="submit"
@@ -510,7 +809,7 @@ export function IntakeForm() {
             {isLoading ? (
               <>
                 <RefreshCw className="h-5 w-5 animate-spin" aria-hidden="true" />
-                <span>Designing Plan with Gemini...</span>
+                <span>Designing Plan with AI...</span>
               </>
             ) : (
               <>
@@ -521,6 +820,79 @@ export function IntakeForm() {
           </button>
         </div>
       </form>
+
+      {/* Suggest Names Modal from Planner Form */}
+      {isSuggestModalOpen && (
+        <div
+          role="presentation"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs"
+          onClick={() => setIsSuggestModalOpen(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="form-suggest-dialog-title"
+            className="relative w-full max-w-md rounded-2xl border border-rule bg-paper-card p-6 shadow-xl text-ink space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-rule pb-3">
+              <div className="flex items-center gap-2 text-accent">
+                <Sparkles className="h-5 w-5" aria-hidden="true" />
+                <h2 id="form-suggest-dialog-title" className="font-serif font-bold text-lg text-ink">
+                  Celebration Name Ideas
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSuggestModalOpen(false)}
+                className="p-1.5 rounded-lg text-ink-muted hover:text-ink"
+                aria-label="Close suggestions dialog"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <p className="text-xs text-ink-muted">
+              AI-generated names tailored for your {city || 'selected city'} {eventType}. Click any to use:
+            </p>
+
+            {isFetchingNames ? (
+              <div className="py-8 text-center space-y-2">
+                <Loader2 className="h-6 w-6 animate-spin text-accent mx-auto" aria-hidden="true" />
+                <p className="text-xs text-ink-muted">Synthesizing creative titles...</p>
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {suggestedNames.map((suggestion, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => {
+                      setEventName(suggestion);
+                      setChipAnnouncement(`Selected ${suggestion}`);
+                      setIsSuggestModalOpen(false);
+                    }}
+                    className="w-full text-left p-3 rounded-xl border border-rule bg-paper hover:bg-paper-subtle hover:border-accent text-sm font-medium text-ink transition-colors flex items-center justify-between group"
+                  >
+                    <span>{suggestion}</span>
+                    <Check className="h-4 w-4 text-accent opacity-0 group-hover:opacity-100 transition-opacity" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-rule flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsSuggestModalOpen(false)}
+                className="px-4 py-2 text-xs font-semibold rounded-xl border border-rule hover:bg-paper"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

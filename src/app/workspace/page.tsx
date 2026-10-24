@@ -13,6 +13,7 @@ import { TabVendors } from '@/components/workspace/tab-vendors';
 import { TabIdeas } from '@/components/workspace/tab-ideas';
 import { TabRisks } from '@/components/workspace/tab-risks';
 import { TabHistory } from '@/components/workspace/tab-history';
+import { TabAskAi } from '@/components/workspace/tab-ask-ai';
 import { FullEventReport } from '@/components/workspace/full-event-report';
 import {
   LayoutDashboard,
@@ -24,6 +25,7 @@ import {
   History,
   BookOpen,
   PlusCircle,
+  HelpCircle,
 } from 'lucide-react';
 
 const TABS = [
@@ -32,6 +34,7 @@ const TABS = [
   { id: 'timeline', label: 'Timeline', icon: Calendar },
   { id: 'vendors', label: 'Vendors', icon: Compass },
   { id: 'ideas', label: 'Ideas', icon: Sparkles },
+  { id: 'ask-ai', label: 'Ask AI', icon: HelpCircle },
   { id: 'risks', label: 'Risks', icon: ShieldAlert },
   { id: 'history', label: 'History', icon: History },
 ] as const;
@@ -135,13 +138,16 @@ export default function WorkspacePage() {
                 {activeTab === 'timeline' && <TabTimeline />}
                 {activeTab === 'vendors' && <TabVendors />}
                 {activeTab === 'ideas' && <TabIdeas />}
+                {activeTab === 'ask-ai' && <TabAskAi />}
                 {activeTab === 'risks' && <TabRisks />}
                 {activeTab === 'history' && <TabHistory />}
               </div>
             </div>
 
-            {/* Dedicated Print Report (Rendered exclusively for printing full report) */}
-            <FullEventReport plan={activePlan} risks={activeRisks} />
+            {/* Dedicated Print Report (Rendered exclusively for printing full report - strictly hidden on screen) */}
+            <div className="hidden print:block">
+              <FullEventReport plan={activePlan} risks={activeRisks} />
+            </div>
 
             {/* Modal for Replanning Hero feature */}
             <ReplanModal

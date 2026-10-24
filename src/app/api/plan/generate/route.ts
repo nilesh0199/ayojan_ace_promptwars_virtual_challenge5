@@ -18,6 +18,7 @@ import {
   BACKUP_PROVIDER_EXPIRED_NOTICE,
   MAIN_PROVIDER_EXPIRED_NOTICE,
 } from '@/lib/ai/groq-provider';
+import { validateAndFitBudget } from '@/lib/budget-benchmarks';
 import { generateTemplatePlan } from '@/lib/template-planner';
 import { checkRequestSafety, handleApiError } from '@/lib/api-helper';
 import { planGenerationCache, createPayloadKey } from '@/lib/cache';
@@ -85,9 +86,28 @@ export async function POST(request: Request) {
       const planId = `plan_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
       // Normalize IDs and properties
+      const rawPlanBudget = {
+        ...aiOutput.budget,
+        categories: aiOutput.budget.categories.map((c, idx) => ({
+          ...c,
+          id: c.id || `cat-${idx + 1}`,
+        })),
+      };
+
+      const fittedBudget = validateAndFitBudget(
+        rawPlanBudget,
+        intake.totalBudget,
+        intake.guestCount,
+        intake.city,
+        intake.eventType
+      );
+
       fullPlan = {
         id: planId,
-        title: aiOutput.suggestedTitle || `${intake.styleCulture} ${intake.eventType}`,
+        title: intake.eventName?.trim()
+          ? intake.eventName.trim()
+          : aiOutput.suggestedTitle || `${intake.styleCulture} ${intake.eventType}`,
+        eventName: intake.eventName?.trim() || undefined,
         eventType: intake.eventType,
         city: intake.city,
         date: intake.date,
@@ -96,13 +116,9 @@ export async function POST(request: Request) {
         currency: intake.currency,
         styleCulture: intake.styleCulture,
         nonNegotiables: intake.nonNegotiables,
-        budget: {
-          ...aiOutput.budget,
-          categories: aiOutput.budget.categories.map((c, idx) => ({
-            ...c,
-            id: c.id || `cat-${idx + 1}`,
-          })),
-        },
+        muhuratTime: intake.muhuratTime?.trim() || undefined,
+        muhuratLabel: intake.muhuratLabel?.trim() || undefined,
+        budget: fittedBudget,
         timeline: injectGuestMilestones(
           aiOutput.timeline.map((t, idx) => ({
             ...t,

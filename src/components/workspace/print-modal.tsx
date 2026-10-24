@@ -129,7 +129,7 @@ export function PrintModal({ isOpen, onClose, activeTabName }: PrintModalProps) 
                 <span className="text-sm font-semibold text-ink">Full Event Report (Recommended)</span>
               </div>
               <p className="text-xs text-ink-muted leading-relaxed">
-                Includes executive summary, full budget ledger, complete timeline with guest milestones, vendor checklist, ideas, and risk register.
+                Includes executive summary with auspicious muhurat timing, full budget ledger, complete timeline with guest milestones, vendor checklist, ideas, and risk register.
               </p>
             </div>
           </label>

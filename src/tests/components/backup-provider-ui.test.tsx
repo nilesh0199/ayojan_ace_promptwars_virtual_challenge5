@@ -12,6 +12,12 @@ import fireEvent from '@testing-library/user-event';
 
 expect.extend(toHaveNoViolations);
 
+// Mock navigation
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/workspace',
+}));
+
 // Mock child modal
 vi.mock('@/components/workspace/print-modal', () => ({
   PrintModal: () => <div data-testid="mock-print-modal" />,

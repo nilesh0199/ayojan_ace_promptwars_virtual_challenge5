@@ -14,6 +14,7 @@ import {
   replanDiffResponseSchema,
 } from './schemas';
 import { injectGuestMilestones } from './timeline';
+import { validateAndFitBudget } from './budget-benchmarks';
 
 /**
  * Standard category distribution configurations by celebration event type.
@@ -430,8 +431,12 @@ function buildBaseTimelineTasks(intake: IntakeFormData, leadDays: number): Timel
       {
         id: 'task-tpl-7',
         phase: 'Event day',
-        title: 'Early morning vendor load-in and ceremony coordination',
-        description: 'Verify stage readiness, sound microphones, and hospitality reception desks.',
+        title: intake.muhuratTime
+          ? `Ceremony & Muhurat rituals at ${intake.muhuratTime}${intake.muhuratLabel ? ` (${intake.muhuratLabel})` : ''}`
+          : 'Early morning vendor load-in and ceremony coordination',
+        description: intake.muhuratTime
+          ? `Muhurat scheduled at ${intake.muhuratTime}${intake.muhuratLabel ? ` for ${intake.muhuratLabel}` : ''}. Verify stage readiness, ritual samagri, and pandit coordination.`
+          : 'Verify stage readiness, sound microphones, and hospitality reception desks.',
         dueDate: intake.date,
         owner: 'Coordinator',
         completed: false,
@@ -637,7 +642,7 @@ export function generateTemplatePlan(
     };
   });
 
-  const budget: BudgetPlan = {
+  const rawBudget: BudgetPlan = {
     categories,
     contingencyPercent,
     taxServiceChargePercent,
@@ -648,6 +653,14 @@ export function generateTemplatePlan(
       'All estimates are indicative planning benchmarks; verify formal binding quotes with selected vendors.',
     ],
   };
+
+  const budget = validateAndFitBudget(
+    rawBudget,
+    intake.totalBudget,
+    intake.guestCount,
+    intake.city,
+    intake.eventType
+  );
 
   // 2. Timeline tasks with lead time calculation
   const eventTime = new Date(`${intake.date}T00:00:00Z`).getTime();
@@ -688,11 +701,16 @@ export function generateTemplatePlan(
   const ideas = generateTemplateIdeas(intake);
 
   // 5. Construct full EventPlan
+  const planTitle = intake.eventName?.trim()
+    ? intake.eventName.trim()
+    : intake.styleCulture
+      ? `${intake.styleCulture} ${intake.eventType}`
+      : `${intake.eventType} Celebration in ${intake.city}`;
+
   const fullPlan: EventPlan = {
     id: planId,
-    title: intake.styleCulture
-      ? `${intake.styleCulture} ${intake.eventType}`
-      : `${intake.eventType} Celebration in ${intake.city}`,
+    title: planTitle,
+    eventName: intake.eventName?.trim() || undefined,
     eventType: intake.eventType,
     city: intake.city,
     date: intake.date,
@@ -701,6 +719,8 @@ export function generateTemplatePlan(
     currency: intake.currency,
     styleCulture: intake.styleCulture || 'Classic celebration styling',
     nonNegotiables: intake.nonNegotiables || 'Punctual vendor schedule and quality dining experience',
+    muhuratTime: intake.muhuratTime?.trim() || undefined,
+    muhuratLabel: intake.muhuratLabel?.trim() || undefined,
     budget,
     timeline: finalTimeline,
     vendors,
@@ -816,6 +836,21 @@ export function generateTemplateRebalance(
     };
   });
 
+  const rawRebalanced: BudgetPlan = {
+    categories: affectedBudgetCategories,
+    contingencyPercent: currentPlan.budget.contingencyPercent,
+    taxServiceChargePercent: currentPlan.budget.taxServiceChargePercent,
+    statedAssumptions: currentPlan.budget.statedAssumptions,
+  };
+
+  const fitted = validateAndFitBudget(
+    rawRebalanced,
+    newBudget,
+    changes.guestCount ?? currentPlan.guestCount,
+    currentPlan.city,
+    currentPlan.eventType
+  );
+
   const diffResponse: ReplanDiffResponse = {
     summaryOfChanges: `Budget rebalanced to accommodate ${changes.totalBudget ? 'total budget update' : 'requested parameter changes'}.`,
     why: 'Deterministic proportional adjustment applied across category estimates while preserving contingency margins.',
@@ -823,7 +858,7 @@ export function generateTemplateRebalance(
       'Accept proportional category scaling across all expense lines',
       'Lock high-priority categories and adjust non-essential allowances individually',
     ],
-    affectedBudgetCategories,
+    affectedBudgetCategories: fitted.categories,
     affectedTimelineTasks: currentPlan.timeline.slice(0, 4),
     newContingencyPercent: currentPlan.budget.contingencyPercent,
   };

@@ -51,6 +51,14 @@ describe('ICS Calendar Export', () => {
     expect(ics).toContain('END:VCALENDAR');
   });
 
+  it('applies muhuratTime and muhuratLabel to event day task in .ics output', () => {
+    const ics = generateTimelineIcs('Royal Heritage Wedding', sampleTasks, '11:30', 'Pheras');
+
+    expect(ics).toContain('DTSTART:20261120T113000');
+    expect(ics).toContain('DTEND:20261120T123000');
+    expect(ics).toContain('Auspicious Muhurat Timing: 11:30 (Pheras)');
+  });
+
   it('triggers browser download link safely', () => {
     const appendSpy = vi.spyOn(document.body, 'appendChild');
     const removeSpy = vi.spyOn(document.body, 'removeChild');

@@ -57,6 +57,11 @@ export interface FirestorePlanDoc {
   updatedAt: string;
   version: number;
   isSavedExample: boolean;
+  eventName?: string;
+  muhuratTime?: string;
+  muhuratLabel?: string;
+  generationSource?: 'primary' | 'backup' | 'template';
+  providerNotice?: string;
 }
 
 /**
@@ -66,7 +71,7 @@ export function toFirestoreDoc(plan: EventPlan): FirestorePlanDoc {
   // Validate against Zod schema before mapping
   const validPlan = eventPlanSchema.parse(plan);
 
-  return {
+  const doc: FirestorePlanDoc = {
     id: validPlan.id,
     title: validPlan.title,
     eventType: validPlan.eventType,
@@ -135,6 +140,14 @@ export function toFirestoreDoc(plan: EventPlan): FirestorePlanDoc {
     version: validPlan.version,
     isSavedExample: validPlan.isSavedExample,
   };
+
+  if (validPlan.eventName) doc.eventName = validPlan.eventName;
+  if (validPlan.muhuratTime) doc.muhuratTime = validPlan.muhuratTime;
+  if (validPlan.muhuratLabel) doc.muhuratLabel = validPlan.muhuratLabel;
+  if (validPlan.generationSource) doc.generationSource = validPlan.generationSource;
+  if (validPlan.providerNotice) doc.providerNotice = validPlan.providerNotice;
+
+  return doc;
 }
 
 /**

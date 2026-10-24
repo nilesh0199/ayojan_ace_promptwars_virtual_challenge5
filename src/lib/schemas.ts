@@ -57,6 +57,25 @@ export const intakeFormSchema = z.object({
     .trim()
     .max(500, 'Non-negotiables cannot exceed 500 characters')
     .default(''),
+  eventName: z
+    .string()
+    .trim()
+    .min(2, 'Event name must be at least 2 characters')
+    .max(80, 'Event name cannot exceed 80 characters')
+    .optional()
+    .or(z.literal('')),
+  muhuratTime: z
+    .string()
+    .trim()
+    .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Please provide a valid time in HH:mm format')
+    .optional()
+    .or(z.literal('')),
+  muhuratLabel: z
+    .string()
+    .trim()
+    .max(40, 'Muhurat label cannot exceed 40 characters')
+    .optional()
+    .or(z.literal('')),
 });
 
 export type IntakeFormData = z.infer<typeof intakeFormSchema>;
@@ -173,6 +192,9 @@ export const eventPlanSchema = z.object({
   isSavedExample: z.boolean().default(false),
   generationSource: z.enum(PLAN_GENERATION_SOURCES).default('primary').optional(),
   providerNotice: z.string().optional(),
+  eventName: z.string().max(80).optional(),
+  muhuratTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),
+  muhuratLabel: z.string().max(40).optional(),
 });
 
 export type EventPlan = z.infer<typeof eventPlanSchema>;
@@ -235,3 +257,56 @@ export const riskRegisterSchema = z.object({
 });
 
 export type RiskRegister = z.infer<typeof riskRegisterSchema>;
+
+/**
+ * Ask AI Doubt Assistant Schemas
+ */
+export const askAiMessageSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().min(1).max(500),
+});
+
+export const askAiRequestSchema = z.object({
+  planSummary: z.object({
+    title: z.string().max(120),
+    eventType: z.enum(EVENT_TYPES),
+    city: z.string().max(80),
+    date: z.string(),
+    guestCount: z.number(),
+    totalBudget: z.number(),
+    currency: z.string(),
+    styleCulture: z.string().max(300),
+    muhuratTime: z.string().optional(),
+    muhuratLabel: z.string().optional(),
+  }),
+  messages: z.array(askAiMessageSchema).max(10).default([]),
+  message: z
+    .string()
+    .trim()
+    .min(1, 'Please enter a question')
+    .max(500, 'Question cannot exceed 500 characters'),
+});
+
+export const askAiResponseSchema = z.object({
+  reply: z.string().min(1).max(1500),
+});
+
+export type AskAiRequest = z.infer<typeof askAiRequestSchema>;
+export type AskAiResponse = z.infer<typeof askAiResponseSchema>;
+
+/**
+ * Event Name Suggestion Schemas
+ */
+export const nameSuggestionRequestSchema = z.object({
+  eventType: z.enum(EVENT_TYPES),
+  city: z.string().min(2).max(80),
+  styleCulture: z.string().min(2).max(300),
+  guestCount: z.number().optional(),
+});
+
+export const nameSuggestionResponseSchema = z.object({
+  suggestions: z.array(z.string().min(2).max(80)).min(3).max(8),
+});
+
+export type NameSuggestionRequest = z.infer<typeof nameSuggestionRequestSchema>;
+export type NameSuggestionResponse = z.infer<typeof nameSuggestionResponseSchema>;

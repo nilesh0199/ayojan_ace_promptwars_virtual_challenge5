@@ -15,6 +15,7 @@ import {
   LogIn,
   LogOut,
   User as UserIcon,
+  Info,
 } from 'lucide-react';
 
 export function DesktopNavRail() {
@@ -25,6 +26,7 @@ export function DesktopNavRail() {
     { href: '/', label: 'Plan Creator', icon: Sparkles },
     { href: '/workspace', label: 'Workspace', icon: LayoutDashboard },
     { href: '/saved', label: 'Saved Plans', icon: BookmarkCheck },
+    { href: '/about', label: 'About', icon: Info },
     { href: '/privacy', label: 'Privacy', icon: ShieldAlert },
     { href: '/terms', label: 'Terms', icon: FileText },
   ];
@@ -163,6 +165,7 @@ export function MobileNavBar() {
     { href: '/', label: 'Plan', icon: Sparkles },
     { href: '/workspace', label: 'Workspace', icon: LayoutDashboard },
     { href: '/saved', label: 'Saved', icon: BookmarkCheck },
+    { href: '/about', label: 'About', icon: Info },
     { href: '/privacy', label: 'Privacy', icon: ShieldAlert },
   ];
 
@@ -183,7 +186,7 @@ export function MobileNavBar() {
         </div>
       )}
 
-      <div className="grid grid-cols-4 h-16 items-center px-2">
+      <div className="grid grid-cols-5 h-16 items-center px-2">
         {navItems.map((item) => {
           const Icon = item.icon;
           const isActive =

@@ -23,7 +23,8 @@ service cloud.firestore {
         'id', 'title', 'eventType', 'city', 'date', 
         'guestCount', 'totalBudget', 'currency', 'styleCulture', 
         'nonNegotiables', 'budget', 'timeline', 'vendors', 
-        'ideas', 'createdAt', 'updatedAt', 'version', 'isSavedExample'
+        'ideas', 'createdAt', 'updatedAt', 'version', 'isSavedExample',
+        'eventName', 'muhuratTime', 'muhuratLabel', 'generationSource', 'providerNotice'
       ])
       && data.keys().hasAll([
         'id', 'title', 'eventType', 'city', 'date', 
@@ -39,7 +40,7 @@ service cloud.firestore {
       && data.guestCount is int && data.guestCount >= 2 && data.guestCount <= 50000
       && data.totalBudget is number && data.totalBudget > 0 && data.totalBudget <= 1000000000
       && data.currency in ['INR', 'USD', 'EUR', 'GBP', 'AED', 'CAD', 'AUD']
-      && data.styleCulture is string && data.styleCulture.size() <= 200
+      && data.styleCulture is string && data.styleCulture.size() <= 300
       && data.nonNegotiables is string && data.nonNegotiables.size() <= 500
       && data.budget is map
       && data.budget.categories is list && data.budget.categories.size() >= 1 && data.budget.categories.size() <= 30
@@ -52,7 +53,12 @@ service cloud.firestore {
       && data.createdAt is string && data.createdAt.size() >= 10 && data.createdAt.size() <= 40
       && data.updatedAt is string && data.updatedAt.size() >= 10 && data.updatedAt.size() <= 40
       && data.version is int && data.version >= 1 && data.version <= 10000
-      && data.isSavedExample is bool;
+      && data.isSavedExample is bool
+      && (!('eventName' in data) || (data.eventName is string && data.eventName.size() <= 120))
+      && (!('muhuratTime' in data) || (data.muhuratTime is string && data.muhuratTime.size() <= 10))
+      && (!('muhuratLabel' in data) || (data.muhuratLabel is string && data.muhuratLabel.size() <= 40))
+      && (!('generationSource' in data) || (data.generationSource in ['primary', 'backup', 'template']))
+      && (!('providerNotice' in data) || (data.providerNotice is string && data.providerNotice.size() <= 500));
     }
 
     // Validates snapshot version record in the versions subcollection

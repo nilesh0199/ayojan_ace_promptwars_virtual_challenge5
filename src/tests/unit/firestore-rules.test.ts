@@ -31,13 +31,39 @@ function simulateIsValidPlanData(data: Record<string, unknown>, planId: string):
     'updatedAt',
     'version',
     'isSavedExample',
+    'eventName',
+    'muhuratTime',
+    'muhuratLabel',
+    'generationSource',
+    'providerNotice',
+  ];
+
+  const requiredKeys = [
+    'id',
+    'title',
+    'eventType',
+    'city',
+    'date',
+    'guestCount',
+    'totalBudget',
+    'currency',
+    'styleCulture',
+    'nonNegotiables',
+    'budget',
+    'timeline',
+    'vendors',
+    'ideas',
+    'createdAt',
+    'updatedAt',
+    'version',
+    'isSavedExample',
   ];
 
   const keys = Object.keys(data);
 
   // keys().hasOnly([...]) && keys().hasAll([...])
   const hasOnly = keys.every((k) => allowedKeys.includes(k));
-  const hasAll = allowedKeys.every((k) => keys.includes(k));
+  const hasAll = requiredKeys.every((k) => keys.includes(k));
   if (!hasOnly || !hasAll) return false;
 
   if (data.id !== planId) return false;
@@ -117,6 +143,12 @@ function simulateIsValidPlanData(data: Record<string, unknown>, planId: string):
     return false;
   if (typeof data.isSavedExample !== 'boolean') return false;
 
+  if ('eventName' in data && (typeof data.eventName !== 'string' || data.eventName.length > 120)) return false;
+  if ('muhuratTime' in data && (typeof data.muhuratTime !== 'string' || data.muhuratTime.length > 10)) return false;
+  if ('muhuratLabel' in data && (typeof data.muhuratLabel !== 'string' || data.muhuratLabel.length > 40)) return false;
+  if ('generationSource' in data && !['primary', 'backup', 'template'].includes(data.generationSource as string)) return false;
+  if ('providerNotice' in data && (typeof data.providerNotice !== 'string' || data.providerNotice.length > 500)) return false;
+
   return true;
 }
 
@@ -182,6 +214,22 @@ describe('Firestore Rules Schema & Shape Compatibility', () => {
       const passed = simulateIsValidPlanData(
         docData as unknown as Record<string, unknown>,
         SAVED_EXAMPLES.community.id
+      );
+      expect(passed).toBe(true);
+    });
+
+    it('accepts plan with eventName, muhuratTime, and muhuratLabel', () => {
+      const planWithMuhurat: EventPlan = {
+        ...SAVED_EXAMPLES.wedding,
+        eventName: 'Aarav & Diya Royal Vivah',
+        muhuratTime: '11:45',
+        muhuratLabel: 'Pheras',
+      };
+
+      const docData = toFirestoreDoc(planWithMuhurat);
+      const passed = simulateIsValidPlanData(
+        docData as unknown as Record<string, unknown>,
+        planWithMuhurat.id
       );
       expect(passed).toBe(true);
     });

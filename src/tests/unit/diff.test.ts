@@ -43,16 +43,16 @@ describe('Replanning Diff Logic', () => {
     // Catering diff check
     const cateringDiff = diffView.categoryDiffs.find((c) => c.id === 'cat-catering');
     expect(cateringDiff).toBeDefined();
-    expect(cateringDiff?.oldTarget).toBe(850000);
+    expect(cateringDiff?.oldTarget).toBe(800000);
     expect(cateringDiff?.newTarget).toBe(1000000);
-    expect(cateringDiff?.delta).toBe(150000);
+    expect(cateringDiff?.delta).toBe(200000);
 
     // Decor diff check
     const decorDiff = diffView.categoryDiffs.find((c) => c.id === 'cat-decor');
     expect(decorDiff).toBeDefined();
-    expect(decorDiff?.oldTarget).toBe(350000);
+    expect(decorDiff?.oldTarget).toBe(330000);
     expect(decorDiff?.newTarget).toBe(300000);
-    expect(decorDiff?.delta).toBe(-50000);
+    expect(decorDiff?.delta).toBe(-30000);
   });
 
   it('applies replan diff cleanly and increments version number', () => {
@@ -69,7 +69,7 @@ describe('Replanning Diff Logic', () => {
 
     // Verify unaffected categories remain intact
     const venue = updatedPlan.budget.categories.find((c) => c.id === 'cat-venue');
-    expect(venue?.targetEstimate).toBe(700000);
+    expect(venue?.targetEstimate).toBe(650000);
   });
 
   it('handles brand new tasks and undefined notes in replan diff view', () => {

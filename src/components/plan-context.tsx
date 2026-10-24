@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import {
   EventPlan,
   IntakeFormData,
@@ -61,6 +61,7 @@ interface PlanContextType {
   clearSaveSuccessNotice: () => void;
   setActivePlan: (plan: EventPlan | null) => void;
   clearError: () => void;
+  cancelGeneration: () => void;
 }
 
 const PlanContext = createContext<PlanContextType | undefined>(undefined);
@@ -102,6 +103,17 @@ export function PlanProvider({
   const { user, openSaveModal } = useAuth();
   const prevUserRef = useRef(user);
   const pendingCloudSaveRef = useRef<boolean>(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const cancelGeneration = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    setIsLoading(false);
+    setIsReplanning(false);
+    setIsLoadingRisks(false);
+  };
 
   // Load from local storage on mount (Guest Mode schema-validated)
   useEffect(() => {
@@ -221,7 +233,7 @@ export function PlanProvider({
   }, [user, activePlan]);
 
   // Sync to local storage for guests
-  const setActivePlan = (plan: EventPlan | null) => {
+  const setActivePlan = useCallback((plan: EventPlan | null) => {
     setActivePlanState(plan);
     try {
       if (plan) {
@@ -232,7 +244,7 @@ export function PlanProvider({
     } catch {
       // Storage unavailable
     }
-  };
+  }, []);
 
   const setMappedError = (
     errPayload: { code?: string; message?: string } | unknown,
@@ -293,12 +305,14 @@ export function PlanProvider({
     setFollowUp(null);
     setFollowUpCount(0);
     setLastFollowUpAnswers([]);
+    abortControllerRef.current = new AbortController();
 
     try {
       // Step 1: Check if Gemini has an adaptive follow-up question
       const followUpRes = await fetch('/api/plan/followup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: abortControllerRef.current.signal,
         body: JSON.stringify({ intake, previousFollowUpsCount: 0 }),
       });
 
@@ -320,6 +334,10 @@ export function PlanProvider({
       // Step 2: Proceed immediately to plan generation
       await triggerPlanGeneration(intake, []);
     } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        setIsLoading(false);
+        return;
+      }
       setMappedError(err, () => startPlanGeneration(intake));
       setIsLoading(false);
     }
@@ -388,6 +406,7 @@ export function PlanProvider({
       const res = await fetch('/api/plan/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: abortControllerRef.current?.signal,
         body: JSON.stringify({ intake, followUpAnswers }),
       });
 
@@ -412,9 +431,14 @@ export function PlanProvider({
         }
       }
     } catch (err: unknown) {
+      if (err instanceof Error && err.name === 'AbortError') {
+        setIsLoading(false);
+        return;
+      }
       setMappedError(err, () => triggerPlanGeneration(intake, followUpAnswers));
     } finally {
       setIsLoading(false);
+      abortControllerRef.current = null;
     }
   };
 
@@ -623,6 +647,7 @@ export function PlanProvider({
           setErrorCode(null);
           setRetryLastAction(null);
         },
+        cancelGeneration,
       }}
     >
       {children}

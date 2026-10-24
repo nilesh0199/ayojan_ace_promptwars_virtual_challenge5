@@ -76,6 +76,23 @@ export function FullEventReport({ plan, risks }: FullEventReportProps) {
           </div>
         </div>
 
+        {plan.muhuratTime && (
+          <div className="mt-3 p-2.5 rounded-lg border border-amber-300 bg-amber-50 text-xs text-neutral-900 flex items-center justify-between">
+            <div>
+              <span className="font-bold text-amber-900 block uppercase tracking-wider text-[10px]">
+                Auspicious Muhurat / Ritual Time
+              </span>
+              <span className="font-bold text-black text-sm">
+                {plan.muhuratTime}
+                {plan.muhuratLabel ? ` (${plan.muhuratLabel})` : ''}
+              </span>
+            </div>
+            <span className="text-[11px] text-amber-800 italic">
+              Ritual scheduled for event day
+            </span>
+          </div>
+        )}
+
         {plan.styleCulture && (
           <p className="text-xs text-neutral-800 pt-1">
             <strong>Theme &amp; Cultural Accents:</strong> {plan.styleCulture}
@@ -210,6 +227,12 @@ export function FullEventReport({ plan, risks }: FullEventReportProps) {
                 </td>
                 <td className="p-2 border-r border-neutral-300">
                   <div className="font-semibold text-black">{task.title}</div>
+                  {task.phase === 'Event day' && plan.muhuratTime && (
+                    <div className="text-[11px] font-bold text-amber-900 mt-0.5">
+                      ★ Auspicious Muhurat Time: {plan.muhuratTime}
+                      {plan.muhuratLabel ? ` (${plan.muhuratLabel})` : ''}
+                    </div>
+                  )}
                   <div className="text-[11px] text-neutral-700 mt-0.5 leading-snug">
                     {task.description}
                   </div>

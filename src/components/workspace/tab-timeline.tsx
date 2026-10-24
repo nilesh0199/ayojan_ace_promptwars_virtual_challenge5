@@ -85,7 +85,12 @@ export function TabTimeline() {
   };
 
   const handleExportIcs = () => {
-    const icsContent = generateTimelineIcs(activePlan.title, activePlan.timeline);
+    const icsContent = generateTimelineIcs(
+      activePlan.title,
+      activePlan.timeline,
+      activePlan.muhuratTime,
+      activePlan.muhuratLabel
+    );
     triggerIcsDownload(
       `${activePlan.title.toLowerCase().replace(/\s+/g, '-')}-timeline.ics`,
       icsContent
@@ -552,10 +557,12 @@ export function TabTimeline() {
               {/* Task Items vertical track */}
               <div className="ml-1.5 pl-6 border-l-2 border-rule space-y-3 mt-3">
                 {tasksInPhase.map((task) => {
+                  const isEventDayTask = phase === 'Event day';
                   const googleCalUrl = buildGoogleCalendarTemplateUrl({
                     taskTitle: task.title,
                     planTitle: activePlan.title,
                     dueDate: task.dueDate,
+                    startTime: isEventDayTask ? activePlan.muhuratTime : undefined,
                   });
 
                   return (

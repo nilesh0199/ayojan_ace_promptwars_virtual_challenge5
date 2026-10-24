@@ -123,8 +123,9 @@ export function buildGoogleCalendarTemplateUrl(options: {
   dueDate: string;
   timeZone?: string;
   appUrl?: string;
+  startTime?: string;
 }): string {
-  const { taskTitle, planTitle, dueDate } = options;
+  const { taskTitle, planTitle, dueDate, startTime } = options;
 
   const timeZone =
     options.timeZone ||
@@ -141,16 +142,27 @@ export function buildGoogleCalendarTemplateUrl(options: {
   // Title: "[Plan Name] Task Title" (capped cleanly)
   const text = `[${planTitle}] ${taskTitle}`.slice(0, 100);
 
-  // Dates: standard 9:00 AM - 9:30 AM on task dueDate (YYYYMMDDTHHMMSS/YYYYMMDDTHHMMSS)
+  // Dates: If startTime ("HH:mm") is passed, use it, else default to 9:00 AM - 9:30 AM
   const dateFormatted = dueDate.replace(/-/g, '');
-  const dates = `${dateFormatted}T090000/${dateFormatted}T093000`;
+  let dates = `${dateFormatted}T090000/${dateFormatted}T093000`;
+
+  if (startTime && /^([01]\d|2[0-3]):[0-5]\d$/.test(startTime)) {
+    const cleanTime = startTime.replace(':', '');
+    const [h, m] = startTime.split(':').map(Number);
+    const endH = (h + 1) % 24;
+    const endStr = `${String(endH).padStart(2, '0')}${String(m).padStart(2, '0')}00`;
+    dates = `${dateFormatted}T${cleanTime}00/${dateFormatted}T${endStr}`;
+  }
 
   // Details: Task milestone, plan name, and workspace link
   const details = [
     `Milestone: ${taskTitle}`,
     `Plan: ${planTitle}`,
+    startTime ? `Scheduled Auspicious Time: ${startTime}` : '',
     `View in Aayojan Ace: ${appOrigin}/workspace`,
-  ].join('\n');
+  ]
+    .filter(Boolean)
+    .join('\n');
 
   const params = new URLSearchParams({
     action: 'TEMPLATE',

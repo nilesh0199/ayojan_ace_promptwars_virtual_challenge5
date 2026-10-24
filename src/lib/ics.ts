@@ -24,8 +24,15 @@ export function formatIcsDate(isoDate: string): string {
  *
  * @param eventTitle - Name of the celebration/event
  * @param tasks - List of timeline tasks with deadlines
+ * @param muhuratTime - Optional auspicious ritual start time ("HH:mm") for event day tasks
+ * @param muhuratLabel - Optional label for the muhurat ritual (e.g. "Pheras", "Pooja")
  */
-export function generateTimelineIcs(eventTitle: string, tasks: TimelineTask[]): string {
+export function generateTimelineIcs(
+  eventTitle: string,
+  tasks: TimelineTask[],
+  muhuratTime?: string,
+  muhuratLabel?: string
+): string {
   const lines: string[] = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -39,10 +46,27 @@ export function generateTimelineIcs(eventTitle: string, tasks: TimelineTask[]): 
 
   for (const task of tasks) {
     const dtDate = formatIcsDate(task.dueDate);
+    const isEventDay = task.phase === 'Event day';
+
+    let dtStartLine = `DTSTART;VALUE=DATE:${dtDate}`;
+    let dtEndLine = `DTEND;VALUE=DATE:${dtDate}`;
+
+    if (isEventDay && muhuratTime && /^([01]\d|2[0-3]):[0-5]\d$/.test(muhuratTime)) {
+      const cleanTime = muhuratTime.replace(':', '');
+      const [h, m] = muhuratTime.split(':').map(Number);
+      const endH = (h + 1) % 24;
+      const endClean = `${String(endH).padStart(2, '0')}${String(m).padStart(2, '0')}`;
+      dtStartLine = `DTSTART:${dtDate}T${cleanTime}00`;
+      dtEndLine = `DTEND:${dtDate}T${endClean}00`;
+    }
+
     const descriptionText = [
       task.description,
       task.owner ? `Owner: ${task.owner}` : '',
       `Phase: ${task.phase}`,
+      isEventDay && muhuratTime
+        ? `Auspicious Muhurat Timing: ${muhuratTime}${muhuratLabel ? ` (${muhuratLabel})` : ''}`
+        : '',
       task.estimatedCostLink ? `Estimated Cost Reference: ${task.estimatedCostLink}` : '',
     ]
       .filter(Boolean)
@@ -52,8 +76,8 @@ export function generateTimelineIcs(eventTitle: string, tasks: TimelineTask[]): 
       'BEGIN:VEVENT',
       `UID:aayojan-ace-${task.id}@aayojanace.app`,
       `DTSTAMP:${nowStamp}`,
-      `DTSTART;VALUE=DATE:${dtDate}`,
-      `DTEND;VALUE=DATE:${dtDate}`,
+      dtStartLine,
+      dtEndLine,
       `SUMMARY:${escapeIcsText(`[Aayojan Ace] ${task.title}`)}`,
       `DESCRIPTION:${escapeIcsText(descriptionText)}`,
       `STATUS:${task.completed ? 'COMPLETED' : 'CONFIRMED'}`,

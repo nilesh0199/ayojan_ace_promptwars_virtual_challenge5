@@ -5,6 +5,7 @@ import { callGeminiStructured } from '@/lib/gemini';
 import { executeAiCascade } from '@/lib/ai';
 import { generateTemplateRebalance } from '@/lib/template-planner';
 import { checkRequestSafety, handleApiError } from '@/lib/api-helper';
+import { validateAndFitBudget } from '@/lib/budget-benchmarks';
 
 export async function POST(request: Request) {
   const safety = checkRequestSafety(request);
@@ -26,6 +27,25 @@ export async function POST(request: Request) {
       } catch {
         diffResult = await callGeminiStructured(prompt, replanDiffResponseSchema);
       }
+
+      if (diffResult && diffResult.affectedBudgetCategories) {
+        const targetBudget = changes.totalBudget ?? currentPlan.totalBudget;
+        const rawBudget = {
+          categories: diffResult.affectedBudgetCategories,
+          contingencyPercent: diffResult.newContingencyPercent ?? currentPlan.budget.contingencyPercent,
+          taxServiceChargePercent: currentPlan.budget.taxServiceChargePercent,
+          statedAssumptions: currentPlan.budget.statedAssumptions,
+        };
+        const fitted = validateAndFitBudget(
+          rawBudget,
+          targetBudget,
+          changes.guestCount ?? currentPlan.guestCount,
+          currentPlan.city,
+          currentPlan.eventType
+        );
+        diffResult.affectedBudgetCategories = fitted.categories;
+      }
+
       return NextResponse.json(diffResult);
     } catch (aiErr) {
       if (disableFallback) {

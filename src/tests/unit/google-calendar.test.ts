@@ -229,6 +229,18 @@ describe('Google Calendar Integration Utilities', () => {
       expect(textParam).toBeDefined();
       expect(textParam!.length).toBeLessThanOrEqual(100);
     });
+
+    it('uses startTime when provided to schedule ritual at specified muhurat timing', () => {
+      const urlString = buildGoogleCalendarTemplateUrl({
+        taskTitle: 'Auspicious Pheras Ritual',
+        planTitle: 'Royal Rajasthani Wedding',
+        dueDate: '2026-11-20',
+        startTime: '11:30',
+      });
+
+      expect(urlString).toContain('dates=20261120T113000%2F20261120T123000');
+      expect(urlString).toContain('Scheduled+Auspicious+Time%3A+11%3A30');
+    });
   });
 
   describe('removeGoogleCalendarReminders', () => {
