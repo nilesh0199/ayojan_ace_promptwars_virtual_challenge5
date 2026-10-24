@@ -5,198 +5,201 @@
 - **Live Demonstration**: [https://ayojan-ace.vercel.app/](https://ayojan-ace.vercel.app/)
 - **Source Code Repository**: [https://github.com/nilesh0199/ayojan_ace_promptwars_virtual_challenge5](https://github.com/nilesh0199/ayojan_ace_promptwars_virtual_challenge5)
 
-### Product Visual Progressions (Screenshots)
-- **Light Editorial Notebook Theme**: `![Aayojan Ace - Light Theme Interface](screenshots/light-theme-workspace.png)`
-- **Dark Editorial Surface Theme**: `![Aayojan Ace - Dark Theme Interface](screenshots/dark-theme-workspace.png)`
-- **Mobile Responsive Full-Width Layout**: `![Aayojan Ace - Mobile Bottom Nav & Full Width](screenshots/mobile-responsive.png)`
-- **Budget-Aware Replanning Diff Modal**: `![Aayojan Ace - Replanning Diff & Trade-Offs](screenshots/replanning-diff-modal.png)`
+Aayojan Ace is an intelligent, culture-aware celebration and event planning assistant designed specifically for Indian weddings, milestone birthdays, and community gatherings. Built with Next.js, Google Gemini, and Firebase, it transforms minimal celebration parameters into an actionable, comprehensive event plan featuring realistic budget allocations, a phased milestone timeline with invitation deadlines, vendor interview questions, and personalized cultural concepts. When circumstances change, Aayojan Ace intelligently rebalances only the affected components, presenting transparent before-and-after diffs with complete version history and deterministic arithmetic guarantees.
 
 ---
 
 ## The Challenge
 
-> *"Create a GenAI-powered planning assistant that helps users organize weddings, birthdays, and community events with budgets, timelines, vendor checklists, and personalized ideas."*
+> *"Create a GenAI-powered planning assistant that helps users organize weddings, birthdays, and community events with budgets, timelines, vendor checklists, and personalized ideas."*  
 > — *PromptWars Challenge 5: Celebration & Event Planner*
 
 ### What It Does
-Aayojan Ace is an intelligent celebration and event planning assistant that takes minimal intake (event type, city, date, guest count, total budget, style/culture, and non-negotiables) and immediately crafts a realistic, comprehensive celebration plan. Whenever parameters change—whether an unexpected budget adjustment, guest count shift, or date change—Aayojan Ace intelligently rebalances only the affected elements, displaying explicit before/after diffs with trade-off options and full undo history.
+Organizing milestone celebrations involves balancing complex cultural traditions, multi-vendor coordination, tight budgets, and shifting timelines. Traditional spreadsheets are prone to calculation errors, lack cultural understanding, and cannot adapt when budgets or guest counts change.
+
+Aayojan Ace solves this by combining the creative synthesis of generative AI with the reliability of deterministic code. Users enter their celebration type, city, date, guest count, total budget, style or culture, and non-negotiables—or pick from curated Indian regional presets. Aayojan Ace immediately produces an itemized, realistic budget strictly fitted within their financial ceiling, an event timeline reflowed to their exact calendar date, actionable vendor discovery checklists, and culturally aligned rituals and dietary recommendations.
 
 ---
 
 ## How This Meets the Challenge
 
-Every core capability mandated by the challenge brief is delivered with dedicated screens, pure business logic, and automated tests:
+Every core requirement mandated by the challenge brief is delivered with dedicated screens, pure business logic, and automated tests:
 
 - **Weddings, Birthdays, and Community Events**:
-  - *Screen*: Start / Plan Creator ([`src/app/page.tsx`](file:///src/app/page.tsx)) and Presets Picker ([`src/components/intake-form.tsx`](file:///src/components/intake-form.tsx)).
-  - *Feature*: Direct selection for Wedding, Birthday, and Community Event, plus editable regional presets: *Indian Wedding*, *Griha Pravesh / Housewarming*, *Diwali Community Gathering*, and *College Annual Fest*.
-  - *Source File*: [`src/lib/constants.ts`](file:///src/lib/constants.ts) (`EVENT_TYPES`, `EVENT_PRESETS`).
+  - **Screen**: Plan Creator ([`src/app/page.tsx`](file:///src/app/page.tsx)) and Intake Form ([`src/components/intake-form.tsx`](file:///src/components/intake-form.tsx)).
+  - **Feature**: Native support for Indian Weddings, Birthdays, and Community Events, plus editable regional presets: *Indian Wedding*, *Griha Pravesh / Housewarming*, *Diwali Community Gathering*, and *College Annual Fest*.
+  - **Source Files**: [`src/lib/constants.ts`](file:///src/lib/constants.ts) (`EVENT_TYPES`, `EVENT_PRESETS`) and [`src/data/savedExamples.ts`](file:///src/data/savedExamples.ts).
 
 - **Budgets**:
-  - *Screen*: Workspace Budget Tab ([`src/components/workspace/tab-budget.tsx`](file:///src/components/workspace/tab-budget.tsx)).
-  - *Feature*: Category ledger lines with Min, Target, and Max estimate ranges, stated planning assumptions, a 10% contingency buffer, a statutory tax/service allowance, and a horizontal stacked allocation bar (no generic pie charts). Over-budget conditions trigger instant visual warnings.
-  - *Source File*: [`src/lib/budget.ts`](file:///src/lib/budget.ts) (`calculateBudgetSummary`, `formatCurrency`).
+  - **Screen**: Workspace Budget Tab ([`src/components/workspace/tab-budget.tsx`](file:///src/components/workspace/tab-budget.tsx)).
+  - **Feature**: Itemized category ledger lines with Min, Target, and Max estimate ranges, stated planning assumptions, a 5-10% contingency buffer, a standard statutory tax allowance, and a horizontal stacked allocation bar. Hard ceiling validator enforces that all category targets plus contingency and tax never exceed total budget.
+  - **Source Files**: [`src/lib/budget.ts`](file:///src/lib/budget.ts) (`calculateBudgetSummary`, `formatCurrency`) and [`src/lib/budget-benchmarks.ts`](file:///src/lib/budget-benchmarks.ts) (`validateAndFitBudget`).
 
 - **Timelines**:
-  - *Screen*: Workspace Timeline Tab ([`src/components/workspace/tab-timeline.tsx`](file:///src/components/workspace/tab-timeline.tsx)).
-  - *Feature*: Phased vertical milestone track (*Now*, *Next 7 days*, *Next 30 days*, *Event week*, *Event day*), each item featuring an exact due date, assigned owner, linked category cost, and interactive completion checkboxes. Includes pure client-side `.ics` export and instant code-based date reflow.
-  - *Source File*: [`src/lib/timeline.ts`](file:///src/lib/timeline.ts) (`reflowTimelineDates`) and [`src/lib/ics.ts`](file:///src/lib/ics.ts) (`generateTimelineIcs`).
+  - **Screen**: Workspace Timeline Tab ([`src/components/workspace/tab-timeline.tsx`](file:///src/components/workspace/tab-timeline.tsx)).
+  - **Feature**: Phased vertical milestone track (*Now*, *Next 7 days*, *Next 30 days*, *Event week*, *Event day*), each task featuring an exact calendar due date, assigned owner, linked category cost, and interactive completion checkboxes. Includes pure client-side `.ics` export with 1-day advance alarms and code-driven date reflow.
+  - **Source Files**: [`src/lib/timeline.ts`](file:///src/lib/timeline.ts) (`reflowTimelineDates`) and [`src/lib/ics.ts`](file:///src/lib/ics.ts) (`generateTimelineIcs`).
 
 - **Vendor Checklists**:
-  - *Screen*: Workspace Vendors Tab ([`src/components/workspace/tab-vendors.tsx`](file:///src/components/workspace/tab-vendors.tsx)).
-  - *Feature*: Screening checklist categories with contract lifecycle status dropdowns (*Shortlisted*, *Contacted*, *Quoted*, *Booked*, *Contract received*), prominent **"Verify with the vendor"** label, and key discovery screening questions.
-  - *Guardrail*: Strictly recommends vendor *types* and vital screening questions; never fabricates fake names, phone numbers, or fixed prices.
-  - *Source File*: [`src/lib/schemas.ts`](file:///src/lib/schemas.ts) (`vendorItemSchema`).
+  - **Screen**: Workspace Vendors Tab ([`src/components/workspace/tab-vendors.tsx`](file:///src/components/workspace/tab-vendors.tsx)).
+  - **Feature**: Screening checklist categories with contract lifecycle status dropdowns (*Shortlisted*, *Contacted*, *Quoted*, *Booked*, *Contract received*), prominent **"Verify with the vendor"** label, and key discovery interview questions. Strictly recommends vendor roles and screening criteria; never invents fake contact details or fixed quotes.
+  - **Source Files**: [`src/components/workspace/tab-vendors.tsx`](file:///src/components/workspace/tab-vendors.tsx) and [`src/lib/schemas.ts`](file:///src/lib/schemas.ts) (`vendorItemSchema`).
 
 - **Personalized Ideas**:
-  - *Screen*: Workspace Ideas Tab ([`src/components/workspace/tab-ideas.tsx`](file:///src/components/workspace/tab-ideas.tsx)).
-  - *Feature*: Creative concepts tailored to regional culture, detailed menu and dietary guidelines (*dedicated Pure Jain counter protocols, vegan options, allergy awareness*), interactive guest rituals, and cultural decor accents.
-  - *Source File*: [`src/components/workspace/tab-ideas.tsx`](file:///src/components/workspace/tab-ideas.tsx) and [`src/lib/schemas.ts`](file:///src/lib/schemas.ts) (`personalizedIdeasSchema`).
+  - **Screen**: Workspace Ideas Tab ([`src/components/workspace/tab-ideas.tsx`](file:///src/components/workspace/tab-ideas.tsx)).
+  - **Feature**: Creative concepts tailored to regional Indian traditions, detailed menu and dietary guidelines (dedicated Pure Jain counter protocols, satvik catering, vegan options, allergy awareness), interactive guest rituals, and cultural decor accents.
+  - **Source Files**: [`src/components/workspace/tab-ideas.tsx`](file:///src/components/workspace/tab-ideas.tsx) and [`src/lib/schemas.ts`](file:///src/lib/schemas.ts) (`personalizedIdeasSchema`).
 
-- **Cloud Persistence & Version Snapshots (Firestore)**:
-  - *Screen*: Saved Plans ([`src/app/saved/page.tsx`](file:///src/app/saved/page.tsx)) and Workspace Header.
-  - *Feature*: Debounced automatic persistence to `users/{uid}/plans/{planId}`, subcollection version snapshots under `users/{uid}/plans/{planId}/versions` capped at the latest 20 versions per plan, duplicate, rename, delete with confirmation, and one-click version restore. Paginated query capped at 50 with "load more".
-  - *Guest Mode*: Guest plans persist in schema-validated localStorage; upon sign-in, an accessible one-click banner prompts to import the guest plan directly into Firestore.
-  - *Source File*: [`src/lib/firebase/firestore.ts`](file:///src/lib/firebase/firestore.ts) and [`firestore.rules`](file:///firestore.rules).
+---
 
-- **Google Calendar Milestone Reminders & Zero-OAuth Path**:
-  - *Screen*: Workspace Timeline Tab Reminders Panel ([`src/components/workspace/tab-timeline.tsx`](file:///src/components/workspace/tab-timeline.tsx)).
-  - *Warning-Free Default Path*: Each timeline task includes a direct "Add to Google Calendar" link opening `calendar.google.com/calendar/render?action=TEMPLATE` in a new tab without OAuth warnings or sign-in requirements. Includes a prominent "Download all as .ics" button generating standard iCalendar files with 1-day advance alarm reminders (`VALARM`) compatible with Apple Calendar, Google Calendar, and Outlook.
-  - *Advanced OAuth Auto-Sync*: Collapsible advanced panel with calm unverified-app explanation for non-commercial competition projects. Uses `GoogleAuthProvider` requesting narrow `calendar.events` scope, passing `login_hint` and `include_granted_scopes`. Access tokens stored strictly in client runtime memory (never in Firestore, localStorage, cookies, or logs) and cleared on 401 or sign-out. Idempotently creates 9:00 AM local events with 1-day email and 1-hour popup alerts.
-  - *Source File*: [`src/lib/google-calendar.ts`](file:///src/lib/google-calendar.ts), [`src/lib/ics.ts`](file:///src/lib/ics.ts), and [`src/lib/firebase/auth.ts`](file:///src/lib/firebase/auth.ts).
+## HOW GENAI IS USED
 
-- **Guest Invitations in the Timeline & Draft Modal**:
-  - *Screen*: Workspace Timeline Tab ([`src/components/workspace/tab-timeline.tsx`](file:///src/components/workspace/tab-timeline.tsx)) and Draft Invite Modal ([`src/components/workspace/draft-invite-modal.tsx`](file:///src/components/workspace/draft-invite-modal.tsx)).
-  - *Code-Injected Milestones*: Automatically embeds essential milestones with strict timing offsets: Save-the-date (8 weeks, weddings only), Invitations (3 weeks, all), RSVP follow-up (10 days), Final headcount (5 days). If an event is closer than an offset allows, due date is clamped to tomorrow and marked `isTimeSensitive` with an alert icon and visible text label.
-  - *Draft Invite Modal*: Invitation tasks provide a "Draft invite" button opening an accessible modal with live customizable event details (host names, date/time, venue, RSVP contact, dietary requests), editable message textarea with live character counter, one-click Copy to clipboard with live region feedback, WhatsApp sharing via `wa.me`, and Email sharing via `mailto`.
-  - *Source File*: [`src/lib/timeline.ts`](file:///src/lib/timeline.ts) and [`src/components/workspace/draft-invite-modal.tsx`](file:///src/components/workspace/draft-invite-modal.tsx).
+Aayojan Ace treats Generative AI as an intelligent synthesis engine, using deterministic algorithms to enforce math, validation, and boundaries.
 
-- **Multi-Scope Print & PDF Export**:
-  - *Screen*: Workspace Header Print Control ([`src/components/workspace/workspace-header.tsx`](file:///src/components/workspace/workspace-header.tsx)) and Full Report ([`src/components/workspace/full-event-report.tsx`](file:///src/components/workspace/full-event-report.tsx)).
-  - *Feature*: Accessible dialog allowing users to choose between "Full event report" (default) or "Current tab only". The Full Event Report renders a comprehensive executive summary fact sheet, comprehensive budget ledger with assumptions, complete timeline with guest milestones, vendor interview questions, creative cultural ideas, operational risk register, and planning disclaimer.
-  - *Print Stylesheet*: Enforces clean light theme on paper/PDF regardless of current dark mode setting, high-contrast dark text ($\ge 7:1$), readable borders, repeats table headers (`thead`), and prevents page breaks inside cards.
-  - *Source File*: [`src/components/workspace/print-modal.tsx`](file:///src/components/workspace/print-modal.tsx) and [`src/app/globals.css`](file:///src/app/globals.css).
+### 1. Plan Generation
+- **What It Does**: Crafts a complete, cohesive celebration blueprint from intake parameters in a single structured call.
+- **Input Received**: Event type, city, date, guest count, total budget, currency, style or culture, non-negotiables, optional event name, and optional Muhurat time.
+- **Structured Output Returned**: Schema-validated JSON containing budget categories (with min/target/max estimates and assumptions), phased timeline tasks (with timing offsets and owners), vendor checklist (with screening questions), and personalized cultural ideas.
+- **Guardrails**: Output is validated against `eventPlanSchema` via Zod. Estimates are passed to `validateAndFitBudget()` which enforces realistic Indian city tier benchmarks (Metro, Tier-2, Tier-3) and scales categories so total committed costs never exceed the user's budget ceiling.
+- **Source Files**: [`src/app/api/plan/generate/route.ts`](file:///src/app/api/plan/generate/route.ts), [`src/lib/prompts.ts`](file:///src/lib/prompts.ts) (`buildPlannerPrompt`), and [`src/lib/budget-benchmarks.ts`](file:///src/lib/budget-benchmarks.ts).
 
-- **Server Config Health Check & Backup Gemini API Key**:
-  - *Screen*: API Health Endpoint ([`src/app/api/health/route.ts`](file:///src/app/api/health/route.ts)) and Global Alert Banners.
-  - *Feature*: Rate-limited health check returning short status booleans/strings (`{ status: "ok" | "degraded", gemini: "configured" | "missing", fallbackKey: "configured" | "missing", model: "configured" | "missing" }`) without ever exposing secrets. Startup check detects missing `NEXT_PUBLIC_FIREBASE_*` variables and names them.
-  - *Backup Gemini Key & 4-Stage Fallback*: Supports `GEMINI_API_KEY_FALLBACK` from a secondary Google Cloud project. Automatically cascades: Primary Key + Primary Model &rarr; Fallback Key + Primary Model (on 429 quota exhaustion) &rarr; Primary Key + Fallback Model &rarr; Fallback Key + Fallback Model. Independent in-memory circuit breakers protect each combination.
-  - *Source File*: [`src/app/api/health/route.ts`](file:///src/app/api/health/route.ts) and [`src/lib/gemini.ts`](file:///src/lib/gemini.ts).
+### 2. Adaptive Follow-Up Clarifications
+- **What It Does**: Identifies ambiguous, missing, or conflicting requirements before generating a plan.
+- **Input Received**: Initial user intake parameters.
+- **Structured Output Returned**: `FollowUpResponse` containing `needsFollowUp: boolean`, an optional clarifying question with up to 4 suggested quick-response options, and an explanation of why clarification helps.
+- **Guardrails**: Strictly limited to at most 1 follow-up question per session to avoid intake fatigue. Users can skip at any time with a dedicated "Skip and generate plan" button.
+- **Source Files**: [`src/app/api/plan/followup/route.ts`](file:///src/app/api/plan/followup/route.ts) and [`src/lib/prompts.ts`](file:///src/lib/prompts.ts) (`buildFollowUpPrompt`).
 
-- **Cloud Save Hardening & Session Security**:
-  - *Screen*: Workspace Header ([`src/components/workspace/workspace-header.tsx`](file:///src/components/workspace/workspace-header.tsx)) and Navigation Rail ([`src/components/navigation.tsx`](file:///src/components/navigation.tsx)).
-  - *Feature*: Official Google-branded Sign-in button with inline SVG vector 'G' displayed in desktop sidebar and mobile navigation. Uses Firebase `browserSessionPersistence` so sessions persist only during active browsing and cleanly reset on sign-out. Auto-saves plans immediately upon guest sign-in. Eliminates `undefined` sparse properties to prevent Firestore SDK rejection, and maps Firestore errors to reassuring, positive feedback.
-  - *Source File*: [`src/lib/firebase/mappers.ts`](file:///src/lib/firebase/mappers.ts) and [`src/lib/firebase/firestore.ts`](file:///src/lib/firebase/firestore.ts).
+### 3. Budget-Aware Replanning
+- **What It Does**: When parameters change mid-planning (such as a budget cut, headcount increase, or date change), the AI rebalances *only the affected items* rather than regenerating the entire plan.
+- **Input Received**: Complete current plan JSON plus the specific user changes (e.g. `totalBudget: 400000`, `guestCount: 200`, or a single category adjustment).
+- **Structured Output Returned**: `ReplanDiffResponse` containing modified budget items, modified timeline tasks, a clear summary of what changed, the reasoning behind each adjustment, and 2-3 trade-off options (e.g., "Shift venue to an off-peak weekday to preserve luxury catering").
+- **Guardrails**: Pure TypeScript diff engine ([`src/lib/diff.ts`](file:///src/lib/diff.ts)) compares the proposal with the active plan. The user reviews a visual before/after diff modal and explicitly clicks "Accept Changes" or "Keep Current Plan". Accepted diffs push the previous state onto an undo stack and create an immutable version snapshot.
+- **Source Files**: [`src/app/api/plan/replan/route.ts`](file:///src/app/api/plan/replan/route.ts) and [`src/lib/diff.ts`](file:///src/lib/diff.ts).
 
-- **Budget-Aware Replanning (The Hero Feature)**:
-  - *Screen*: Workspace Header & Replan Modal ([`src/components/workspace/replan-modal.tsx`](file:///src/components/workspace/replan-modal.tsx)).
-  - *Feature*: Users can modify total budget, guest count, event date, or a single category allocation. Gemini rebalances *only the affected items*, returning a structured diff with "What changed", "Why", and "Trade-off options". Users can Accept or Reject, with an undoable version history stack.
-  - *Source File*: [`src/lib/diff.ts`](file:///src/lib/diff.ts) (`computePlanDiff`, `applyReplanDiff`).
+### 4. Operational Risk Check ("What Could Go Wrong")
+- **What It Does**: Conducts a proactive contingency audit identifying realistic operational risks specific to the host city, season, and event scale.
+- **Input Received**: Full active celebration plan context.
+- **Structured Output Returned**: `RiskRegister` containing categorized risks (weather contingencies, municipal noise permits and 10 PM sound cutoffs, single points of failure, dietary cross-contamination, and vendor payment schedules), each with a severity rating (`low`, `medium`, `high`) and actionable prevention protocols.
+- **Guardrails**: Scoped strictly to operational event mechanics; avoids sensationalism. In-memory caching prevents duplicate calls for the same plan.
+- **Source Files**: [`src/app/api/plan/risks/route.ts`](file:///src/app/api/plan/risks/route.ts) and [`src/lib/prompts.ts`](file:///src/lib/prompts.ts) (`buildRiskCheckPrompt`).
 
-- **Operational Safeguards Check**:
-  - *Screen*: Workspace Risks Tab ([`src/components/workspace/tab-risks.tsx`](file:///src/components/workspace/tab-risks.tsx)).
-  - *Feature*: Proactive contingency assessment covering seasonal weather in the host city, municipal sound permits, dependency failure points, dietary cross-contamination, and payment milestones.
-  - *Source File*: [`src/app/api/plan/risks/route.ts`](file:///src/app/api/plan/risks/route.ts) and [`src/lib/prompts.ts`](file:///src/lib/prompts.ts) (`buildRiskCheckPrompt`).
+### 5. Culturally Aware Event Name Suggestions
+- **What It Does**: Suggests 4 creative, elegant celebration titles suited to the event type, regional style, and city.
+- **Input Received**: Event type, city, style/culture, and optional host names.
+- **Structured Output Returned**: `NameSuggestionsResponse` containing an array of 4 distinct names (e.g. "Aarav & Diya's Royal Pheras", "The Mehta Golden Jubilee", "Basant Community Utsav").
+- **Guardrails**: Validated with Zod; falls back immediately to a curated regional title generator if the AI provider is unavailable. Rate-limited to prevent abuse.
+- **Source Files**: [`src/app/api/plan/names/route.ts`](file:///src/app/api/plan/names/route.ts) and [`src/components/workspace/workspace-header.tsx`](file:///src/components/workspace/workspace-header.tsx).
 
-- **Adaptive Clarification**:
-  - *Screen*: Start / Plan Creator Intake Card ([`src/components/intake-form.tsx`](file:///src/components/intake-form.tsx)).
-  - *Feature*: Gemini analyzes intake parameters for missing or contradictory information, asking *one* friendly clarification question at a time (max 2 per plan) before generating the draft.
-  - *Source File*: [`src/app/api/plan/followup/route.ts`](file:///src/app/api/plan/followup/route.ts) and [`src/lib/prompts.ts`](file:///src/lib/prompts.ts) (`buildFollowUpPrompt`).
+### 6. Ask AI (Celebration Doubts & Questions)
+- **What It Does**: Provides an in-workspace interactive advisory tab where users ask specific questions or explore options for their active celebration.
+- **Input Received**: Compact context of the active plan (city, date, guest count, budget, Muhurat timing, style) plus the user's specific inquiry.
+- **Structured Output Returned**: `AskAiResponse` containing a focused, practical answer formatted with safe Markdown bolding and bullet lists.
+- **Guardrails**: Character limit capped at 500 characters. Answers are parsed through a safe text renderer with zero raw HTML injection. Rate-limited to 15 requests per minute per IP.
+- **Source Files**: [`src/app/api/plan/ask/route.ts`](file:///src/app/api/plan/ask/route.ts) and [`src/components/workspace/tab-ask-ai.tsx`](file:///src/components/workspace/tab-ask-ai.tsx).
+
+### Where GenAI Is Deliberately NOT Used
+To ensure absolute reliability, mathematical accuracy, and user safety, generative AI is intentionally bypassed for all core calculations:
+- **Budget Math and Hard Ceiling Enforcement**: Summing category targets, computing contingency allowances, calculating statutory taxes, detecting over-budget states, and scaling allocations are handled entirely in pure TypeScript ([`src/lib/budget.ts`](file:///src/lib/budget.ts) and [`src/lib/budget-benchmarks.ts`](file:///src/lib/budget-benchmarks.ts)). AI models frequently make arithmetic errors; deterministic code never does.
+- **Timeline Date Reflow**: When an event date is rescheduled, shifting task due dates, recalculating days-before-event offsets, and reassigning milestone phases are computed in pure TypeScript ([`src/lib/timeline.ts`](file:///src/lib/timeline.ts)).
+- **Guest Invitation Milestones**: Critical guest outreach deadlines (Save-the-Date at 8 weeks, Invitations at 3 weeks, RSVP follow-ups at 10 days, Final headcount at 5 days) are deterministically injected by code to ensure timing accuracy.
+- **Muhurat Time (Auspicious Timing)**: Auspicious timing is entered strictly by the user or their family priest. Aayojan Ace never invents or guesses a Muhurat time, honoring cultural respect.
+- **Calendar & PDF Exports**: Google Calendar URL templates, standard RFC 5545 `.ics` file generation, and executive PDF reports are generated entirely via deterministic client-side routines.
+
+### Guardrails & Safety Architecture
+- **Strict Zod Schema Validation**: Every AI response is validated through strict Zod schemas (`safeParse()`). Malformed payloads trigger an automated single schema-repair retry; if still invalid, the system advances to the next provider.
+- **Delimited Untrusted Inputs**: All user-provided strings are sanitized, JSON-encoded, and wrapped within explicit `<<<USER_INPUT_DATA>>>` boundary tags with instructions instructing the model to treat content as passive data.
+- **No Fabricated Vendor Entities**: Prompts explicitly forbid generating fake telephone numbers, fabricated company names, or guaranteed quotes. Vendors are listed by professional role with screening questions.
+- **Estimate Ranges with Stated Assumptions**: All financial figures present Minimum, Target, and Maximum ranges accompanied by transparent planning assumptions.
+- **Zero Raw Error Leakage**: Upstream API errors, model timeouts, and status codes are never displayed directly to users. The backend maps errors to typed error codes (`AI_BUSY`, `AI_TIMEOUT`, `AI_NOT_CONFIGURED`, `AI_BACKUP_KEY_EXPIRED`), and the UI displays friendly, reassuring messages with retry actions.
+
+### Multi-Provider Resilience Hierarchy
+Aayojan Ace incorporates a 4-tier provider cascade with per-model circuit breakers and a total execution time budget:
+1. **Google Gemini Primary Model**: Primary AI engine configured via `GEMINI_MODEL` with up to 2 retries using exponential backoff and randomized jitter.
+2. **Google Gemini Fallback Model**: Secondary Gemini model configured via `GEMINI_FALLBACK_MODEL`, automatically invoked if the primary model encounters capacity limits or server unavailability.
+3. **Groq Cloud Provider (`llama-3.3-70b-versatile`)**: Optional secondary AI provider using OpenAI-compatible chat completions with JSON mode. Enabled only when `GROQ_API_KEY` is configured. Hardened against key expiration (`GROQ_KEY_EXPIRES_ON`) and 401/403 rejection.
+4. **Built-in Deterministic Template Planner (`template-planner.ts`)**: Last-resort fallback that runs locally with zero external network dependency, generating a complete, realistic, schema-verified plan in under 1 millisecond.
+- **Visual Non-Primary Indicators**: When a plan is drafted by a backup AI provider or the built-in template planner, an accessible banner and badge appear with a single-click **"Try again with AI"** option.
 
 ---
 
 ## Judging Criteria Evidence
 
 ### 1. Code Quality
-- **Clear Architectural Separation**: Pure business logic ([`src/lib/`](file:///src/lib/)) is decoupled from UI presentation ([`src/components/`](file:///src/components/)) and network I/O ([`src/app/api/`](file:///src/app/api/)).
-- **TypeScript Strict Mode**: Enforced in [`tsconfig.json`](file:///tsconfig.json) (`"strict": true`, `"noImplicitAny": true`). Zero TypeScript errors across the entire codebase (`tsc --noEmit` exits with code 0).
-- **Static Code Analysis**: ESLint configured in [`.eslintrc.json`](file:///.eslintrc.json) extending `next/core-web-vitals` with Prettier formatting in [`.prettierrc`](file:///.prettierrc). `npm run lint` passes with 0 errors and 0 warnings.
-- **Typed Error Hierarchy**: Custom `GeminiApiError` class with union `GeminiErrorCode` (`'AI_BUSY' | 'AI_TIMEOUT' | 'AI_NOT_CONFIGURED' | 'AI_INVALID_KEY' | 'AI_MODEL_NOT_FOUND' | 'AI_VALIDATION_FAILED' | 'AI_ERROR'`) in [`src/lib/gemini.ts`](file:///src/lib/gemini.ts). Uniformly handled by [`src/lib/api-helper.ts`](file:///src/lib/api-helper.ts) with friendly, positive UI error mapping.
-- **Documentation & JSDoc**: Comprehensive JSDoc annotations across all public pure functions, with architectural decisions detailed in [`ARCHITECTURE.md`](file:///ARCHITECTURE.md).
+- **Strict TypeScript**: `noImplicitAny: true` enforced across the entire codebase. Zero `any` types; all API contracts and data models are strictly typed with Zod and TypeScript.
+- **Clean ESLint**: Zero warnings, zero errors (`✔ No ESLint warnings or errors`).
+- **Layer Separation**: Strict separation between pure business logic ([`src/lib/`](file:///src/lib/)), UI presentation components ([`src/components/`](file:///src/components/)), and App Router endpoints ([`src/app/api/`](file:///src/app/api/)).
+- **Documentation**: Comprehensive docstrings, architecture documentation ([`ARCHITECTURE.md`](file:///ARCHITECTURE.md)), and threat model ([`SECURITY.md`](file:///SECURITY.md)).
 
 ### 2. Security
-- **Server-Only API Key**: `GEMINI_API_KEY` is loaded exclusively inside server-side route handlers ([`src/lib/gemini.ts`](file:///src/lib/gemini.ts)). Never bundled into client JavaScript.
-- **Zero Raw Upstream Error Leakage**: `handleApiError` and `mapGeminiError` ensure raw upstream JSON, stack traces, internal IPs, and API keys are strictly never returned to the browser. Only sanitized, typed error codes and reassuring copy are rendered.
-- **Safe Server-Only Logging**: Server alerts log high-level metadata (code, status, attempt, model) strictly without secrets, prompts, or user inputs.
-- **Zod Schema Validation**: Both incoming request payloads and outgoing Gemini JSON outputs are validated against strict Zod schemas with number limits and string length bounds in [`src/lib/schemas.ts`](file:///src/lib/schemas.ts).
-- **Prompt Injection Defense**: Untrusted user inputs are wrapped inside explicit `<<<USER_INPUT_DATA>>>` delimiters with system directives to ignore instructions inside data ([`src/lib/prompts.ts`](file:///src/lib/prompts.ts)).
-- **Token Bucket Rate Limiting**: Per-IP rate limiting module ([`src/lib/ratelimit.ts`](file:///src/lib/ratelimit.ts)) blocks automated spam with HTTP 429 and `Retry-After` headers.
-- **Content Security Policy & COOP Headers**: Strict CSP, HSTS, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, and `Cross-Origin-Opener-Policy: same-origin-allow-popups` configured in [`next.config.mjs`](file:///next.config.mjs).
-- **In-Memory Calendar Token Storage**: Google Calendar OAuth tokens are held strictly in runtime memory and expire naturally; they are never stored in Firestore, localStorage, cookies, or logs.
-- **Firestore Security Rules**: User-scoped access control in [`firestore.rules`](file:///firestore.rules) ensures documents under `/users/{uid}/plans/{planId}` and subcollection `/versions/{versionId}` can only be read or written by the authenticated owner (`request.auth.uid == userId`). Requires `data.id == planId`, enforces strict key enumeration via `keys().hasOnly([...])` rejecting unauthorized fields, validates `createdAt`/`updatedAt` timestamp strings, bounds list sizes (`timeline <= 100`, `vendors <= 50`, `categories <= 30`), enforces immutable version snapshots (`allow update: if false`), and relies on Firestore's native 1 MiB document size ceiling.
-- **Startup Environment Verification**: `getMissingFirebaseConfigVars` ([`src/lib/firebase/config.ts`](file:///src/lib/firebase/config.ts)) verifies required `NEXT_PUBLIC_FIREBASE_*` keys on startup using static literal property accesses (ensuring reliable Next.js build-time inlining) and displays an accessible alert naming missing variables without exposing secret values. Empty strings, whitespace, and placeholder templates (e.g. `<...>`, `your_...`, `mock-...`) are flagged as missing. Note: `NEXT_PUBLIC_*` values are inlined into client JS at build time, so Vercel requires a redeploy after environment variable changes, and local development requires updating `.env.local` followed by a dev server restart (`npm run dev`).
-- **Zero Committed Secrets**: Strict [`.gitignore`](file:///.gitignore) and template [`.env.example`](file:///.env.example). Full security posture documented in [`SECURITY.md`](file:///SECURITY.md).
+- **Strict Server-Only Secrets**: `GEMINI_API_KEY`, `GEMINI_API_KEY_FALLBACK`, and `GROQ_API_KEY` are accessed strictly within server-side API routes and are excluded from client bundles.
+- **Delimited Prompt Injection Defense**: User text is wrapped in `<<<USER_INPUT_DATA>>>` delimiters with system directives to treat input as passive data.
+- **Token Bucket Rate Limiting**: Token bucket algorithm in [`src/lib/ratelimit.ts`](file:///src/lib/ratelimit.ts) (12 tokens max, 0.5 refill/sec, 15-minute stale eviction, 300KB request body ceiling).
+- **HTTP Security Headers & CSP**: Configured in [`next.config.mjs`](file:///next.config.mjs) with strict Content Security Policy, `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Strict-Transport-Security`, and `Cross-Origin-Opener-Policy: same-origin-allow-popups`.
+- **Hardened Cloud Firestore Rules**: Published in [`firestore.rules`](file:///firestore.rules) enforcing document ownership (`request.auth.uid == userId`), strict key whitelisting (`keys().hasOnly([...])`), string length bounds, bounded array sizes, and immutable version snapshots (`allow update: if false;`).
 
 ### 3. Efficiency
-- **Overload Resilience & Circuit Breaker**:
-  - *Exponential Backoff & Jitter*: On HTTP 503, 429, or `UNAVAILABLE` responses, retries up to 2 times with exponential backoff and random jitter (`400ms * 2^attempt + jitter`), keeping connection spikes smooth.
-  - *Fallback Model Switching*: If the primary model (`gemini-3.8-flash`) exhausts retries, automatically switches to `GEMINI_FALLBACK_MODEL` (`gemini-3.5-flash`, with 1 retry).
-  - *In-Memory Circuit Breaker*: After 3 consecutive overload failures on the primary model, trips for ~60 seconds, bypassing the primary model and directly utilizing the fallback model to prevent repeated latency penalties.
-  - *Total Time Budget & Per-Attempt Timeouts*: Enforces a 25-second overall ceiling and 8-second per-attempt timeout so requests finish well within hosting platform time limits.
-- **Server Components & Minimal Hydration**: Informational pages (`/privacy`, `/terms`) are statically rendered Server Components. Client components are scoped strictly to interactive nodes.
-- **Structured JSON Output**: Gemini calls utilize `responseMimeType: 'application/json'` to minimize response token consumption and guarantee deterministic parsing.
-- **Minimal Replanning Payloads**: Replanning prompts transmit only the current state slice and requested modification, returning only the affected budget lines and tasks rather than re-generating the entire plan.
-- **In-Memory Server LRU Cache**: Duplicate plan generation requests are cached in memory for 15 minutes ([`src/lib/cache.ts`](file:///src/lib/cache.ts)), skipping redundant AI calls (`X-Cache: HIT`).
-- **Pure Code Math**: Ledger sums, contingency calculations, percentage distributions, and date reflows execute instantly in client code with zero AI round-trips.
-- **Measured Production Build Bundle Sizes**:
+- **Optimized Bundle Sizes (Next.js Production Build)**:
   - Shared First Load JS: **87.2 kB**
-  - Route `/` (Start / Intake): **4.29 kB** (First Load: 266 kB)
-  - Route `/workspace` (7 Tabs): **18 kB** (First Load: 280 kB)
-  - Route `/saved` (Search & Versions): **6.5 kB** (First Load: 269 kB)
-  - Route `/privacy` & `/terms`: **190 B** (First Load: 262 kB)
-  - API Routes: **0 B** client overhead (Server-rendered on demand)
+  - Plan Creator / Home Route: **274 kB** (Route size: **6.99 kB**)
+  - Saved Plans Route: **274 kB** (Route size: **6.69 kB**)
+  - About Route: **267 kB** (Route size: **204 B**)
+  - Privacy & Terms Routes: **267 kB** (Route size: **190 B**)
+  - Workspace Route: **299 kB** (Route size: **32.4 kB**)
+- **In-Memory LRU Cache**: Server-side cache in [`src/lib/cache.ts`](file:///src/lib/cache.ts) prevents redundant AI calls for identical celebration configurations.
+- **Focused Replanning Payloads**: Replanning transmits only modified fields, significantly reducing token consumption and round-trip latency.
+- **Fast Local Operations**: Date reflow, `.ics` file generation, budget calculations, and template planning run client-side in under 5 milliseconds.
 
 ### 4. Testing
-- **Test Stack**: Vitest + React Testing Library + `jest-axe` + mocked Gemini SDK (no live API calls during tests).
-- **Enforced Coverage Thresholds**: Configured in [`vitest.config.ts`](file:///vitest.config.ts) requiring $\ge 85\%$ lines and $\ge 80\%$ branches for `lib/` and `api/`.
-- **Actual Coverage Results (Real Run Output)**:
-  - Statements: **95.81%** (Threshold $\ge 85\%$ met)
-  - Branches: **84.35%** (Threshold $\ge 80\%$ met)
-  - Functions: **100.00%**
-  - Lines: **95.81%** (Threshold $\ge 85\%$ met)
-  - Total Tests: **27 test suites passed, 180 unit/API/component/a11y tests passed cleanly (0 failed)**.
-- **Coverage By Module**:
-  - `src/app/api/health/route.ts`: 100% lines, 93.33% branches
-  - `src/app/api/plan/followup`: 100% lines, 100% branches
-  - `src/app/api/plan/replan`: 100% lines, 100% branches
-  - `src/app/api/plan/risks`: 100% lines, 100% branches
-  - `src/app/api/plan/generate`: 100% lines, 66.66% branches
-  - `src/lib/diff.ts`: 100% lines, 96.42% branches
-  - `src/lib/prompts.ts`: 100% lines, 100% branches
-  - `src/lib/schemas.ts`: 100% lines, 100% branches
-  - `src/lib/ics.ts`: 100% lines, 75% branches
-  - `src/lib/google-calendar.ts`: 94.59% lines, 69.04% branches
-  - `src/lib/api-helper.ts`: 100% lines, 100% branches
-  - `src/lib/timeline.ts`: 98.94% lines, 87.5% branches
-  - `src/lib/budget.ts`: 96.82% lines, 57.89% branches
-  - `src/lib/cache.ts`: 96.36% lines, 94.73% branches
-  - `src/lib/ratelimit.ts`: 92% lines, 94.44% branches
-  - `src/lib/gemini.ts`: 88.14% lines, 83.47% branches
-  - `src/lib/firebase/mappers.ts`: 100% lines, 100% branches
+- **100% Test Pass Rate**: **264 tests passed across 38 test suites** in 46.55 seconds.
+- **High Code Coverage (v8)**:
+  - **Lines**: **95.56%** (Threshold: $\ge 85\%$)
+  - **Branches**: **81.08%** (Threshold: $\ge 80\%$)
+  - **Functions**: **97.5%**
+  - **Statements**: **95.56%**
+- **Comprehensive Test Spectrum**:
+  - Unit tests for budget benchmarks, math, timeline reflow, calendar URLs, `.ics` generation, cache, rate limiting, and diff computation.
+  - Component tests for IntakeForm, AiLoader, PrintModal, ReplanModal, SavePromptModal, TabAskAi, WorkspaceHeader, and ThemeToggle.
+  - API endpoint integration tests for `/api/plan/generate`, `/api/plan/followup`, `/api/plan/replan`, `/api/plan/risks`, `/api/plan/names`, `/api/plan/ask`, and `/api/health`.
+  - Automated accessibility suites running `jest-axe` across both Light and Dark themes.
 
-### 5. Accessibility (WCAG 2.2 AA)
-- **Semantic Landmark Hierarchy**: `<header>`, `<nav>`, `<main id="main-content">`, `<aside>` landmark structure with one `<h1>` per view.
-- **Skip-to-Content**: Accessible skip link placed at the very top of `<body>` bypassing navigation directly to `#main-content`.
-- **Mathematical Contrast Token Verification**: Unit test [`src/tests/unit/contrast.test.ts`](file:///src/tests/unit/contrast.test.ts) computes relative luminance and contrast ratios, proving all text tokens meet WCAG AA ($\ge 4.5:1$) and UI components meet $\ge 3:1$ in both Light and Dark themes.
-- **Visible Focus Rings & Focus Trapping**: All interactive controls feature visible `:focus-visible` styling (`outline: 2px solid var(--color-accent)`). Modal dialogs trap focus and restore focus on dismiss.
-- **Screen Reader Announcements**: `aria-live="polite"` regions communicate AI generation progress, error alerts, calendar sync progression, and date reflow updates.
-- **Automated `jest-axe` Audits**: Every main screen (Home, Workspace, Saved Plans, Timeline Reminders, Privacy, Terms, 404, ThemeToggle) tested with `jest-axe` in light and dark themes with **0 violations** ([`src/tests/components/accessibility.test.tsx`](file:///src/tests/components/accessibility.test.tsx), [`src/tests/components/saved-plans-and-reminders-a11y.test.tsx`](file:///src/tests/components/saved-plans-and-reminders-a11y.test.tsx)).
+### 5. Accessibility (a11y)
+- **WCAG 2.1 AA Compliance**: Verified with automated `jest-axe` tests across all pages and interactive modals in both Light and Dark themes.
+- **Contrast Ratios**: Custom color palette in [`tailwind.config.ts`](file:///tailwind.config.ts) guarantees high contrast ($\ge 4.5:1$ for body text, $\ge 3:1$ for UI controls, $\ge 7:1$ for print). Verified by [`src/tests/unit/contrast.test.ts`](file:///src/tests/unit/contrast.test.ts).
+- **Accessible AI Loading State**: `AiLoader` uses `role="status"` and `aria-live="polite"`. Respects `prefers-reduced-motion` by displaying a static icon instead of CSS rotation.
+- **Keyboard Navigation**: Focus traps on all dialogs, Esc key to dismiss, Enter key to confirm, and visible `:focus-visible` outline rings throughout.
+- **Touch Accessibility**: Minimum 44px touch targets on all buttons, chips, and navigation links.
 
 ### 6. Problem Statement Alignment
-- Every challenge requirement is satisfied and cross-referenced in Section 3 ("How This Meets the Challenge") and Section 7 ("How Gemini is Used").
+- **Tailored to Indian Celebrations**: Direct support for weddings, milestone birthdays, and community gatherings with regional presets (Indian Wedding, Griha Pravesh, Diwali Utsav, College Fest).
+- **Cultural Nuances**: Built-in support for Muhurat timing, regional rituals (Pheras, Sangeet, Haldi, Varmala, Satyanarayan Pooja), and dietary accommodations (dedicated Pure Jain counters, satvik catering, vegan options).
+- **Practical Planning Deliverables**: Complete budget ledgers, phased timelines, vendor screening questions, risk registers, `.ics` calendar sync, and printable executive reports.
 
 ---
 
-## Services, AI Providers & Tools Used
+## Feature Tour
 
-- **Google Gemini API (Primary AI)**: Server-side planning intelligence via the official `@google/genai` SDK using `gemini-3.8-flash` with fallback to `gemini-3.5-flash`.
-- **Groq Cloud API (Optional Backup AI Provider)**: Server-only secondary AI provider calling Groq's OpenAI-compatible chat completions endpoint with native JSON output mode (`llama-3.3-70b-versatile`). Enabled strictly when `GROQ_API_KEY` is configured.
-- **Built-in Deterministic Template Planner (Zero-Network Fallback)**: Pure code planning engine that constructs complete, schema-verified celebration plans instantly during network outages or total AI congestion.
-- **Firebase Authentication**: Google OAuth with popup and mobile redirect fallback enabling seamless guest-to-cloud transition.
-- **Cloud Firestore**: User-isolated persistent storage for celebration plans and versions subcollections (`users/{uid}/plans/{planId}/versions`).
-- **Google Calendar REST API**: Milestone reminder scheduling via `https://www.googleapis.com/calendar/v3/calendars/primary/events` with 1-day email and 1-hour popup reminders.
-- **Google Antigravity**: Advanced agentic coding assistant used to design, build, test, and verify the application.
-- **Vercel**: Global edge deployment target for Next.js App Router.
+- **Plan Creator & Idea Chips**: Intake form with quick-pick chips for popular Indian cities, guest count tiers, budget amounts, regional styles, and non-negotiables. Includes AI event name suggestions and optional Muhurat time selection.
+- **8-Tab Celebration Workspace**:
+  - *Overview*: Executive summary fact sheet, Muhurat auspicious timing card with inline editor, budget allocation bar, milestone summary, and collapsible on-screen Master Plan report.
+  - *Budget*: Itemized category ledger with Min/Target/Max estimate ranges, stated assumptions, 5-10% contingency buffer, tax allowance, and over-budget visual warnings.
+  - *Timeline*: Phased milestone track (*Now*, *Next 7 days*, *Next 30 days*, *Event week*, *Event day*), interactive completion checkboxes, and date reflow.
+  - *Vendors*: Screening categories with contract status dropdowns (*Shortlisted*, *Contacted*, *Quoted*, *Booked*, *Contract received*), "Verify with the vendor" badges, and discovery interview questions.
+  - *Ideas*: Cultural themes, dietary & satvik protocols, guest rituals, and cultural decor accents.
+  - *Risks*: Contingency analysis covering weather, noise cutoffs, dependency failure points, satvik/Jain protocols, and vendor payment schedules.
+  - *Reminders*: Warning-free Google Calendar URL templates, standard `.ics` export with 1-day `VALARM` notifications, and advanced auto-sync OAuth panel.
+  - *Ask AI*: Interactive celebration doubts tab scoped to plan context with starter chips, 500-char input, `AiLoader`, and markdown rendering.
+- **Budget-Aware Replanning Diff Modal**: When plans change, users review a side-by-side comparison of old vs. new values, explanation of changes, and trade-offs before accepting.
+- **Guest Invitations & Draft Modal**: Timeline tasks for invitations feature a "Draft invite" button generating customized messages with one-click Copy, WhatsApp sharing (`wa.me`), and Email sharing (`mailto`).
+- **Cloud Persistence & Version Snapshots**: Dual-tier storage supporting friction-free guest mode (in-memory & local storage) and authenticated cloud mode (Google Auth + Firestore). Automatic subcollection version snapshots capped at 20 versions per plan.
+- **Workspace Header Actions**:
+  - *Inline Title Editing*: Click pencil icon to edit celebration name directly; Enter saves, Esc cancels.
+  - *Change Plan*: Switch to another plan or create a new one, with unsaved changes confirmation dialog.
+  - *Delete Plan*: Accessible confirmation dialog permanently deleting cloud plans or clearing memory in guest mode.
+  - *Print & PDF Export*: Multi-scope dialog allowing export of the full master plan report or the current tab only.
+- **About Page (`/about`)**: Explains what Aayojan Ace is, why it was created for PromptWars Challenge 5, author Nilesh Thipe, how it works, tech stack, responsible-AI notes, and contact links.
+- **Editorial Design System**: Custom light paper notebook and dark surface themes with editorial typography (Playfair Display serif headings and JetBrains Mono data labels).
+- **Mobile Responsive Layout**: Desktop left rail switches seamlessly to a thumb-accessible fixed bottom bar on mobile viewports.
 
 ---
 
@@ -204,166 +207,192 @@ Every core capability mandated by the challenge brief is delivered with dedicate
 
 ### Data Flow Diagram
 ```
-[User Browser / Mobile]
-   │
-   ├─► Local State (React Plan Context + localStorage)
-   │
-   ▼ HTTPS (Encrypted, Strict CSP)
-[Next.js Server API Routes]
-   │
-   ├─► Check Token Bucket Rate Limiter (Per IP)
-   ├─► Check In-Memory LRU Cache
-   │
-   ▼
-[Google Gemini API] ──► Validated via Zod Schemas ──► Returns Clean Plan / Diff
-   │
-   ▼
-[Cloud Firestore] (When user clicks "Save to Cloud" via Firebase Auth)
+[ Browser / Client ]
+  │
+  ├── 1. Intake Form ───────► POST /api/plan/followup (Check ambiguity)
+  │                                   │
+  │   ◄── Clarifying Question ────────┘ (Max 1 question, optional)
+  │
+  ├── 2. Generate Plan ─────► POST /api/plan/generate
+  │                                   │
+  │                                   ├──► Server Cache Check (LRU)
+  │                                   │        │ (Cache hit)
+  │                                   │        └──────────────┐
+  │                                   ▼                       ▼
+  │                         [ AI Orchestrator ]       [ Return Plan ]
+  │                                   │                       ▲
+  │                                   ├── 1. Gemini Primary   │
+  │                                   ├── 2. Gemini Fallback  │
+  │                                   ├── 3. Groq Provider    │
+  │                                   └── 4. Template Planner │
+  │                                               │           │
+  │                                               └───────────┘
+  │
+  ├── 3. Active Workspace ──► Pure TypeScript Engines:
+  │                             ├── validateAndFitBudget() [Hard Ceiling]
+  │                             ├── reflowTimelineDates() [Date Shift]
+  │                             ├── computePlanDiff() [Rebalance Diff]
+  │                             └── generateTimelineIcs() [RFC 5545]
+  │
+  └── 4. Cloud Persistence ─► Firebase Auth (Google Sign-In)
+                                      │
+                                      ▼
+                              Cloud Firestore:
+                                └── /users/{uid}/plans/{planId}
+                                      └── /versions/{versionId}
 ```
 
 ### Folder Structure
-- `src/app`: App Router views (`/`, `/workspace`, `/saved`, `/privacy`, `/terms`, `/not-found`) and API handlers (`/api/plan/*`).
-- `src/components`: UI components, navigation rails, theme provider, and workspace tab panels.
-- `src/lib`: Decoupled pure business logic (`budget.ts`, `timeline.ts`, `diff.ts`, `ics.ts`, `prompts.ts`, `schemas.ts`, `ratelimit.ts`, `cache.ts`).
-- `src/data`: Static JSON example plans (`savedExamples.ts`).
-- `src/tests`: Automated test suite (`unit/`, `api/`, `components/`).
+- `src/app/`: Next.js App Router pages (`/`, `/workspace`, `/saved`, `/about`, `/privacy`, `/terms`) and API routes (`/api/health`, `/api/plan/generate`, `/api/plan/followup`, `/api/plan/replan`, `/api/plan/risks`, `/api/plan/names`, `/api/plan/ask`).
+- `src/components/`: Modular React components, including `app-shell.tsx`, `navigation.tsx`, `intake-form.tsx`, `ai-loader.tsx`, `auth-context.tsx`, `plan-context.tsx`, `theme-provider.tsx`, and `workspace/` tab views.
+- `src/lib/`: Pure, testable business logic:
+  - `ai/`: AI Provider abstraction (`gemini-provider.ts`, `groq-provider.ts`, `orchestrator.ts`, `repair.ts`).
+  - `budget.ts` & `budget-benchmarks.ts`: Deterministic budget math, city tier baselines, and hard ceiling enforcement.
+  - `timeline.ts`: Date reflow and guest communication milestone injection.
+  - `diff.ts`: Before/after replanning diff engine.
+  - `ics.ts`: RFC 5545 iCalendar generation with 1-day advance alarms.
+  - `google-calendar.ts`: Warning-free URL template builders and OAuth auto-sync.
+  - `prompts.ts`: Delimited prompt constructors with prompt-injection defense.
+  - `schemas.ts`: Master Zod validation schemas.
+  - `ratelimit.ts`: Token bucket rate limiter.
+  - `cache.ts`: Server-side in-memory LRU cache.
+  - `firebase/`: Firebase configuration, auth helpers, Firestore CRUD, and data mappers.
+- `src/data/`: Curated offline plan presets (`savedExamples.ts`).
+- `src/tests/`: Automated test suite containing 38 test files across unit, component, API, and accessibility specs.
+- `firestore.rules`: Production Cloud Firestore security rules with document ownership and schema validation.
 
-### How Core Systems Work
-- **Replanning Engine**: Captures user parameter changes, sends the current plan slice to Gemini, computes itemized deltas using `computePlanDiff()`, presents before/after trade-off choices, and allows instant Accept or Reject with version history rollback.
-- **Contingency Check**: Assesses dependencies, seasonal weather, sound curfews, and dietary protocols, producing structured mitigations.
-- **Date Reflow**: Pure mathematical shift function calculating `newEventDate - daysBeforeEvent`, checking overdue tasks against the current date, and regrouping phases.
+For in-depth architectural patterns, see [`ARCHITECTURE.md`](file:///ARCHITECTURE.md). For threat modeling and defense controls, see [`SECURITY.md`](file:///SECURITY.md).
 
 ---
 
-## How Gemini Is Used
+## Tech Stack
 
-All calls to Gemini use the official `@google/genai` SDK from server-side route handlers:
-
-- **Adaptive Clarification (`/api/plan/followup`)**:
-  - *Purpose*: Checks if critical details are missing or contradictory.
-  - *Behavior*: Asks at most 1 short question at a time (max 2 per plan).
-  - *Schema*: `followUpResponseSchema`.
-- **Plan Generation (`/api/plan/generate`)**:
-  - *Purpose*: Generates realistic budget category lines, phased timeline tasks, vendor types, and cultural ideas.
-  - *Schema*: `rawGeminiPlanSchema`.
-- **Budget-Aware Replanning (`/api/plan/replan`)**:
-  - *Purpose*: Rebalances only the affected budget categories and timeline milestones when parameters change.
-  - *Schema*: `replanDiffResponseSchema`.
-- **Operational Safeguards (`/api/plan/risks`)**:
-  - *Purpose*: Identifies operational risks, seasonal factors, and permit deadlines with mitigations.
-  - *Schema*: `riskRegisterSchema`.
-
-### AI Provider Hierarchy, Fallback Order & Guardrails
-
-Aayojan Ace implements a four-tier resilient planning cascade:
-1. **Google Gemini Primary Model**: `gemini-3.8-flash` configured via `GEMINI_MODEL` (with up to 2 retries on HTTP 429/503 with exponential backoff & jitter).
-2. **Google Gemini Fallback Model**: `gemini-3.5-flash` configured via `GEMINI_FALLBACK_MODEL` (1 retry).
-3. **Groq Cloud API (Optional Backup)**: Invoked on overload, quota (429), timeout (504), or authorization (401) failures from Gemini. Calls Groq's OpenAI-compatible completions endpoint with JSON mode (`GROQ_MODEL`, default `llama-3.3-70b-versatile`).
-   - *Backup Key Expiration Window (`GROQ_KEY_EXPIRES_ON`)*: Optional ISO date (e.g. `2026-12-22`) defining demo access key validity for PromptWars Challenge 5 (~2 months). If the date has passed, Groq is skipped entirely without network roundtrips.
-   - *Key Rejection Graceful Handling*: If Groq returns 401 or 403, it maps to `AI_BACKUP_KEY_EXPIRED`, logs once on the server without secrets, disables Groq for the process lifetime ($\ge 1$ hour), and seamlessly continues the fallback cascade to the template planner.
-   - *Calm, Accessible Status Notice*: When the backup provider is unavailable due to demo key expiration or rejection, a calm, dismissible notice (`role="status"`, with an icon and text) explains the demo validity window and reassures users that plans still work with the main AI and built-in planner. If the main Gemini key is invalid or expired, an equivalent message is displayed for the main AI. Notices never display when the main AI operates normally.
-4. **Built-in Deterministic Template Planner**: Last-resort pure TypeScript planner that executes with zero network transmission, constructing a complete, schema-verified plan from the intake form.
-
-- **Non-Primary Plan Indicators**: When a plan is drafted by a secondary provider or template, an accessible status banner and badge display:
-  - *"Generated by a backup AI provider"* or *"Built-in template plan (AI is busy)"*
-  - Includes a prominent **"Try again with AI"** button allowing immediate re-generation when primary AI availability recovers.
-- **Vendor Guardrail**: Strict system prompts instruct models: *"ABSOLUTE RULE: NEVER INVENT SPECIFIC VENDOR NAMES, PHONE NUMBERS, OR EXACT QUOTES. Suggest vendor TYPES and questions to ask."*
-- **Schema Repair Retry**: If any model outputs malformed JSON or fails Zod validation, a targeted single repair instruction is sent automatically.
+- **Framework**: Next.js 14.2 (App Router, Server-side API handlers, Static Page Optimization)
+- **UI Library**: React 18 with TypeScript 5 (Strict Mode)
+- **Styling**: Tailwind CSS with custom editorial design tokens and print stylesheet
+- **Icons**: Lucide React
+- **Primary AI Provider**: Google Gemini API (`@google/genai` SDK with models configured through server environment variables)
+- **Secondary Backup AI Provider**: Groq Cloud API (`llama-3.3-70b-versatile` with JSON mode)
+- **Built-in Fallback**: Deterministic Template Planner (<1ms offline generation)
+- **Data Validation**: Zod 3.23 (Runtime schema validation for all inputs, outputs, and Firestore payloads)
+- **Authentication & Database**: Firebase Auth (Google Sign-In with session persistence) and Cloud Firestore
+- **Testing**: Vitest 2.1, React Testing Library, and jest-axe
+- **Deployment**: Vercel Serverless Edge Platform
+- **AI Development Environment**: Google Antigravity
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
-- Node.js 18.18+ or 20+ (tested on Node v24.12.0)
-- npm 9+ (tested on npm 11.6.2)
+- Node.js 18.18 or higher (Node 20+ recommended)
+- npm 9 or higher
+- A Google AI Studio API Key ([https://aistudio.google.com/](https://aistudio.google.com/))
+- A Firebase Project with Authentication (Google provider enabled) and Cloud Firestore
 
 ### Installation
-```bash
-npm install
-```
+1. Clone the repository to your local machine.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Copy the environment template:
+   ```bash
+   cp .env.example .env.local
+   ```
 
-### Environment Variables
-Copy `.env.example` to `.env.local`:
-```bash
-cp .env.example .env.local
-```
-Configure the variables:
-- `GEMINI_API_KEY`: Server-only secret key from Google AI Studio (Primary).
-- `GEMINI_API_KEY_FALLBACK`: Optional server-only secret key from a secondary Google Cloud project (for quota exhaustion failover).
-- `GEMINI_MODEL`: Primary Gemini model (default: `gemini-3.8-flash`).
-- `GEMINI_FALLBACK_MODEL`: Fallback Gemini model (default: `gemini-3.5-flash`).
-- `GROQ_API_KEY`: Optional server-only secret key from Groq Console (for secondary AI provider failover).
-- `GROQ_MODEL`: Optional Groq model (default: `llama-3.3-70b-versatile`).
-- `GROQ_KEY_EXPIRES_ON`: Optional ISO date (e.g. `2026-12-22`) defining the expiration date for the backup demo key.
-- `NEXT_PUBLIC_FIREBASE_API_KEY`: Firebase Web API key.
-- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`: Firebase auth domain for Google Sign-in.
-- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`: Firebase project identifier.
-- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`: Firebase storage bucket.
-- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`: Firebase sender ID.
-- `NEXT_PUBLIC_FIREBASE_APP_ID`: Firebase web application ID.
+### Environment Variables Configuration
+Configure the following keys in your `.env.local` file:
 
-### Firebase & Google Cloud Setup Steps
-1. Create a project in the [Firebase Console](https://console.firebase.google.com/).
-2. Under **Authentication > Sign-in method**, enable the **Google** provider and save.
-3. Under **Authentication > Settings > Authorized domains**, add `localhost` and your Vercel deployment domain: `ayojan-ace.vercel.app`.
-4. Under **Firestore Database > Rules**, paste the exact rules from [`firestore.rules`](file:///firestore.rules) and click **Publish**.
-5. Register a Web App in project settings (`Project Settings > General > Your apps`) and copy the config keys to `.env.local` or Vercel.
-6. Open the [Google Cloud Console](https://console.cloud.google.com/) for the same Firebase project:
-   - Navigate to **APIs & Services > Library**, search for **Google Calendar API**, and click **Enable**.
-   - Navigate to **APIs & Services > OAuth consent screen**, set user type to **External**, add scopes (`calendar.events`), and add your email under test users if in testing mode.
-   - Under **APIs & Services > Credentials**, ensure the OAuth 2.0 Web Client includes `https://ayojan-ace.vercel.app` in **Authorized JavaScript origins** and `https://<PROJECT_ID>.firebaseapp.com/__/auth/handler` in **Authorized redirect URIs**.
+- **`GEMINI_API_KEY`** (Required, Server-only): Secret API key from Google AI Studio.
+- **`GEMINI_API_KEY_FALLBACK`** (Optional, Server-only): Backup Gemini key from a secondary Google Cloud project to handle project-level 429 quota exhaustion.
+- **`GEMINI_MODEL`** (Optional, Server-only): Primary Gemini model configured in your Google AI Studio project.
+- **`GEMINI_FALLBACK_MODEL`** (Optional, Server-only): Fallback Gemini model configured in your Google AI Studio project.
+- **`HEALTH_PROBE_TOKEN`** (Optional, Server-only): Secret token to enable the protected production health probe endpoint (`GET /api/health/probe`). When set, verifies live provider connectivity using constant-time token comparison and tight rate limiting.
+- **`GROQ_API_KEY`** (Optional, Server-only): Secret key from Groq Console for secondary AI failover.
+- **`GROQ_MODEL`** (Optional, Server-only): Groq model selection. Default: `llama-3.3-70b-versatile`.
+- **`GROQ_KEY_EXPIRES_ON`** (Optional, Server-only): ISO date (e.g. `2026-12-22`) after which the backup key is skipped without making network calls.
+- **`NEXT_PUBLIC_FIREBASE_API_KEY`** (Required, Client-safe): Firebase Web SDK API key.
+- **`NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`** (Required, Client-safe): Firebase Auth domain (e.g. `your-app.firebaseapp.com`).
+- **`NEXT_PUBLIC_FIREBASE_PROJECT_ID`** (Required, Client-safe): Firebase project identifier.
+- **`NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`** (Required, Client-safe): Firebase Storage bucket.
+- **`NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`** (Required, Client-safe): Firebase Cloud Messaging sender ID.
+- **`NEXT_PUBLIC_FIREBASE_APP_ID`** (Required, Client-safe): Firebase web application identifier.
+
+*Important Note on `NEXT_PUBLIC_*` Variables*: In Next.js, client-side environment variables are statically inlined at **build time**. If you update Firebase variables, you must restart your local dev server (`npm run dev`) or trigger a redeploy on Vercel.
+
+### Firebase & Google Cloud Setup
+1. In the **Firebase Console**, create a project and enable **Authentication**. Under Sign-in method, enable **Google**.
+2. Under **Authorized domains**, ensure `localhost` and your Vercel deployment domain (e.g. `ayojan-ace.vercel.app`) are added.
+3. In **Firestore Database**, create a database in production mode and deploy the security rules from [`firestore.rules`](file:///firestore.rules).
+4. In **Google Cloud Console**, if you wish to use the optional advanced Google Calendar auto-sync feature, enable the **Google Calendar API** on your project.
 
 ### Running Locally
-```bash
-# Start development server
-npm run dev
+- Start development server:
+  ```bash
+  npm run dev
+  ```
+- Run linter:
+  ```bash
+  npm run lint
+  ```
+- Run typecheck:
+  ```bash
+  npm run typecheck
+  ```
+- Run automated tests:
+  ```bash
+  npm run test
+  ```
+- Run test coverage:
+  ```bash
+  npm run test:coverage
+  ```
+- Build for production:
+  ```bash
+  npm run build
+  ```
 
-# Run TypeScript type check
-npm run typecheck
-
-# Run ESLint
-npm run lint
-
-# Run Vitest test suite with coverage
-npm run test:coverage
-
-# Build Next.js production bundle
-npm run build
-```
-
----
-
-## Deployment on Vercel
-
-1. Push the code to your GitHub repository on `main`.
-2. Import the project into [Vercel](https://vercel.com).
-3. Under **Settings > Environment Variables**, add the 9 variables listed in `.env.example`.
-4. Ensure `GEMINI_API_KEY` is checked for **Server / Edge** and NOT marked public.
-5. In the Firebase Console, add your Vercel domain (`your-project.vercel.app`) to **Authorized domains**.
-6. Trigger the deployment. Vercel will run `npm run build` and publish the site.
-
----
-
-## Responsible AI & Privacy
-
-- **Planning Estimates, Not Quotes**: All numbers are indicative planning estimates for budgeting reference, not guaranteed contractual quotes.
-- **Independent Verification**: Users are instructed to verify quotes, availability, and agreements directly with licensed vendors.
-- **Privacy Notice**: Event details are processed via Google Gemini API; users are advised never to enter government IDs, credit card numbers, or passwords.
-- **Data Sovereignty**: Unauthenticated plans reside solely in the user's browser. Authenticated plans can be permanently deleted at any time from the Saved Plans view.
-- Review our plain language policies at `/privacy` ([`src/app/privacy/page.tsx`](file:///src/app/privacy/page.tsx)) and `/terms` ([`src/app/terms/page.tsx`](file:///src/app/terms/page.tsx)).
+### Deployment on Vercel
+1. Import the repository into Vercel.
+2. In Project Settings &rarr; **Environment Variables**, add all server-side (`GEMINI_*`, `GROQ_*`) and client-side (`NEXT_PUBLIC_FIREBASE_*`) variables.
+3. Deploy. Because `NEXT_PUBLIC_*` values are baked into bundles during compilation, any future change to Firebase settings requires triggering a **Redeploy**.
 
 ---
 
-## Limitations & Future Work
+## Privacy and Responsible AI
 
-- **Multi-Day Itinerary Sub-Tabs**: Detailed multi-day Indian wedding schedules (e.g., distinct Haldi, Sangeet, and Reception sub-tracks) are planned for v2.
-- **Offline Progressive Web App (PWA)**: Full offline Service Worker caching of API responses for rural venues with limited connectivity.
-- **Realtime Family Collaboration**: Multi-user concurrent presence and live sync via Firebase Realtime Database.
+- **Planning Estimates, Not Guaranteed Quotes**: All budget figures, vendor fees, and timeline milestones are advisory planning estimates. Aayojan Ace does not contact vendors, sign contracts, or disburse funds.
+- **Vendor Verification Required**: Users must independently interview, evaluate, and verify all third-party vendors before making financial deposits.
+- **Data Transmission Notice**: Celebration details entered in the intake form are transmitted to Google Gemini (or Groq Cloud when enabled) to generate the plan.
+- **No Sensitive Financial Information**: Never enter credit card numbers, bank account credentials, government ID numbers, or passwords into celebration notes or inputs.
+- **Privacy Policy & Terms**: Complete privacy practices and terms of service are published at [`/privacy`](file:///src/app/privacy/page.tsx) and [`/terms`](file:///src/app/terms/page.tsx).
 
 ---
 
-## License & Credits
+## Limitations and Future Work
 
-- Licensed under the **MIT License** ([`LICENSE`](file:///LICENSE)).
-- Built with **Google Antigravity**, **Next.js**, **Google Gemini**, and **Firebase**.
+### Current Limitations
+- **No Direct Vendor Booking**: Aayojan Ace provides interview screening questions and checklists but does not execute direct bookings or payment transactions.
+- **In-Memory Rate Limiting**: The token bucket rate limiter runs in server process memory; in serverless environments with many instances, limits are enforced per instance rather than through a shared Redis cache.
+- **Static Indian City Benchmarks**: City tier benchmarks cover major metro, tier-2, and tier-3 regions; remote rural locations default to tier-3 estimates.
+
+### Future Work
+- Multi-currency localization for destination weddings outside India.
+- Collaborative multi-user editing for family members and planning committees via Firestore real-time listeners.
+- SMS / WhatsApp RSVP automated response ingestion via webhook integrations.
+- Vendor quote PDF parsing to automatically update itemized budget ledgers against actual vendor estimates.
+
+---
+
+## Author
+
+- **Author**: **Nilesh Thipe**
+- **LinkedIn**: [https://www.linkedin.com/in/nilesh-h-thipe-372291253](https://www.linkedin.com/in/nilesh-h-thipe-372291253)
+- **GitHub**: [https://github.com/nilesh0199/ayojan_ace_promptwars_virtual_challenge5](https://github.com/nilesh0199/ayojan_ace_promptwars_virtual_challenge5)
+
+---
+
+## License
+
+This project is licensed under the **MIT License**. See the [`LICENSE`](file:///LICENSE) file for details.

@@ -6,8 +6,11 @@ import {
 } from '@/lib/schemas';
 import { buildAskAiPrompt } from '@/lib/prompts';
 import { executeAiCascade } from '@/lib/ai';
-import { callGeminiStructured } from '@/lib/gemini';
+import { callGeminiStructured, TIMEOUT_CONFIG } from '@/lib/gemini';
 import { checkRequestSafety, handleApiError } from '@/lib/api-helper';
+
+// Configure Next.js serverless execution ceiling for Vercel
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const safety = checkRequestSafety(request);
@@ -27,7 +30,11 @@ export async function POST(request: Request) {
 
     let output: AskAiResponse;
     try {
-      const cascadeResult = await executeAiCascade(prompt, askAiResponseSchema);
+      const cascadeResult = await executeAiCascade(
+        prompt,
+        askAiResponseSchema,
+        TIMEOUT_CONFIG.ASK_AI
+      );
       output = cascadeResult.data;
     } catch {
       // Direct call fallback for tests / standalone mocks

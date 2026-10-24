@@ -2,6 +2,7 @@
   "name": "aayojan-ace",
   "version": "1.0.0",
   "private": true,
+  "license": "MIT",
   "description": "Aayojan Ace - Your celebration, perfectly planned.",
   "scripts": {
     "dev": "next dev",
@@ -9,6 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "diagnose:ai": "node scripts/diagnose-ai.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

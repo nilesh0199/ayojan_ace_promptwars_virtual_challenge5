@@ -191,6 +191,7 @@ export const eventPlanSchema = z.object({
   version: z.number().int().default(1),
   isSavedExample: z.boolean().default(false),
   generationSource: z.enum(PLAN_GENERATION_SOURCES).default('primary').optional(),
+  generationErrorCode: z.string().optional(),
   providerNotice: z.string().optional(),
   eventName: z.string().max(80).optional(),
   muhuratTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).optional(),

@@ -30,6 +30,7 @@ export function AiLoader({
   const [showPatienceNotice, setShowPatienceNotice] = useState(false);
 
   // Cycle messages every 2.5 seconds
+  const messagesKey = messages.join('||');
   useEffect(() => {
     if (!messages || messages.length <= 1) return;
     const interval = setInterval(() => {
@@ -37,7 +38,8 @@ export function AiLoader({
     }, 2500);
 
     return () => clearInterval(interval);
-  }, [messages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messagesKey, messages.length]);
 
   // Show extended notice after 10 seconds of processing
   useEffect(() => {

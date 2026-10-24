@@ -1,7 +1,21 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { ZodError } from 'zod';
 import { GeminiApiError, mapGeminiError } from './gemini';
 import { apiLimiter, getClientIp } from './ratelimit';
+
+/**
+ * Constant-time string comparison to defend against timing attacks.
+ */
+export function timingSafeEqualString(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, 'utf8');
+  const bufB = Buffer.from(b, 'utf8');
+  if (bufA.length !== bufB.length) {
+    crypto.timingSafeEqual(bufB, bufB);
+    return false;
+  }
+  return crypto.timingSafeEqual(bufA, bufB);
+}
 
 export const MAX_BODY_BYTES = 300 * 1024; // 300 KB ceiling to prevent DoS
 

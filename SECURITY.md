@@ -69,17 +69,22 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
    - `handleApiError` ([`src/lib/api-helper.ts`](file:///src/lib/api-helper.ts)) and `mapGeminiError` ([`src/lib/gemini.ts`](file:///src/lib/gemini.ts)) guarantee that raw upstream JSON dumps, internal IP addresses, stack traces, and API keys are strictly never returned to the client or rendered in the UI.
    - All server failures map to a typed `GeminiErrorCode` union (`'AI_BUSY' | 'AI_TIMEOUT' | 'AI_NOT_CONFIGURED' | 'AI_INVALID_KEY' | 'AI_MODEL_NOT_FOUND' | 'AI_VALIDATION_FAILED' | 'AI_ERROR'`) with positive, reassuring copy.
 2. **Safe Server-Only Operational Logging**:
-   - Server-side error alerts log high-level metadata only (`[Gemini Server Alert] type=Quota code=AI_BUSY status=429 attempt=1 model=gemini-3.8-flash`).
+   - Server-side error alerts log high-level metadata only (`[AI Attempt] provider=gemini model=<model> status=200 category=success attempt=1 duration=1200ms`).
    - Strictly omits prompt contents, user input text, credentials, or API keys.
 3. **Overload Hardening, Multi-Provider Failover & Circuit Breakers**:
    - *Cascading Execution Order*:
-     1. Primary Key (`GEMINI_API_KEY`) + Primary Model (`gemini-3.8-flash`) [up to 2 retries with exponential backoff & jitter]
-     2. Primary Key + Fallback Model (`gemini-3.5-flash`) [1 retry]
+     1. Primary Key (`GEMINI_API_KEY`) + Configured Primary Model [up to 2 retries with exponential backoff & jitter]
+     2. Primary Key + Configured Fallback Model [1 retry]
      3. Groq Provider (if `GROQ_API_KEY` configured, on overload / quota / timeout / invalid-key) [1 retry]. Hardened against demo expiration (`GROQ_KEY_EXPIRES_ON`) and 401/403 authorization rejection: maps to `AI_BACKUP_KEY_EXPIRED`, disables the provider for process lifetime (>= 1 hour) with safe single-instance logging, and continues seamlessly to the template planner.
      4. Built-in Deterministic Template Planner (zero network transmission, complete schema-verified plan)
-   - *Independent Per-Combination Circuit Breakers*: Each `(provider, model)` pair maintains its own failure counter and 60-second cooldown timer. If a model trips due to repeated overloads, subsequent requests immediately bypass it and invoke the working combination without latency penalties.
+   - *Independent Per-Combination Circuit Breakers*: Each `(provider, model)` pair maintains its own failure counter and 60-second cooldown timer. If a model trips due to repeated overloads, subsequent requests immediately bypass it and invoke the working combination without latency penalties. Circuit breaker only trips on genuine overload/quota errors, never on schema validation or key errors, and auto-resets after cooldown.
    - *Targeted Schema Repair Retry*: If a model returns malformed JSON or invalid schema properties, an automated single repair instruction is dispatched before declaring the attempt failed.
-   - *Total Time Budget*: Strict 25-second total budget and 8-second per-attempt timeout guarantee requests terminate cleanly before platform gateway limits.
+   - *Total Time Budget & Hosting Protection*: Strict time budgets per call type (e.g. 55s for full plan generation, 15s for follow-up/names) and `maxDuration = 60` export guarantee requests finish within Vercel serverless limits. If a primary attempt times out, remaining budget is reserved for fallback models.
+4. **Protected Live Health Probe (`GET /api/health/probe`)**:
+   - Disabled by default (returns 404). Activated only when `HEALTH_PROBE_TOKEN` is configured on the server.
+   - Authenticates using constant-time string comparison (`timingSafeEqualString`) against timing attacks.
+   - Enforces tight rate limiting (3 calls per minute per IP via `TokenBucketLimiter`).
+   - Makes only minimal diagnostic calls and returns high-level connectivity metadata without exposing prompts, keys, or raw upstream error text.
 
 ---
 
@@ -126,6 +131,12 @@ In Cloud Firestore Security Rules, calling `.size()` on a map (such as `request.
 
 ## 8. Dependency Hygiene & Audit Status
 
+### Audit Summary
 - Strict version pinning in `package.json`.
-- Development dependencies are segregated from runtime dependencies.
-- Production audit check (`npm audit --omit=dev`) identifies legacy dependencies inside Firebase and Next.js ecosystem sub-modules; documented for scheduled maintenance updates in coordination with upstream library patches.
+- Development dependencies (`@vitest/*`, `eslint*`, `jest-axe`, `tailwindcss`) are strictly isolated from runtime dependencies.
+- Running `npm audit` reports transitive dependency advisories associated with Next.js 14, Firebase Web SDK 10, Vitest 2, and Zod 3 upstream trees. The proposed remediation commands (`npm audit fix --force`) would introduce major breaking changes (e.g. upgrading to Next.js 16/React 19 release candidates or downgrading Firebase).
+- **Compensatory Controls & Mitigations**:
+  - *Next.js Server Component / Image Optimization Advisories*: Aayojan Ace does not use the Next.js Image Optimization service for user-submitted media. All images are either static SVGs or hosted securely on Google user content domains allowed in the CSP (`lh3.googleusercontent.com`).
+  - *Zod Memory Consumption on Oversized Input (GHSA-mrhx-c7xc-m3w5)*: Aayojan Ace enforces a strict global 300KB request body ceiling (`MAX_BODY_BYTES`) in [`src/lib/ratelimit.ts`](file:///src/lib/ratelimit.ts) and caps all collection lengths (categories $\le 30$, timeline tasks $\le 100$, vendors $\le 50$) before or during parsing, preventing unbounded memory consumption.
+  - *Undici / gRPC-js Transitive Dependencies*: In Aayojan Ace, Firebase Auth and Firestore calls execute within isolated client browser sandboxes or stateless server route handlers with strict timeouts (8-second attempt limit, 25-second total budget).
+  - *Dev/Test Tooling Advisories (Vitest / esbuild / glob)*: Dev-only dependencies run exclusively in local developer test suites and automated CI environments; they are never bundled into production serverless functions or client JavaScript.

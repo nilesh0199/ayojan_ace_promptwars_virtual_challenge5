@@ -382,9 +382,9 @@ describe('Gemini SDK Integration, Resilience & Circuit Breaker', () => {
       const data = await response.json();
 
       expect(data.error).toBe('AI Planning Service Alert');
-      expect(data.code).toBe('AI_BUSY');
+      expect(data.code).toBe('AI_ERROR');
       expect(data.message).toBe(
-        'AI service is currently busy or unavailable. Please retry or load a saved example plan.'
+        'An unexpected issue occurred while communicating with the planning engine. Click Retry or explore a saved plan.'
       );
 
       // Verify zero sensitive data is leaked

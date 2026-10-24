@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   EventPlan,
   IntakeFormData,
@@ -105,7 +105,7 @@ export function PlanProvider({
   const pendingCloudSaveRef = useRef<boolean>(false);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  const cancelGeneration = () => {
+  const cancelGeneration = useCallback(() => {
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -113,7 +113,7 @@ export function PlanProvider({
     setIsLoading(false);
     setIsReplanning(false);
     setIsLoadingRisks(false);
-  };
+  }, []);
 
   // Load from local storage on mount (Guest Mode schema-validated)
   useEffect(() => {
@@ -139,6 +139,9 @@ export function PlanProvider({
       // Ignore corrupt storage
     }
   }, [initialPlan]);
+
+  const activePlanRef = useRef<EventPlan | null>(activePlan);
+  activePlanRef.current = activePlan;
 
   // Handle user state transitions: Sign-out wipe & Sign-in guest import detection
   useEffect(() => {
@@ -175,15 +178,16 @@ export function PlanProvider({
       }
       pendingCloudSaveRef.current = false;
 
-      if (hadPendingSave && activePlan) {
+      const currentActive = activePlanRef.current;
+      if (hadPendingSave && currentActive) {
         // Automatically complete cloud save for the plan after sign-in
         const planToSave: EventPlan = {
-          ...activePlan,
-          id: activePlan.id.startsWith('sample-')
+          ...currentActive,
+          id: currentActive.id.startsWith('sample-')
             ? (typeof crypto !== 'undefined' && crypto.randomUUID
                 ? crypto.randomUUID()
                 : `plan_${Date.now()}`)
-            : activePlan.id,
+            : currentActive.id,
           isSavedExample: false,
           updatedAt: new Date().toISOString(),
         };
@@ -215,7 +219,7 @@ export function PlanProvider({
         }
       }
     }
-  }, [user, activePlan]);
+  }, [user]);
 
   // Debounced auto-save to Firestore for signed-in users
   useEffect(() => {
@@ -250,9 +254,16 @@ export function PlanProvider({
     errPayload: { code?: string; message?: string } | unknown,
     retryFn?: () => Promise<void>
   ) => {
-    let resolvedCode: GeminiErrorCode = 'AI_BUSY';
+    let resolvedCode: GeminiErrorCode = 'AI_ERROR';
     if (typeof errPayload === 'object' && errPayload !== null && 'code' in errPayload) {
-      resolvedCode = ((errPayload as { code: string }).code as GeminiErrorCode) || 'AI_BUSY';
+      resolvedCode = ((errPayload as { code: string }).code as GeminiErrorCode) || 'AI_ERROR';
+    } else if (errPayload instanceof Error) {
+      const lower = errPayload.message.toLowerCase();
+      if (lower.includes('network') || lower.includes('fetch failed') || lower.includes('econnrefused')) {
+        resolvedCode = 'AI_NETWORK_ERROR';
+      } else if (lower.includes('timeout') || lower.includes('timed out')) {
+        resolvedCode = 'AI_TIMEOUT';
+      }
     }
     const friendly = getFriendlyAiError(resolvedCode);
     setError(friendly.message);
@@ -279,11 +290,11 @@ export function PlanProvider({
     }
   };
 
-  const dismissGuestImport = () => {
+  const dismissGuestImport = useCallback(() => {
     setGuestPlanPrompt(null);
-  };
+  }, []);
 
-  const loadSavedExample = (key: string) => {
+  const loadSavedExample = useCallback((key: string) => {
     setError(null);
     setErrorCode(null);
     setRetryLastAction(null);
@@ -294,7 +305,7 @@ export function PlanProvider({
       setActivePlan(example);
       setPlanHistory([]);
     }
-  };
+  }, [setActivePlan]);
 
   const startPlanGeneration = async (intake: IntakeFormData) => {
     setIsLoading(true);
@@ -309,26 +320,29 @@ export function PlanProvider({
 
     try {
       // Step 1: Check if Gemini has an adaptive follow-up question
-      const followUpRes = await fetch('/api/plan/followup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: abortControllerRef.current.signal,
-        body: JSON.stringify({ intake, previousFollowUpsCount: 0 }),
-      });
+      try {
+        const followUpRes = await fetch('/api/plan/followup', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: abortControllerRef.current.signal,
+          body: JSON.stringify({ intake, previousFollowUpsCount: 0 }),
+        });
 
-      if (!followUpRes.ok) {
-        const errJson = await followUpRes.json().catch(() => ({}));
-        setMappedError(errJson, () => startPlanGeneration(intake));
-        setIsLoading(false);
-        return;
-      }
-
-      const followUpData: FollowUpResponse = await followUpRes.json();
-      if (followUpData.needsFollowUp && followUpData.questionText) {
-        setFollowUp(followUpData);
-        setFollowUpCount(1);
-        setIsLoading(false);
-        return; // Pause for user input
+        if (followUpRes.ok) {
+          const followUpData: FollowUpResponse = await followUpRes.json();
+          if (followUpData.needsFollowUp && followUpData.questionText) {
+            setFollowUp(followUpData);
+            setFollowUpCount(1);
+            setIsLoading(false);
+            return; // Pause for user input
+          }
+        }
+      } catch (fErr: unknown) {
+        if (fErr instanceof Error && fErr.name === 'AbortError') {
+          setIsLoading(false);
+          return;
+        }
+        // Non-blocking follow-up check; proceed to plan generation
       }
 
       // Step 2: Proceed immediately to plan generation
@@ -488,10 +502,10 @@ export function PlanProvider({
     }
   };
 
-  const rejectReplan = () => {
+  const rejectReplan = useCallback(() => {
     setPendingDiff(null);
     setRawDiffResponse(null);
-  };
+  }, []);
 
   const undoReplan = () => {
     if (planHistory.length === 0) return;
@@ -529,42 +543,80 @@ export function PlanProvider({
     }
   };
 
-  const toggleTaskCompletion = (taskId: string) => {
-    if (!activePlan) return;
-    const updatedTasks = activePlan.timeline.map((t) =>
-      t.id === taskId ? { ...t, completed: !t.completed } : t
-    );
-    setActivePlan({ ...activePlan, timeline: updatedTasks, updatedAt: new Date().toISOString() });
-  };
-
-  const updateTimelineTasks = (tasks: TimelineTask[]) => {
-    if (!activePlan) return;
-    setActivePlan({
-      ...activePlan,
-      timeline: tasks,
-      updatedAt: new Date().toISOString(),
+  const toggleTaskCompletion = useCallback((taskId: string) => {
+    setActivePlanState((prev) => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        timeline: prev.timeline.map((t) =>
+          t.id === taskId ? { ...t, completed: !t.completed } : t
+        ),
+        updatedAt: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // Storage unavailable
+      }
+      return updated;
     });
-  };
+  }, []);
 
-  const updateVendorStatus = (vendorId: string, status: VendorStatus) => {
-    if (!activePlan) return;
-    const updatedVendors = activePlan.vendors.map((v) =>
-      v.id === vendorId ? { ...v, status } : v
-    );
-    setActivePlan({ ...activePlan, vendors: updatedVendors, updatedAt: new Date().toISOString() });
-  };
-
-  const updateEventDate = (newDate: string) => {
-    if (!activePlan) return;
-    const reflow = reflowTimelineDates(activePlan.timeline, activePlan.date, newDate);
-    setDateReflowNotice(reflow.summaryText);
-    setActivePlan({
-      ...activePlan,
-      date: newDate,
-      timeline: reflow.updatedTasks,
-      updatedAt: new Date().toISOString(),
+  const updateTimelineTasks = useCallback((tasks: TimelineTask[]) => {
+    setActivePlanState((prev) => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        timeline: tasks,
+        updatedAt: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // Storage unavailable
+      }
+      return updated;
     });
-  };
+  }, []);
+
+  const updateVendorStatus = useCallback((vendorId: string, status: VendorStatus) => {
+    setActivePlanState((prev) => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        vendors: prev.vendors.map((v) =>
+          v.id === vendorId ? { ...v, status } : v
+        ),
+        updatedAt: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // Storage unavailable
+      }
+      return updated;
+    });
+  }, []);
+
+  const updateEventDate = useCallback((newDate: string) => {
+    setActivePlanState((prev) => {
+      if (!prev) return null;
+      const reflow = reflowTimelineDates(prev.timeline, prev.date, newDate);
+      setDateReflowNotice(reflow.summaryText);
+      const updated = {
+        ...prev,
+        date: newDate,
+        timeline: reflow.updatedTasks,
+        updatedAt: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // Storage unavailable
+      }
+      return updated;
+    });
+  }, []);
 
   const saveToCloud = async (): Promise<boolean> => {
     if (!activePlan) return false;
@@ -603,53 +655,92 @@ export function PlanProvider({
     }
   };
 
+  const clearSaveSuccessNotice = useCallback(() => {
+    setSaveSuccessNotice(null);
+  }, []);
+
+  const clearError = useCallback(() => {
+    setError(null);
+    setErrorCode(null);
+    setRetryLastAction(null);
+  }, []);
+
+  const contextValue = useMemo<PlanContextType>(
+    () => ({
+      activePlan,
+      planHistory,
+      activeRisks,
+      pendingDiff,
+      rawDiffResponse,
+      isLoading,
+      isReplanning,
+      isLoadingRisks,
+      error,
+      errorCode,
+      retryLastAction,
+      followUp,
+      followUpCount,
+      lastIntake,
+      lastFollowUpAnswers,
+      dateReflowNotice,
+      guestPlanPrompt,
+      importGuestPlan,
+      dismissGuestImport,
+      loadSavedExample,
+      startPlanGeneration,
+      submitFollowUp,
+      skipFollowUp,
+      requestReplan,
+      acceptReplan,
+      rejectReplan,
+      undoReplan,
+      generateRisks,
+      toggleTaskCompletion,
+      updateTimelineTasks,
+      updateVendorStatus,
+      updateEventDate,
+      saveToCloud,
+      saveSuccessNotice,
+      clearSaveSuccessNotice,
+      setActivePlan,
+      clearError,
+      cancelGeneration,
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [
+      activePlan,
+      planHistory,
+      activeRisks,
+      pendingDiff,
+      rawDiffResponse,
+      isLoading,
+      isReplanning,
+      isLoadingRisks,
+      error,
+      errorCode,
+      retryLastAction,
+      followUp,
+      followUpCount,
+      lastIntake,
+      lastFollowUpAnswers,
+      dateReflowNotice,
+      guestPlanPrompt,
+      dismissGuestImport,
+      loadSavedExample,
+      toggleTaskCompletion,
+      updateTimelineTasks,
+      updateVendorStatus,
+      updateEventDate,
+      saveSuccessNotice,
+      clearSaveSuccessNotice,
+      setActivePlan,
+      clearError,
+      cancelGeneration,
+    ]
+  );
+
   return (
-    <PlanContext.Provider
-      value={{
-        activePlan,
-        planHistory,
-        activeRisks,
-        pendingDiff,
-        rawDiffResponse,
-        isLoading,
-        isReplanning,
-        isLoadingRisks,
-        error,
-        errorCode,
-        retryLastAction,
-        followUp,
-        followUpCount,
-        lastIntake,
-        lastFollowUpAnswers,
-        dateReflowNotice,
-        guestPlanPrompt,
-        importGuestPlan,
-        dismissGuestImport,
-        loadSavedExample,
-        startPlanGeneration,
-        submitFollowUp,
-        skipFollowUp,
-        requestReplan,
-        acceptReplan,
-        rejectReplan,
-        undoReplan,
-        generateRisks,
-        toggleTaskCompletion,
-        updateTimelineTasks,
-        updateVendorStatus,
-        updateEventDate,
-        saveToCloud,
-        saveSuccessNotice,
-        clearSaveSuccessNotice: () => setSaveSuccessNotice(null),
-        setActivePlan,
-        clearError: () => {
-          setError(null);
-          setErrorCode(null);
-          setRetryLastAction(null);
-        },
-        cancelGeneration,
-      }}
-    >
+    <PlanContext.Provider value={contextValue}>
       {children}
     </PlanContext.Provider>
   );

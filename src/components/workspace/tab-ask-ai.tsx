@@ -21,12 +21,19 @@ interface ChatMessage {
   timestamp: string;
 }
 
+const ASK_AI_LOADING_MESSAGES = [
+  'Consulting cultural traditions & ritual etiquette...',
+  'Reviewing your celebration budget & timeline...',
+  'Synthesizing practical host advice...',
+];
+
 export function TabAskAi() {
   const { activePlan } = usePlan();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -47,6 +54,7 @@ export function TabAskAi() {
     if (!question || isLoading) return;
 
     setError(null);
+    setErrorCode(null);
     setInput('');
     const userMsg: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -94,6 +102,7 @@ export function TabAskAi() {
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
+        setErrorCode(errJson.code || 'AI_BUSY');
         throw new Error(errJson.message || 'Our AI assistant is momentarily busy. Please try again.');
       }
 
@@ -131,6 +140,7 @@ export function TabAskAi() {
   const handleClear = () => {
     setMessages([]);
     setError(null);
+    setErrorCode(null);
   };
 
   // Safe markdown-like bold and bullet point renderer
@@ -289,11 +299,7 @@ export function TabAskAi() {
           <div className="py-2">
             <AiLoader
               title="Formulating Guidance"
-              messages={[
-                'Consulting cultural traditions & ritual etiquette...',
-                'Reviewing your celebration budget & timeline...',
-                'Synthesizing practical host advice...',
-              ]}
+              messages={ASK_AI_LOADING_MESSAGES}
               onCancel={handleCancel}
               cancelLabel="Cancel response"
             />
@@ -309,6 +315,9 @@ export function TabAskAi() {
             <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" aria-hidden="true" />
             <div className="space-y-1">
               <p className="font-semibold">{error}</p>
+              <p className="text-[10px] font-mono opacity-80" data-testid="error-reference">
+                Reference: {errorCode || 'AI_BUSY'}
+              </p>
               <p className="text-[11px] opacity-90">
                 You can try asking again or check saved celebration recommendations.
               </p>

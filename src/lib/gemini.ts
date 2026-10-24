@@ -18,7 +18,42 @@ export type GeminiErrorCode =
   | 'AI_BACKUP_KEY_EXPIRED'
   | 'AI_MODEL_NOT_FOUND'
   | 'AI_VALIDATION_FAILED'
+  | 'AI_NETWORK_ERROR'
+  | 'HOSTING_TIMEOUT'
   | 'AI_ERROR';
+
+export const TIMEOUT_CONFIG = {
+  PLAN_GENERATION: {
+    totalBudgetMs: 55000,
+    perAttemptTimeoutMs: 22000,
+    primaryMaxBudgetMs: 28000,
+  },
+  REPLAN: {
+    totalBudgetMs: 45000,
+    perAttemptTimeoutMs: 18000,
+    primaryMaxBudgetMs: 24000,
+  },
+  RISKS: {
+    totalBudgetMs: 30000,
+    perAttemptTimeoutMs: 14000,
+    primaryMaxBudgetMs: 16000,
+  },
+  FOLLOWUP: {
+    totalBudgetMs: 15000,
+    perAttemptTimeoutMs: 10000,
+    primaryMaxBudgetMs: 10000,
+  },
+  NAMES: {
+    totalBudgetMs: 15000,
+    perAttemptTimeoutMs: 8000,
+    primaryMaxBudgetMs: 8000,
+  },
+  ASK_AI: {
+    totalBudgetMs: 20000,
+    perAttemptTimeoutMs: 10000,
+    primaryMaxBudgetMs: 10000,
+  },
+};
 
 export type GeminiKeyType = 'primary' | 'fallback';
 
@@ -76,7 +111,13 @@ export function isCombinationCircuitOpen(
 ): boolean {
   const key = getCircuitKey(keyType, model);
   const state = combinationCircuits.get(key);
-  return Boolean(state && state.trippedUntil > nowMs);
+  if (!state || state.trippedUntil <= 0) return false;
+  if (nowMs >= state.trippedUntil) {
+    // Cooldown elapsed: auto-reset to avoid remaining stuck open
+    combinationCircuits.delete(key);
+    return false;
+  }
+  return true;
 }
 
 export function recordCombinationFailure(
@@ -85,6 +126,8 @@ export function recordCombinationFailure(
   isOverload: boolean,
   nowMs = Date.now()
 ): void {
+  // STRICT: ONLY overload/quota errors trip the circuit breaker.
+  // Validation failures (AI_VALIDATION_FAILED), model not found, invalid key, etc. NEVER trip the breaker!
   if (!isOverload) return;
   const key = getCircuitKey(keyType, model);
   const state = combinationCircuits.get(key) || { consecutiveFailures: 0, trippedUntil: 0 };
@@ -165,15 +208,26 @@ export function isOverloadOrTransientError(err: unknown): boolean {
   if (err instanceof GeminiApiError) {
     return (
       err.isRetryable ||
+      err.code === 'AI_BUSY' ||
+      err.code === 'AI_TIMEOUT' ||
       err.statusCode === 503 ||
       err.statusCode === 429 ||
-      err.statusCode === 504 ||
-      err.code === 'AI_BUSY' ||
-      err.code === 'AI_TIMEOUT'
+      err.statusCode === 504
     );
   }
   const msg = err instanceof Error ? err.message : String(err || '');
   const lower = msg.toLowerCase();
+  if (
+    lower.includes('validation') ||
+    lower.includes('schema') ||
+    lower.includes('not found') ||
+    lower.includes('models/') ||
+    lower.includes('api_key_invalid') ||
+    lower.includes('invalid api key') ||
+    lower.includes('api key not valid')
+  ) {
+    return false;
+  }
   return (
     lower.includes('503') ||
     lower.includes('429') ||
@@ -218,6 +272,13 @@ export function getFriendlyAiError(
           'The AI request took longer than expected to complete. Click Retry to run with a fresh connection, or load a saved example.',
         actionHint: 'Retrying will re-establish a fresh connection to Gemini.',
       };
+    case 'HOSTING_TIMEOUT':
+      return {
+        title: 'Hosting Time Limit Reached',
+        message:
+          'The generation exceeded the cloud hosting execution budget. Try planning with fewer customizations or load a saved example.',
+        actionHint: 'Hosting time ceilings apply to lengthy generations.',
+      };
     case 'AI_NOT_CONFIGURED':
       return {
         title: 'AI Service Configuration Needed',
@@ -229,22 +290,22 @@ export function getFriendlyAiError(
       return {
         title: 'AI Authorization Update Needed',
         message:
-          'The main AI provider is no longer active. This app was built for the PromptWars Challenge 5, and its demo access key was valid for about two months. Plans still work with curated examples and the built-in planner.',
+          'The AI service key is missing, unauthorized, or expired in server configuration. You can continue planning with pre-built examples or the offline planner.',
         actionHint: 'Explore pre-built plans or verify server API credentials.',
       };
     case 'AI_BACKUP_KEY_EXPIRED':
       return {
         title: 'Backup AI Provider Expired',
         message:
-          'The backup AI provider is no longer active. This app was built for the PromptWars Challenge 5, and its demo access key was valid for about two months. Plans still work with the main AI and the built-in planner.',
+          'The backup AI provider is no longer active. Plans still work with the main AI and the built-in planner.',
         actionHint: 'Plans continue seamlessly using the main AI or built-in template planner.',
       };
     case 'AI_MODEL_NOT_FOUND':
       return {
-        title: 'Model Update in Progress',
+        title: 'Configured AI Model Not Found',
         message:
-          'The requested AI model is updating. Click Retry to connect to the active model, or explore a saved example celebration.',
-        actionHint: 'Aayojan Ace will automatically route to available models on retry.',
+          'The configured AI model is not supported or was not found in your AI Studio project. Please check the GEMINI_MODEL setting or use pre-built celebration plans.',
+        actionHint: 'Verify GEMINI_MODEL matches a supported model in Google AI Studio.',
       };
     case 'AI_VALIDATION_FAILED':
       return {
@@ -253,12 +314,19 @@ export function getFriendlyAiError(
           'The AI response needed additional formatting adjustments. Click Retry to regenerate cleanly, or explore a saved celebration plan.',
         actionHint: 'A fresh generation typically succeeds cleanly.',
       };
+    case 'AI_NETWORK_ERROR':
+      return {
+        title: 'Network Connection Alert',
+        message:
+          'A network connectivity issue occurred while communicating with the AI service. Please check your internet connection and retry.',
+        actionHint: 'A temporary network interruption prevented communication with upstream servers.',
+      };
     default:
       return {
         title: 'Celebration Planning Alert',
         message:
-          'AI service is currently busy or unavailable. Please click Retry, or explore a pre-built celebration plan.',
-        actionHint: 'You can retry in a few moments or jump straight into a pre-built plan.',
+          'An unexpected issue occurred while communicating with the planning engine. Click Retry or explore a saved plan.',
+        actionHint: 'Explore pre-built plans or retry with fresh parameters.',
       };
   }
 }
@@ -304,6 +372,25 @@ function logGeminiServerAlert(meta: {
 }
 
 /**
+ * Safe server attempt logger: logs exactly one safe line per attempt on the server.
+ * provider, model, error category, status, attempt number and duration, with no user text and no secrets.
+ */
+export function logAiAttempt(meta: {
+  provider: string;
+  model: string;
+  status: number | string;
+  category: string;
+  attempt: number;
+  durationMs: number;
+}): void {
+  if (process.env.NODE_ENV === 'test') return;
+  // eslint-disable-next-line no-console
+  console.info(
+    `[AI Attempt] provider=${meta.provider} model=${meta.model} status=${meta.status} category=${meta.category} attempt=${meta.attempt} duration=${meta.durationMs}ms`
+  );
+}
+
+/**
  * Maps raw Gemini/SDK errors to friendly, distinct user-facing GeminiApiErrors
  * without leaking sensitive internal details or API keys.
  */
@@ -318,7 +405,8 @@ export function mapGeminiError(err: unknown): GeminiApiError {
     lower.includes('invalid api key') ||
     lower.includes('api key not valid') ||
     lower.includes('unauthorized') ||
-    lower.includes('401')
+    lower.includes('401') ||
+    (lower.includes('400') && lower.includes('key'))
   ) {
     logGeminiServerAlert({ type: 'Auth/Key', code: 'AI_INVALID_KEY', status: 401 });
     return new GeminiApiError(
@@ -339,6 +427,16 @@ export function mapGeminiError(err: unknown): GeminiApiError {
     );
   }
 
+  if (lower.includes('hosting_timeout') || lower.includes('function_invocation_timeout')) {
+    logGeminiServerAlert({ type: 'HostingTimeout', code: 'HOSTING_TIMEOUT', status: 504 });
+    return new GeminiApiError(
+      'Hosting execution window exceeded during generation. Please retry with concise requirements or load a saved example plan.',
+      504,
+      true,
+      'HOSTING_TIMEOUT'
+    );
+  }
+
   if (
     lower.includes('timed out') ||
     lower.includes('timeout') ||
@@ -351,6 +449,21 @@ export function mapGeminiError(err: unknown): GeminiApiError {
       504,
       true,
       'AI_TIMEOUT'
+    );
+  }
+
+  if (
+    lower.includes('econnrefused') ||
+    lower.includes('enotfound') ||
+    lower.includes('fetch failed') ||
+    lower.includes('network')
+  ) {
+    logGeminiServerAlert({ type: 'Network', code: 'AI_NETWORK_ERROR', status: 503 });
+    return new GeminiApiError(
+      'A network error occurred while connecting to the AI provider. Please retry in a moment.',
+      503,
+      true,
+      'AI_NETWORK_ERROR'
     );
   }
 
@@ -382,12 +495,12 @@ export function mapGeminiError(err: unknown): GeminiApiError {
     );
   }
 
-  logGeminiServerAlert({ type: 'GenericError', code: 'AI_BUSY', status: 503 });
+  logGeminiServerAlert({ type: 'GenericError', code: 'AI_ERROR', status: 500 });
   return new GeminiApiError(
-    'AI service is currently busy or unavailable. Please retry or load a saved example plan.',
-    503,
+    'An unexpected issue occurred while communicating with the planning engine. Click Retry or explore a saved plan.',
+    500,
     false,
-    'AI_BUSY'
+    'AI_ERROR'
   );
 }
 

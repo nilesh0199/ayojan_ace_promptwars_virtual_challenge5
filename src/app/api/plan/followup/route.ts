@@ -2,9 +2,12 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { intakeFormSchema, followUpResponseSchema } from '@/lib/schemas';
 import { buildFollowUpPrompt } from '@/lib/prompts';
-import { callGeminiStructured } from '@/lib/gemini';
+import { callGeminiStructured, TIMEOUT_CONFIG } from '@/lib/gemini';
 import { executeAiCascade } from '@/lib/ai';
 import { checkRequestSafety, handleApiError } from '@/lib/api-helper';
+
+// Configure Next.js serverless execution ceiling for Vercel
+export const maxDuration = 60;
 
 const requestPayloadSchema = z.object({
   intake: intakeFormSchema,
@@ -30,11 +33,23 @@ export async function POST(request: Request) {
 
     const prompt = buildFollowUpPrompt(intake, previousFollowUpsCount);
     try {
-      const cascadeResult = await executeAiCascade(prompt, followUpResponseSchema);
+      const cascadeResult = await executeAiCascade(
+        prompt,
+        followUpResponseSchema,
+        TIMEOUT_CONFIG.FOLLOWUP
+      );
       return NextResponse.json(cascadeResult.data);
     } catch {
-      const result = await callGeminiStructured(prompt, followUpResponseSchema);
-      return NextResponse.json(result);
+      try {
+        const result = await callGeminiStructured(prompt, followUpResponseSchema);
+        return NextResponse.json(result);
+      } catch {
+        // Adaptive follow-ups are optional enhancement; if AI is busy or offline,
+        // proceed gracefully without blocking the celebration plan generation.
+        return NextResponse.json({
+          needsFollowUp: false,
+        });
+      }
     }
   } catch (err) {
     return handleApiError(err);

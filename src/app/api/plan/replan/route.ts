@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server';
 import { replanRequestSchema, replanDiffResponseSchema } from '@/lib/schemas';
 import { buildReplanningPrompt } from '@/lib/prompts';
-import { callGeminiStructured } from '@/lib/gemini';
+import { callGeminiStructured, TIMEOUT_CONFIG } from '@/lib/gemini';
 import { executeAiCascade } from '@/lib/ai';
 import { generateTemplateRebalance } from '@/lib/template-planner';
 import { checkRequestSafety, handleApiError } from '@/lib/api-helper';
 import { validateAndFitBudget } from '@/lib/budget-benchmarks';
+
+// Configure Next.js serverless execution ceiling for Vercel
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const safety = checkRequestSafety(request);
@@ -22,7 +25,11 @@ export async function POST(request: Request) {
       const prompt = buildReplanningPrompt(currentPlan, changes);
       let diffResult;
       try {
-        const cascadeResult = await executeAiCascade(prompt, replanDiffResponseSchema);
+        const cascadeResult = await executeAiCascade(
+          prompt,
+          replanDiffResponseSchema,
+          TIMEOUT_CONFIG.REPLAN
+        );
         diffResult = cascadeResult.data;
       } catch {
         diffResult = await callGeminiStructured(prompt, replanDiffResponseSchema);

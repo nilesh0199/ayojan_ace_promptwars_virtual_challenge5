@@ -11,7 +11,7 @@ import {
   PlanGenerationSource,
 } from '@/lib/schemas';
 import { buildPlanGenerationPrompt } from '@/lib/prompts';
-import { callGeminiStructured, GeminiApiError } from '@/lib/gemini';
+import { callGeminiStructured } from '@/lib/gemini';
 import { executeAiCascade } from '@/lib/ai';
 import {
   isGroqKeyExpired,
@@ -23,6 +23,10 @@ import { generateTemplatePlan } from '@/lib/template-planner';
 import { checkRequestSafety, handleApiError } from '@/lib/api-helper';
 import { planGenerationCache, createPayloadKey } from '@/lib/cache';
 import { injectGuestMilestones } from '@/lib/timeline';
+import { TIMEOUT_CONFIG, mapGeminiError, GeminiApiError } from '@/lib/gemini';
+
+// Configure Next.js serverless execution ceiling for Vercel
+export const maxDuration = 60;
 
 const requestPayloadSchema = z.object({
   intake: intakeFormSchema,
@@ -73,7 +77,11 @@ export async function POST(request: Request) {
       let source: PlanGenerationSource = 'primary';
 
       try {
-        const cascadeResult = await executeAiCascade(prompt, rawGeminiPlanSchema);
+        const cascadeResult = await executeAiCascade(
+          prompt,
+          rawGeminiPlanSchema,
+          TIMEOUT_CONFIG.PLAN_GENERATION
+        );
         aiOutput = cascadeResult.data;
         source = cascadeResult.source;
       } catch (cascadeErr) {
@@ -147,6 +155,8 @@ export async function POST(request: Request) {
         throw aiErr;
       }
       fullPlan = generateTemplatePlan(intake);
+      const mappedErr = mapGeminiError(aiErr);
+      fullPlan.generationErrorCode = mappedErr.code;
 
       const isBackupKeyIssue =
         isGroqKeyExpired() || (aiErr instanceof GeminiApiError && aiErr.code === 'AI_BACKUP_KEY_EXPIRED');

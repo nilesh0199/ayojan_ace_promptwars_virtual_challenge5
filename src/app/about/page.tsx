@@ -188,7 +188,7 @@ export default function AboutPage() {
                 or specify your celebration type, city, date, guest headcount, auspicious Muhurat time, and cultural traditions.
               </li>
               <li>
-                <strong className="text-ink">Multi-Tier AI Orchestrator:</strong> Google Gemini 2.5 synthesizes
+                <strong className="text-ink">Multi-Tier AI Orchestrator:</strong> Google Gemini, with models configured through environment variables, synthesizes
                 an itemized plan validated by strict Zod schemas. If the primary model encounters heavy traffic, the system
                 automatically engages retry with jitter, fallback model, backup AI provider, or the deterministic template planner.
               </li>
@@ -212,7 +212,7 @@ export default function AboutPage() {
               </div>
               <div className="p-3 rounded-xl bg-paper border border-rule flex flex-col justify-between">
                 <span className="font-semibold text-ink">Google Gemini</span>
-                <span className="text-ink-muted mt-1">Gemini 2.5 Flash / Flash-Lite</span>
+                <span className="text-ink-muted mt-1">Configurable AI Models</span>
               </div>
               <div className="p-3 rounded-xl bg-paper border border-rule flex flex-col justify-between">
                 <span className="font-semibold text-ink">Firebase Auth &amp; Firestore</span>

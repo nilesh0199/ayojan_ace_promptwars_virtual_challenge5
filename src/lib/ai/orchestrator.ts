@@ -16,6 +16,8 @@ import {
   recordCombinationFailure,
   recordCombinationSuccess,
   hasFallbackApiKey,
+  logAiAttempt,
+  mapGeminiError,
 } from '../gemini';
 import { GoogleGenAI } from '@google/genai';
 
@@ -184,6 +186,7 @@ export async function executeAiCascade<T>(
       }
 
       const attemptTimeoutMs = Math.min(perAttemptTimeoutMs, remainingBudget);
+      const attemptStart = Date.now();
 
       try {
         const data = await provider.generateStructured(prompt, schema, {
@@ -191,6 +194,16 @@ export async function executeAiCascade<T>(
           signal: options.signal,
           temperature: options.temperature,
           model: stage.model,
+        });
+
+        // Safe server-only attempt logging
+        logAiAttempt({
+          provider: stage.providerId,
+          model: stage.model,
+          status: 200,
+          category: 'success',
+          attempt: attempt + 1,
+          durationMs: Date.now() - attemptStart,
         });
 
         // Record successful call in circuit breaker
@@ -204,12 +217,38 @@ export async function executeAiCascade<T>(
         };
       } catch (err: unknown) {
         lastError = err;
+        const mapped = mapGeminiError(err);
+        const durationMs = Date.now() - attemptStart;
+
+        // Safe server-only attempt logging
+        logAiAttempt({
+          provider: stage.providerId,
+          model: stage.model,
+          status: mapped.statusCode,
+          category: mapped.code,
+          attempt: attempt + 1,
+          durationMs,
+        });
+
         const isOverload = isOverloadOrTransientError(err);
         previousWasQuota = isQuotaError(err);
 
         recordCombinationFailure(stage.providerId as any, stage.model, isOverload);
 
-        // Check whether to retry the current candidate
+        // If a primary model attempt timed out, reserve the remaining budget for the fallback model
+        // instead of retrying and burning the entire budget on the timed-out primary model.
+        const isTimeout = mapped.code === 'AI_TIMEOUT' || mapped.code === 'HOSTING_TIMEOUT';
+        const remainingAfterThis = deadline - Date.now();
+        if (stage.isPrimary && (isTimeout || remainingAfterThis < 12000)) {
+          if (process.env.NODE_ENV !== 'test') {
+            console.warn(
+              `[AI Cascade] Primary model attempt timed out or budget low (${remainingAfterThis}ms remaining). Reserving budget for fallback model.`
+            );
+          }
+          break;
+        }
+
+        // Check whether to retry the current candidate on genuine overload
         if (attempt < stage.maxRetries && isOverload) {
           const baseMs = Math.pow(2, attempt) * 400;
           const jitter = (options.jitterFn ? options.jitterFn() : Math.random()) * 250;
@@ -238,18 +277,13 @@ export async function executeAiCascade<T>(
     if (lastError instanceof GeminiApiError) {
       throw lastError;
     }
-    throw new GeminiApiError(
-      'All AI providers encountered temporary errors or are currently busy.',
-      503,
-      true,
-      'AI_BUSY'
-    );
+    throw mapGeminiError(lastError);
   }
 
   throw new GeminiApiError(
-    'AI service is currently busy or unavailable across all configured providers.',
-    503,
-    true,
-    'AI_BUSY'
+    'AI service is currently unavailable across all configured providers.',
+    500,
+    false,
+    'AI_ERROR'
   );
 }

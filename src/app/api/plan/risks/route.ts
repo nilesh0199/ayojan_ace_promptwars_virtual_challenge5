@@ -1,10 +1,13 @@
 import { NextResponse } from 'next/server';
 import { eventPlanSchema, riskRegisterSchema } from '@/lib/schemas';
 import { buildRiskCheckPrompt } from '@/lib/prompts';
-import { callGeminiStructured } from '@/lib/gemini';
+import { callGeminiStructured, TIMEOUT_CONFIG } from '@/lib/gemini';
 import { executeAiCascade } from '@/lib/ai';
 import { generateTemplateRisks } from '@/lib/template-planner';
 import { checkRequestSafety, handleApiError } from '@/lib/api-helper';
+
+// Configure Next.js serverless execution ceiling for Vercel
+export const maxDuration = 60;
 
 export async function POST(request: Request) {
   const safety = checkRequestSafety(request);
@@ -21,7 +24,11 @@ export async function POST(request: Request) {
       const prompt = buildRiskCheckPrompt(plan);
       let riskData;
       try {
-        const cascadeResult = await executeAiCascade(prompt, riskRegisterSchema);
+        const cascadeResult = await executeAiCascade(
+          prompt,
+          riskRegisterSchema,
+          TIMEOUT_CONFIG.RISKS
+        );
         riskData = cascadeResult.data;
       } catch {
         riskData = await callGeminiStructured(prompt, riskRegisterSchema);

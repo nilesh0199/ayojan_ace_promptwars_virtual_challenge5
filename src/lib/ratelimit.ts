@@ -100,6 +100,12 @@ export const apiLimiter = new TokenBucketLimiter({
   refillRatePerSecond: 0.5,
 });
 
+// Dedicated tightly-rate-limited bucket for live health probe (3 per minute)
+export const probeLimiter = new TokenBucketLimiter({
+  maxTokens: 3,
+  refillRatePerSecond: 3 / 60,
+});
+
 /**
  * Extracts a client IP from Next.js request headers.
  */

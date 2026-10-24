@@ -74,7 +74,8 @@ export function TabTimeline() {
       setSelectedTaskIds(activePlan.timeline.map((t) => t.id));
       setIsCalendarConnected(Boolean(getCalendarAccessToken()));
     }
-  }, [activePlan]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activePlan?.id, activePlan?.timeline.length]);
 
   if (!activePlan) return null;
 

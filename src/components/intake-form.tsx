@@ -305,6 +305,9 @@ export function IntakeForm() {
                 {getFriendlyAiError(errorCode).title}
               </h3>
               <p className="mt-1 text-sm leading-relaxed">{error}</p>
+              <p className="mt-1.5 text-[11px] font-mono text-state-error/80 tracking-wide" data-testid="error-reference">
+                Reference: {errorCode || 'AI_BUSY'}
+              </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <button
                   type="button"

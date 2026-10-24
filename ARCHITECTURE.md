@@ -19,9 +19,10 @@ In celebration planning, AI models are creative synthesis engines, not authorita
 ```
 src/
 ├── app/                  # Next.js App Router (Routes & Server API Handlers)
+│   ├── about/            # About page with creator, architecture & contact links
 │   ├── api/health/       # Config & service health check endpoint
-│   ├── api/plan/         # Server-only API routes (/followup, /generate, /replan, /risks)
-│   ├── workspace/        # 7-Tab Celebration Workspace
+│   ├── api/plan/         # Server-only API routes (/followup, /generate, /replan, /risks, /names, /ask)
+│   ├── workspace/        # 8-Tab Celebration Workspace (Overview, Budget, Timeline, Vendors, Ideas, Risks, Reminders, Ask AI)
 │   ├── saved/            # Cloud and Static Saved Plans
 │   ├── privacy/          # Plain language Privacy Policy
 │   ├── terms/            # Terms of Service & Disclaimers
@@ -29,16 +30,18 @@ src/
 │   └── layout.tsx        # Shell root with font loading and providers
 ├── components/           # UI Components
 │   ├── workspace/        # Workspace sub-views (Header, Tabs, Replan Modal)
+│   ├── ai-loader.tsx     # Reusable animated AI loader with cancellation
 │   ├── navigation.tsx    # Desktop Rail + Mobile Bottom Bar
 │   ├── theme-provider.tsx# Light/Dark/System Theme Context
 │   ├── auth-context.tsx  # Firebase Auth State Context
 │   └── plan-context.tsx  # Client Plan Store, Undo Stack, and Local Storage
 ├── lib/                  # Pure Business Logic (Zero UI / Testable)
 │   ├── budget.ts         # Deterministic ledger math, formatting, alerts
-│   ├── timeline.ts       # Date reflow algorithm & phase assignment
+│   ├── budget-benchmarks.ts # Indian city tier baselines and hard ceiling budget fitter
+│   ├── timeline.ts       # Date reflow algorithm & guest milestone injection
 │   ├── diff.ts           # Before/After replanning diff engine
-│   ├── ics.ts            # RFC 5545 calendar export generator
-│   ├── google-calendar.ts# Google Calendar REST API integration & reminders
+│   ├── ics.ts            # RFC 5545 calendar export generator with 1-day alarms
+│   ├── google-calendar.ts# Google Calendar URL templates & reminders
 │   ├── prompts.ts        # Delimited prompt constructors & injection defense
 │   ├── schemas.ts        # Master Zod validation models
 │   ├── gemini.ts         # GoogleGenAI SDK wrapper, retries & fallback
@@ -93,7 +96,7 @@ When the user edits total budget, guest count, event date, or a single category:
 
 ## 4. Pure Business Logic Algorithms
 
-### 4.1. Deterministic Budget Math (`budget.ts`)
+### 4.1. Deterministic Budget Math (`budget.ts` and `budget-benchmarks.ts`)
 ```ts
 const subtotalTarget = categories.reduce((sum, cat) => sum + cat.targetEstimate, 0);
 const contingencyAmount = Math.round((subtotalTarget * contingencyPercent) / 100);
@@ -102,7 +105,7 @@ const totalCommitted = subtotalTarget + contingencyAmount + taxServiceChargeAmou
 const remainingBudget = totalBudget - totalCommitted;
 const isOverBudget = remainingBudget < 0;
 ```
-All percentages and remaining funds are computed in native code with zero LLM arithmetic hallucinations.
+All percentages and remaining funds are computed in native code with zero LLM arithmetic hallucinations. Additionally, `validateAndFitBudget()` in [`budget-benchmarks.ts`](file:///src/lib/budget-benchmarks.ts) validates AI outputs against regional Indian benchmarks (Metro, Tier-2, Tier-3) and enforces that total committed funds never exceed `totalBudget` as a strict hard ceiling, scaling non-core allocations first while protecting essential categories (venue, catering, photography).
 
 ### 4.2. Local Timeline Date Reflow (`timeline.ts`)
 Each task stores `daysBeforeEvent = (EventDate - DueDate)`.
@@ -138,8 +141,8 @@ When the event date shifts from $D_{\text{old}}$ to $D_{\text{new}}$:
 - **GroqProvider (Secondary AI)**: Server-only implementation calling Groq's OpenAI-compatible completions endpoint (`GROQ_COMPLETIONS_ENDPOINT`) with JSON object mode (`llama-3.3-70b-versatile`). Enabled only when `GROQ_API_KEY` is present.
 - **Automated Schema Repair Retry**: If any provider emits malformed JSON or invalid schema properties, an automatic targeted repair instruction with error details is sent once before declaring failure.
 - **Multi-Stage Failover Hierarchy**:
-  1. Gemini Primary Model (`gemini-3.8-flash`) [up to 2 retries with exponential backoff & jitter]
-  2. Gemini Fallback Model (`gemini-3.5-flash`) [1 retry]
+  1. Gemini Primary Model (configured via `GEMINI_MODEL`) [up to 2 retries with exponential backoff & jitter]
+  2. Gemini Fallback Model (configured via `GEMINI_FALLBACK_MODEL`) [1 retry]
   3. Groq Provider (if configured, on overload / quota / timeout / invalid-key) [1 retry]
   4. Built-in Deterministic Template Planner (zero network fallback)
 - **Built-in Deterministic Template Planner (`template-planner.ts`)**: Pure code fallback engine generating complete celebration plans from intake parameters: proportional category budget splits (with 10% contingency & 5% tax), phased timeline with injected guest milestones, vendor screening questions, creative cultural ideas, and risk register. Runs offline in <1ms.

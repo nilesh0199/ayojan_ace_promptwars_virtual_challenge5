@@ -158,6 +158,9 @@ export function ReplanModal({ isOpen, onClose }: ReplanModalProps) {
                 {getFriendlyAiError(errorCode).title}
               </h4>
               <p className="mt-0.5 leading-relaxed">{error}</p>
+              <p className="mt-1 text-[11px] font-mono text-state-error/80 tracking-wide" data-testid="error-reference">
+                Reference: {errorCode || 'AI_BUSY'}
+              </p>
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <button
                   type="button"
