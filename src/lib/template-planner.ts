@@ -15,6 +15,7 @@ import {
 } from './schemas';
 import { injectGuestMilestones } from './timeline';
 import { validateAndFitBudget } from './budget-benchmarks';
+import { formatTime12h } from './time';
 
 /**
  * Standard category distribution configurations by celebration event type.
@@ -432,10 +433,10 @@ function buildBaseTimelineTasks(intake: IntakeFormData, leadDays: number): Timel
         id: 'task-tpl-7',
         phase: 'Event day',
         title: intake.muhuratTime
-          ? `Ceremony & Muhurat rituals at ${intake.muhuratTime}${intake.muhuratLabel ? ` (${intake.muhuratLabel})` : ''}`
+          ? `Ceremony & Muhurat rituals at ${formatTime12h(intake.muhuratTime)}${intake.muhuratLabel ? ` (${intake.muhuratLabel})` : ''}`
           : 'Early morning vendor load-in and ceremony coordination',
         description: intake.muhuratTime
-          ? `Muhurat scheduled at ${intake.muhuratTime}${intake.muhuratLabel ? ` for ${intake.muhuratLabel}` : ''}. Verify stage readiness, ritual samagri, and pandit coordination.`
+          ? `Muhurat scheduled at ${formatTime12h(intake.muhuratTime)}${intake.muhuratLabel ? ` for ${intake.muhuratLabel}` : ''}. Verify stage readiness, ritual samagri, and pandit coordination.`
           : 'Verify stage readiness, sound microphones, and hospitality reception desks.',
         dueDate: intake.date,
         owner: 'Coordinator',

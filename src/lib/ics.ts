@@ -1,4 +1,5 @@
 import { TimelineTask } from './schemas';
+import { formatTime12h } from './time';
 
 /**
  * Escapes characters for iCalendar text format according to RFC 5545.
@@ -65,7 +66,7 @@ export function generateTimelineIcs(
       task.owner ? `Owner: ${task.owner}` : '',
       `Phase: ${task.phase}`,
       isEventDay && muhuratTime
-        ? `Auspicious Muhurat Timing: ${muhuratTime}${muhuratLabel ? ` (${muhuratLabel})` : ''}`
+        ? `Auspicious Muhurat Timing: ${formatTime12h(muhuratTime)}${muhuratLabel ? ` (${muhuratLabel})` : ''}`
         : '',
       task.estimatedCostLink ? `Estimated Cost Reference: ${task.estimatedCostLink}` : '',
     ]

@@ -159,7 +159,7 @@ export function ReplanModal({ isOpen, onClose }: ReplanModalProps) {
               </h4>
               <p className="mt-0.5 leading-relaxed">{error}</p>
               <p className="mt-1 text-[11px] font-mono text-state-error/80 tracking-wide" data-testid="error-reference">
-                Reference: {errorCode || 'AI_BUSY'}
+                Reference: {errorCode || 'AI_ERROR'}
               </p>
               <div className="mt-2.5 flex flex-wrap items-center gap-2">
                 <button
@@ -171,7 +171,7 @@ export function ReplanModal({ isOpen, onClose }: ReplanModalProps) {
                       handleStartReplan(new Event('submit') as unknown as React.FormEvent);
                     }
                   }}
-                  className="inline-flex items-center gap-1 min-h-[36px] px-2.5 py-1 rounded-md bg-accent text-accent-contrast text-xs font-semibold hover:opacity-90 transition-opacity"
+                  className="inline-flex items-center gap-1 min-h-[36px] px-2.5 py-1 rounded-md bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors"
                   aria-label="Retry recalculating celebration plan updates"
                 >
                   <RefreshCw className="h-3 w-3" aria-hidden="true" />

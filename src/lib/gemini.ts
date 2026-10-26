@@ -331,6 +331,77 @@ export function getFriendlyAiError(
   }
 }
 
+export interface TemplatePlanReasonInfo {
+  title: string;
+  description: string;
+}
+
+/**
+ * Returns plain, friendly title and description for deterministic offline template plans
+ * clearly naming the underlying reason category without jargon or panic.
+ */
+export function getTemplatePlanReason(
+  code?: GeminiErrorCode | string | null
+): TemplatePlanReasonInfo {
+  switch (code) {
+    case 'AI_INVALID_KEY':
+      return {
+        title: 'Built-in template plan (AI key needs update)',
+        description:
+          'Generated immediately by our deterministic offline planner (AI key needs update). You can customize all details now.',
+      };
+    case 'AI_MODEL_NOT_FOUND':
+      return {
+        title: 'Built-in template plan (AI model not found)',
+        description:
+          'Generated immediately by our deterministic offline planner (AI model not found). You can customize all details now.',
+      };
+    case 'AI_TIMEOUT':
+      return {
+        title: 'Built-in template plan (AI timed out)',
+        description:
+          'Generated immediately by our deterministic offline planner (AI request timed out). You can customize all details now.',
+      };
+    case 'HOSTING_TIMEOUT':
+      return {
+        title: 'Built-in template plan (Hosting time limit reached)',
+        description:
+          'Generated immediately by our deterministic offline planner (Hosting time limit reached). You can customize all details now.',
+      };
+    case 'AI_VALIDATION_FAILED':
+      return {
+        title: 'Built-in template plan (AI formatting issue)',
+        description:
+          'Generated immediately by our deterministic offline planner (AI formatting issue). You can customize all details now.',
+      };
+    case 'AI_NETWORK_ERROR':
+      return {
+        title: 'Built-in template plan (Network connection issue)',
+        description:
+          'Generated immediately by our deterministic offline planner (Network connection issue). You can customize all details now.',
+      };
+    case 'AI_NOT_CONFIGURED':
+      return {
+        title: 'Built-in template plan (AI not configured)',
+        description:
+          'Generated immediately by our deterministic offline planner (AI not configured). You can customize all details now.',
+      };
+    case 'AI_BACKUP_KEY_EXPIRED':
+      return {
+        title: 'Built-in template plan (AI key expired)',
+        description:
+          'Generated immediately by our deterministic offline planner (AI key expired). You can customize all details now.',
+      };
+    case 'AI_BUSY':
+    default:
+      return {
+        title: 'Built-in template plan (AI is busy)',
+        description:
+          'Generated immediately by our deterministic offline planner. You can customize all details now.',
+      };
+  }
+}
+
 /**
  * Extracts clean JSON string by trimming possible markdown fences.
  */

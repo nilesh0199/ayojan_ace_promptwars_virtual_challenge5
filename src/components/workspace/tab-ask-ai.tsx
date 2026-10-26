@@ -316,7 +316,7 @@ export function TabAskAi() {
             <div className="space-y-1">
               <p className="font-semibold">{error}</p>
               <p className="text-[10px] font-mono opacity-80" data-testid="error-reference">
-                Reference: {errorCode || 'AI_BUSY'}
+                Reference: {errorCode || 'AI_ERROR'}
               </p>
               <p className="text-[11px] opacity-90">
                 You can try asking again or check saved celebration recommendations.

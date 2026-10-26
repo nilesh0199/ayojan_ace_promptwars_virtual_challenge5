@@ -5,7 +5,7 @@
 - **Live Demonstration**: [https://ayojan-ace.vercel.app/](https://ayojan-ace.vercel.app/)
 - **Source Code Repository**: [https://github.com/nilesh0199/ayojan_ace_promptwars_virtual_challenge5](https://github.com/nilesh0199/ayojan_ace_promptwars_virtual_challenge5)
 
-Aayojan Ace is an intelligent, culture-aware celebration and event planning assistant designed specifically for Indian weddings, milestone birthdays, and community gatherings. Built with Next.js, Google Gemini, and Firebase, it transforms minimal celebration parameters into an actionable, comprehensive event plan featuring realistic budget allocations, a phased milestone timeline with invitation deadlines, vendor interview questions, and personalized cultural concepts. When circumstances change, Aayojan Ace intelligently rebalances only the affected components, presenting transparent before-and-after diffs with complete version history and deterministic arithmetic guarantees.
+Aayojan Ace is an intelligent, culture-aware celebration and event planning assistant designed specifically for Indian weddings, milestone birthdays, and community gatherings. Its name reflects its mission: *Aayojan* (आयोजन) is the Hindi word for organizing an event, while *Ace* signifies expert execution. Built with Next.js, Google Gemini, and Firebase, it transforms minimal celebration parameters into an actionable, comprehensive event plan featuring realistic budget allocations, a phased milestone timeline with invitation deadlines, vendor interview questions, and personalized cultural concepts. When circumstances change, Aayojan Ace intelligently rebalances only the affected components, presenting transparent before-and-after diffs with complete version history and deterministic arithmetic guarantees.
 
 ---
 

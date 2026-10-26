@@ -1,5 +1,6 @@
 import { TimelineTask } from './schemas';
 import { clearCalendarAccessToken } from './firebase/auth';
+import { formatTime12h } from './time';
 
 export const MAX_CALENDAR_EVENTS_SYNC = 60;
 export const CALENDAR_API_BASE = 'https://www.googleapis.com/calendar/v3/calendars/primary/events';
@@ -158,7 +159,7 @@ export function buildGoogleCalendarTemplateUrl(options: {
   const details = [
     `Milestone: ${taskTitle}`,
     `Plan: ${planTitle}`,
-    startTime ? `Scheduled Auspicious Time: ${startTime}` : '',
+    startTime ? `Scheduled Auspicious Time: ${formatTime12h(startTime)}` : '',
     `View in Aayojan Ace: ${appOrigin}/workspace`,
   ]
     .filter(Boolean)

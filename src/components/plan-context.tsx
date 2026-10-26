@@ -34,7 +34,7 @@ interface PlanContextType {
   isLoadingRisks: boolean;
   error: string | null;
   errorCode: GeminiErrorCode | null;
-  retryLastAction: (() => Promise<void>) | null;
+  retryLastAction: (() => Promise<void | boolean>) | null;
   followUp: FollowUpResponse | null;
   followUpCount: number;
   lastIntake: IntakeFormData | null;
@@ -44,9 +44,9 @@ interface PlanContextType {
   importGuestPlan: () => Promise<void>;
   dismissGuestImport: () => void;
   loadSavedExample: (key: string) => void;
-  startPlanGeneration: (intake: IntakeFormData) => Promise<void>;
-  submitFollowUp: (answer: string) => Promise<void>;
-  skipFollowUp: () => Promise<void>;
+  startPlanGeneration: (intake: IntakeFormData) => Promise<boolean>;
+  submitFollowUp: (answer: string) => Promise<boolean>;
+  skipFollowUp: () => Promise<boolean>;
   requestReplan: (changes: ReplanRequest['changes']) => Promise<void>;
   acceptReplan: () => void;
   rejectReplan: () => void;
@@ -69,6 +69,57 @@ const PlanContext = createContext<PlanContextType | undefined>(undefined);
 const LOCAL_STORAGE_KEY = 'aayojan_ace_active_plan';
 const LOCAL_STORAGE_HIST_KEY = 'aayojan_ace_plan_history';
 
+export const FOLLOWUP_TIMEOUT_MS = 3500;
+
+/**
+ * Robust non-blocking helper for adaptive follow-up questions.
+ * Enforces a short timeout and catches any network error, HTTP error, or malformed JSON,
+ * returning null so generation proceeds straight to plan creation without interruption.
+ */
+export async function fetchFollowUpNonBlocking(
+  payload: { intake: IntakeFormData; previousFollowUpsCount: number },
+  userAbortSignal?: AbortSignal
+): Promise<FollowUpResponse | null> {
+  if (userAbortSignal?.aborted) return null;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => {
+    controller.abort();
+  }, FOLLOWUP_TIMEOUT_MS);
+
+  const onUserAbort = () => {
+    controller.abort();
+  };
+
+  if (userAbortSignal) {
+    userAbortSignal.addEventListener('abort', onUserAbort, { once: true });
+  }
+
+  try {
+    const res = await fetch('/api/plan/followup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      return null;
+    }
+
+    const data: FollowUpResponse = await res.json();
+    return data;
+  } catch {
+    // Non-blocking: catch network/fetch errors, timeouts, aborts, JSON errors
+    return null;
+  } finally {
+    clearTimeout(timeoutId);
+    if (userAbortSignal) {
+      userAbortSignal.removeEventListener('abort', onUserAbort);
+    }
+  }
+}
+
 export function PlanProvider({
   children,
   initialPlan = null,
@@ -86,7 +137,7 @@ export function PlanProvider({
   const [isLoadingRisks, setIsLoadingRisks] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<GeminiErrorCode | null>(null);
-  const [retryLastAction, setRetryLastAction] = useState<(() => Promise<void>) | null>(null);
+  const [retryLastAction, setRetryLastAction] = useState<(() => Promise<void | boolean>) | null>(null);
   const [followUp, setFollowUp] = useState<FollowUpResponse | null>(null);
   const [followUpCount, setFollowUpCount] = useState(0);
   const [lastIntake, setLastIntake] = useState<IntakeFormData | null>(null);
@@ -251,22 +302,58 @@ export function PlanProvider({
   }, []);
 
   const setMappedError = (
-    errPayload: { code?: string; message?: string } | unknown,
-    retryFn?: () => Promise<void>
+    errPayload: { code?: string; message?: string; retryAfterSeconds?: number } | unknown,
+    retryFn?: () => Promise<void | boolean>
   ) => {
     let resolvedCode: GeminiErrorCode = 'AI_ERROR';
-    if (typeof errPayload === 'object' && errPayload !== null && 'code' in errPayload) {
-      resolvedCode = ((errPayload as { code: string }).code as GeminiErrorCode) || 'AI_ERROR';
-    } else if (errPayload instanceof Error) {
-      const lower = errPayload.message.toLowerCase();
-      if (lower.includes('network') || lower.includes('fetch failed') || lower.includes('econnrefused')) {
-        resolvedCode = 'AI_NETWORK_ERROR';
-      } else if (lower.includes('timeout') || lower.includes('timed out')) {
-        resolvedCode = 'AI_TIMEOUT';
+    let rateLimitSeconds: number | null = null;
+
+    if (typeof errPayload === 'string') {
+      resolvedCode = (errPayload as GeminiErrorCode);
+    } else if (typeof errPayload === 'object' && errPayload !== null) {
+      const obj = errPayload as Record<string, unknown>;
+      if (typeof obj.retryAfterSeconds === 'number' && obj.retryAfterSeconds > 0) {
+        rateLimitSeconds = obj.retryAfterSeconds;
+      }
+      if (typeof obj.code === 'string' && obj.code.length > 0) {
+        if (obj.code === 'RATE_LIMIT_EXCEEDED') {
+          resolvedCode = 'AI_BUSY';
+        } else {
+          resolvedCode = obj.code as GeminiErrorCode;
+        }
+      } else if (obj instanceof Error) {
+        const lower = obj.message.toLowerCase();
+        if (lower.includes('network') || lower.includes('fetch failed') || lower.includes('econnrefused')) {
+          resolvedCode = 'AI_NETWORK_ERROR';
+        } else if (lower.includes('hosting') || lower.includes('execution budget') || lower.includes('504')) {
+          resolvedCode = 'HOSTING_TIMEOUT';
+        } else if (lower.includes('timeout') || lower.includes('timed out')) {
+          resolvedCode = 'AI_TIMEOUT';
+        } else if (lower.includes('invalid key') || lower.includes('unauthorized') || lower.includes('401') || lower.includes('403')) {
+          resolvedCode = 'AI_INVALID_KEY';
+        } else if (lower.includes('not found') || lower.includes('404')) {
+          resolvedCode = 'AI_MODEL_NOT_FOUND';
+        } else if (lower.includes('validation') || lower.includes('format') || lower.includes('schema') || lower.includes('400')) {
+          resolvedCode = 'AI_VALIDATION_FAILED';
+        } else if (lower.includes('busy') || lower.includes('quota') || lower.includes('overload') || lower.includes('429') || lower.includes('503')) {
+          resolvedCode = 'AI_BUSY';
+        }
+      } else if (typeof obj.statusCode === 'number' || typeof obj.status === 'number') {
+        const status = (obj.statusCode ?? obj.status) as number;
+        if (status === 429 || status === 503) resolvedCode = 'AI_BUSY';
+        else if (status === 504) resolvedCode = 'HOSTING_TIMEOUT';
+        else if (status === 408) resolvedCode = 'AI_TIMEOUT';
+        else if (status === 401 || status === 403) resolvedCode = 'AI_INVALID_KEY';
+        else if (status === 404) resolvedCode = 'AI_MODEL_NOT_FOUND';
+        else if (status === 400) resolvedCode = 'AI_VALIDATION_FAILED';
       }
     }
     const friendly = getFriendlyAiError(resolvedCode);
-    setError(friendly.message);
+    let finalMessage = friendly.message;
+    if (rateLimitSeconds) {
+      finalMessage = `Rate limit reached. Please wait ${rateLimitSeconds} seconds before requesting another plan.`;
+    }
+    setError(finalMessage);
     setErrorCode(resolvedCode);
     if (retryFn) {
       setRetryLastAction(() => retryFn);
@@ -307,7 +394,7 @@ export function PlanProvider({
     }
   }, [setActivePlan]);
 
-  const startPlanGeneration = async (intake: IntakeFormData) => {
+  const startPlanGeneration = async (intake: IntakeFormData): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
     setErrorCode(null);
@@ -319,46 +406,40 @@ export function PlanProvider({
     abortControllerRef.current = new AbortController();
 
     try {
-      // Step 1: Check if Gemini has an adaptive follow-up question
-      try {
-        const followUpRes = await fetch('/api/plan/followup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: abortControllerRef.current.signal,
-          body: JSON.stringify({ intake, previousFollowUpsCount: 0 }),
-        });
+      // Step 1: Check if Gemini has an adaptive follow-up question (strictly non-blocking with short timeout)
+      const followUpData = await fetchFollowUpNonBlocking(
+        { intake, previousFollowUpsCount: 0 },
+        abortControllerRef.current.signal
+      );
 
-        if (followUpRes.ok) {
-          const followUpData: FollowUpResponse = await followUpRes.json();
-          if (followUpData.needsFollowUp && followUpData.questionText) {
-            setFollowUp(followUpData);
-            setFollowUpCount(1);
-            setIsLoading(false);
-            return; // Pause for user input
-          }
-        }
-      } catch (fErr: unknown) {
-        if (fErr instanceof Error && fErr.name === 'AbortError') {
-          setIsLoading(false);
-          return;
-        }
-        // Non-blocking follow-up check; proceed to plan generation
+      // Check if user explicitly cancelled during the follow-up check
+      if (abortControllerRef.current?.signal.aborted) {
+        setIsLoading(false);
+        return false;
+      }
+
+      if (followUpData?.needsFollowUp && followUpData.questionText) {
+        setFollowUp(followUpData);
+        setFollowUpCount(1);
+        setIsLoading(false);
+        return false; // Pause for user input — not a failure, but not ready to navigate
       }
 
       // Step 2: Proceed immediately to plan generation
-      await triggerPlanGeneration(intake, []);
+      return await triggerPlanGeneration(intake, []);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
         setIsLoading(false);
-        return;
+        return false;
       }
       setMappedError(err, () => startPlanGeneration(intake));
       setIsLoading(false);
+      return false;
     }
   };
 
-  const submitFollowUp = async (answer: string) => {
-    if (!lastIntake || !followUp) return;
+  const submitFollowUp = async (answer: string): Promise<boolean> => {
+    if (!lastIntake || !followUp) return false;
     setIsLoading(true);
     setError(null);
     setErrorCode(null);
@@ -369,53 +450,56 @@ export function PlanProvider({
       { questionId: followUp.questionId || 'q1', answer },
     ];
     setLastFollowUpAnswers(answers);
-    const currentFollowUp = followUp;
     setFollowUp(null);
 
-    try {
-      // Check if second follow-up needed
-      if (followUpCount < 2) {
-        const followUpRes = await fetch('/api/plan/followup', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            intake: lastIntake,
-            previousFollowUpsCount: followUpCount,
-          }),
-        });
+    abortControllerRef.current = new AbortController();
 
-        if (followUpRes.ok) {
-          const secondFollowUp: FollowUpResponse = await followUpRes.json();
-          if (secondFollowUp.needsFollowUp && secondFollowUp.questionText) {
-            setFollowUp(secondFollowUp);
-            setFollowUpCount((prev) => prev + 1);
-            setIsLoading(false);
-            return;
-          }
-        }
+    try {
+      // Check if second follow-up needed (strictly non-blocking with short timeout)
+      let secondFollowUp: FollowUpResponse | null = null;
+      if (followUpCount < 2) {
+        secondFollowUp = await fetchFollowUpNonBlocking(
+          { intake: lastIntake, previousFollowUpsCount: followUpCount },
+          abortControllerRef.current.signal
+        );
       }
 
-      await triggerPlanGeneration(lastIntake, answers);
+      // Check if user explicitly cancelled during the second follow-up check
+      if (abortControllerRef.current?.signal.aborted) {
+        setIsLoading(false);
+        return false;
+      }
+
+      if (secondFollowUp?.needsFollowUp && secondFollowUp.questionText) {
+        setFollowUp(secondFollowUp);
+        setFollowUpCount((prev) => prev + 1);
+        setIsLoading(false);
+        return false; // Pause for user input — not a failure, but not ready to navigate
+      }
+
+      return await triggerPlanGeneration(lastIntake, answers);
     } catch (err: unknown) {
-      setMappedError(err, () => {
-        setFollowUp(currentFollowUp);
-        return submitFollowUp(answer);
-      });
+      if (err instanceof Error && err.name === 'AbortError') {
+        setIsLoading(false);
+        return false;
+      }
+      setMappedError(err, () => triggerPlanGeneration(lastIntake, answers));
       setIsLoading(false);
+      return false;
     }
   };
 
-  const skipFollowUp = async () => {
-    if (!lastIntake) return;
+  const skipFollowUp = async (): Promise<boolean> => {
+    if (!lastIntake) return false;
     setFollowUp(null);
     setIsLoading(true);
-    await triggerPlanGeneration(lastIntake, lastFollowUpAnswers);
+    return await triggerPlanGeneration(lastIntake, lastFollowUpAnswers);
   };
 
   const triggerPlanGeneration = async (
     intake: IntakeFormData,
     followUpAnswers: Array<{ questionId: string; answer: string }>
-  ) => {
+  ): Promise<boolean> => {
     try {
       const res = await fetch('/api/plan/generate', {
         method: 'POST',
@@ -427,7 +511,7 @@ export function PlanProvider({
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
         setMappedError(errJson, () => triggerPlanGeneration(intake, followUpAnswers));
-        return;
+        return false;
       }
 
       const generatedPlan: EventPlan = await res.json();
@@ -444,12 +528,14 @@ export function PlanProvider({
           // Non-blocking version save
         }
       }
+      return true;
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
         setIsLoading(false);
-        return;
+        return false;
       }
       setMappedError(err, () => triggerPlanGeneration(intake, followUpAnswers));
+      return false;
     } finally {
       setIsLoading(false);
       abortControllerRef.current = null;

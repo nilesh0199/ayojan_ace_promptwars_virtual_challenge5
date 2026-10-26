@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   EVENT_TYPES,
@@ -20,6 +20,7 @@ import { intakeFormSchema } from '@/lib/schemas';
 import { getFriendlyAiError } from '@/lib/gemini';
 import { usePlan } from './plan-context';
 import { AiLoader } from './ai-loader';
+import { TimePicker12h } from './time-picker-12h';
 import {
   Sparkles,
   ArrowRight,
@@ -82,7 +83,17 @@ export function IntakeForm() {
   const [isFetchingNames, setIsFetchingNames] = useState(false);
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [formErrorAlert, setFormErrorAlert] = useState<string | null>(null);
   const [followUpAnswer, setFollowUpAnswer] = useState('');
+
+  // Ref for the error alert — auto-scroll and focus on generation or validation failure
+  const errorAlertRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if ((error || formErrorAlert) && errorAlertRef.current) {
+      errorAlertRef.current.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+      errorAlertRef.current.focus?.({ preventScroll: true });
+    }
+  }, [error, formErrorAlert]);
 
   // Whether muhurat fields should display by default
   const isMuhuratDefault =
@@ -103,6 +114,7 @@ export function IntakeForm() {
     setStyleCulture(preset.styleCulture);
     setNonNegotiables(preset.nonNegotiables);
     setFormErrors({});
+    setFormErrorAlert(null);
     setChipAnnouncement(`Loaded ${preset.title} preset`);
   };
 
@@ -193,6 +205,7 @@ export function IntakeForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormErrors({});
+    setFormErrorAlert(null);
 
     const rawData = {
       eventName: eventName.trim() || undefined,
@@ -211,25 +224,44 @@ export function IntakeForm() {
     const validation = intakeFormSchema.safeParse(rawData);
     if (!validation.success) {
       const errMap: Record<string, string> = {};
+      const fieldLabels: Record<string, string> = {
+        city: 'City',
+        date: 'Event Date',
+        guestCount: 'Guest Count',
+        totalBudget: 'Total Budget',
+        styleCulture: 'Celebration Style / Culture',
+        eventType: 'Event Type',
+        muhuratTime: 'Muhurat Time',
+        nonNegotiables: 'Must-haves',
+      };
+      const invalidFields: string[] = [];
       for (const issue of validation.error.issues) {
         if (issue.path[0]) {
-          errMap[issue.path[0].toString()] = issue.message;
+          const key = issue.path[0].toString();
+          errMap[key] = issue.message;
+          const label = fieldLabels[key] || key;
+          if (!invalidFields.includes(label)) {
+            invalidFields.push(label);
+          }
         }
       }
       setFormErrors(errMap);
+      setFormErrorAlert(
+        `Please correct the required fields: ${invalidFields.join(', ')}. Review the highlighted inputs below to generate your plan.`
+      );
       return;
     }
 
-    await startPlanGeneration(validation.data);
-    router.push('/workspace');
+    const success = await startPlanGeneration(validation.data);
+    if (success) router.push('/workspace');
   };
 
   const handleFollowUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!followUpAnswer.trim()) return;
-    await submitFollowUp(followUpAnswer.trim());
+    const success = await submitFollowUp(followUpAnswer.trim());
     setFollowUpAnswer('');
-    router.push('/workspace');
+    if (success) router.push('/workspace');
   };
 
   return (
@@ -292,11 +324,33 @@ export function IntakeForm() {
         </div>
       </div>
 
-      {/* Error Banner with Retry and Saved Example */}
-      {error && (
+      {/* Form Validation Error Banner */}
+      {formErrorAlert && (
         <div
+          ref={errorAlertRef}
           role="alert"
-          className="mb-8 rounded-xl border border-state-error bg-state-error-subtle p-4 text-state-error"
+          tabIndex={-1}
+          className="mb-8 rounded-xl border border-state-error bg-state-error-subtle p-4 text-state-error focus:outline-2 focus:outline-state-error"
+        >
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" aria-hidden="true" />
+            <div className="flex-1">
+              <h3 className="font-serif font-bold text-base">
+                Incomplete Celebration Details
+              </h3>
+              <p className="mt-1 text-sm leading-relaxed">{formErrorAlert}</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Error Banner with Retry and Saved Example */}
+      {error && !formErrorAlert && (
+        <div
+          ref={errorAlertRef}
+          role="alert"
+          tabIndex={-1}
+          className="mb-8 rounded-xl border border-state-error bg-state-error-subtle p-4 text-state-error focus:outline-2 focus:outline-state-error"
         >
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" aria-hidden="true" />
@@ -306,7 +360,7 @@ export function IntakeForm() {
               </h3>
               <p className="mt-1 text-sm leading-relaxed">{error}</p>
               <p className="mt-1.5 text-[11px] font-mono text-state-error/80 tracking-wide" data-testid="error-reference">
-                Reference: {errorCode || 'AI_BUSY'}
+                Reference: {errorCode || 'AI_ERROR'}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <button
@@ -318,7 +372,7 @@ export function IntakeForm() {
                       handleSubmit(new Event('submit') as unknown as React.FormEvent);
                     }
                   }}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-accent text-accent-contrast hover:opacity-90 transition-opacity min-h-[36px]"
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-accent text-accent-text hover:bg-accent-hover transition-colors min-h-[36px]"
                   aria-label="Retry celebration planning"
                 >
                   <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
@@ -393,7 +447,10 @@ export function IntakeForm() {
                   </button>
                   <button
                     type="button"
-                    onClick={skipFollowUp}
+                    onClick={async () => {
+                      const success = await skipFollowUp();
+                      if (success) router.push('/workspace');
+                    }}
                     disabled={isLoading}
                     className="min-h-[44px] px-4 py-2 rounded-lg border border-rule text-sm text-ink-muted hover:bg-paper-card transition-colors"
                   >
@@ -583,25 +640,26 @@ export function IntakeForm() {
             </div>
 
             {shouldShowMuhurat ? (
-              <div className="space-y-2">
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      id="muhurat-time"
-                      type="time"
-                      value={muhuratTime}
-                      onChange={(e) => setMuhuratTime(e.target.value)}
-                      className="w-full min-h-[44px] rounded-lg border border-rule bg-paper px-3 py-2 text-sm text-ink focus:border-accent focus:outline-hidden"
-                    />
-                  </div>
+              <div className="space-y-3">
+                <TimePicker12h
+                  id="muhurat-time"
+                  value={muhuratTime}
+                  onChange={setMuhuratTime}
+                  label="Auspicious Muhurat / Ritual Time"
+                  legendClassName="sr-only"
+                />
+                <div>
+                  <label htmlFor="muhurat-label" className="sr-only">
+                    Ritual Label
+                  </label>
                   <input
                     id="muhurat-label"
                     type="text"
                     maxLength={40}
-                    placeholder="Label (e.g. Pheras, Pooja)"
+                    placeholder="Label (e.g. Pheras, Pooja, Ring Exchange)"
                     value={muhuratLabel}
                     onChange={(e) => setMuhuratLabel(e.target.value)}
-                    className="w-1/2 min-h-[44px] rounded-lg border border-rule bg-paper px-3 py-2 text-sm text-ink focus:border-accent focus:outline-hidden"
+                    className="w-full min-h-[44px] rounded-lg border border-rule bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-muted focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-hidden"
                   />
                 </div>
                 <p className="text-[11px] text-ink-muted">

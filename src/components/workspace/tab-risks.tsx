@@ -81,7 +81,7 @@ export function TabRisks() {
             </h4>
             <p className="mt-1 leading-relaxed text-state-error">{error}</p>
             <p className="mt-1 text-[11px] font-mono text-state-error/80 tracking-wide" data-testid="error-reference">
-              Reference: {errorCode || 'AI_BUSY'}
+              Reference: {errorCode || 'AI_ERROR'}
             </p>
             <div className="mt-3 flex flex-wrap items-center gap-2">
               <button
@@ -93,7 +93,7 @@ export function TabRisks() {
                     generateRisks();
                   }
                 }}
-                className="inline-flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-md bg-accent text-accent-contrast text-xs font-semibold hover:opacity-90 transition-opacity"
+                className="inline-flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-md bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors"
                 aria-label="Retry safeguards assessment"
               >
                 <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />

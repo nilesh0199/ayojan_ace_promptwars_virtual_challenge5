@@ -3,6 +3,8 @@
 import React, { useState } from 'react';
 import { usePlan } from '../plan-context';
 import { calculateBudgetSummary, formatCurrency, calculateBudgetTotals } from '@/lib/budget';
+import { formatTime12h } from '@/lib/time';
+import { TimePicker12h } from '../time-picker-12h';
 import {
   Coins,
   CheckCircle2,
@@ -165,7 +167,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
                   {activePlan.muhuratTime ? (
                     <div className="flex flex-wrap items-baseline gap-2">
                       <span className="font-serif font-bold text-xl text-ink">
-                        {activePlan.muhuratTime}
+                        {formatTime12h(activePlan.muhuratTime)}
                       </span>
                       {activePlan.muhuratLabel && (
                         <span className="text-xs font-medium text-amber-900 dark:text-amber-300">
@@ -184,51 +186,48 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
                 </div>
               ) : (
                 /* Inline Edit Inputs */
-                <div className="mt-2 flex flex-wrap items-center gap-3">
-                  <div>
-                    <label htmlFor="edit-muhurat-time" className="sr-only">
-                      Muhurat Time
-                    </label>
-                    <input
-                      id="edit-muhurat-time"
-                      type="time"
-                      value={tempTime}
-                      onChange={(e) => setTempTime(e.target.value)}
-                      className="px-3 py-1.5 rounded-lg border border-amber-400 bg-paper text-sm text-ink focus:outline-hidden"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="edit-muhurat-label" className="sr-only">
-                      Ritual Label
-                    </label>
-                    <input
-                      id="edit-muhurat-label"
-                      type="text"
-                      maxLength={40}
-                      placeholder="e.g. Pheras, Pooja"
-                      value={tempLabel}
-                      onChange={(e) => setTempLabel(e.target.value)}
-                      className="px-3 py-1.5 rounded-lg border border-amber-400 bg-paper text-sm text-ink placeholder:text-ink-muted focus:outline-hidden"
-                    />
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={handleSaveMuhurat}
-                      aria-label="Save muhurat time"
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors min-h-[36px]"
-                    >
-                      <Check className="h-3.5 w-3.5" aria-hidden="true" />
-                      <span>Save</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleCancelMuhurat}
-                      aria-label="Cancel editing muhurat time"
-                      className="p-1.5 rounded-lg border border-rule text-ink-muted hover:text-ink hover:bg-paper transition-colors min-h-[36px] min-w-[36px] flex items-center justify-center"
-                    >
-                      <X className="h-4 w-4" aria-hidden="true" />
-                    </button>
+                <div className="mt-3 space-y-3">
+                  <TimePicker12h
+                    id="edit-muhurat-time"
+                    value={tempTime}
+                    onChange={setTempTime}
+                    label="Auspicious Muhurat / Ritual Time"
+                    legendClassName="sr-only"
+                  />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <div className="flex-1 min-w-[160px]">
+                      <label htmlFor="edit-muhurat-label" className="sr-only">
+                        Ritual Label
+                      </label>
+                      <input
+                        id="edit-muhurat-label"
+                        type="text"
+                        maxLength={40}
+                        placeholder="Label (e.g. Pheras, Pooja)"
+                        value={tempLabel}
+                        onChange={(e) => setTempLabel(e.target.value)}
+                        className="w-full min-h-[40px] px-3 py-1.5 rounded-lg border border-amber-400 bg-paper text-sm text-ink placeholder:text-ink-muted focus:ring-2 focus:ring-accent focus:outline-hidden"
+                      />
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleSaveMuhurat}
+                        aria-label="Save muhurat time"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors min-h-[40px]"
+                      >
+                        <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                        <span>Save</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleCancelMuhurat}
+                        aria-label="Cancel editing muhurat time"
+                        className="p-1.5 rounded-lg border border-rule text-ink-muted hover:text-ink hover:bg-paper transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
+                      >
+                        <X className="h-4 w-4" aria-hidden="true" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
@@ -392,7 +391,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
                 </span>
                 <span className="font-bold text-ink">
                   {activePlan.date}
-                  {activePlan.muhuratTime ? ` @ ${activePlan.muhuratTime}` : ''}
+                  {activePlan.muhuratTime ? ` @ ${formatTime12h(activePlan.muhuratTime)}` : ''}
                 </span>
               </div>
               <div>

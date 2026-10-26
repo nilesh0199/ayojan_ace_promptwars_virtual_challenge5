@@ -3,6 +3,7 @@
 import React from 'react';
 import { EventPlan, RiskRegister } from '@/lib/schemas';
 import { formatCurrency, calculateBudgetTotals } from '@/lib/budget';
+import { formatTime12h } from '@/lib/time';
 import { APP_NAME, APP_TAGLINE, PLANNER_DISCLAIMER } from '@/lib/constants';
 
 interface FullEventReportProps {
@@ -83,7 +84,7 @@ export function FullEventReport({ plan, risks }: FullEventReportProps) {
                 Auspicious Muhurat / Ritual Time
               </span>
               <span className="font-bold text-black text-sm">
-                {plan.muhuratTime}
+                {formatTime12h(plan.muhuratTime)}
                 {plan.muhuratLabel ? ` (${plan.muhuratLabel})` : ''}
               </span>
             </div>
@@ -229,7 +230,7 @@ export function FullEventReport({ plan, risks }: FullEventReportProps) {
                   <div className="font-semibold text-black">{task.title}</div>
                   {task.phase === 'Event day' && plan.muhuratTime && (
                     <div className="text-[11px] font-bold text-amber-900 mt-0.5">
-                      ★ Auspicious Muhurat Time: {plan.muhuratTime}
+                      ★ Auspicious Muhurat Time: {formatTime12h(plan.muhuratTime)}
                       {plan.muhuratLabel ? ` (${plan.muhuratLabel})` : ''}
                     </div>
                   )}

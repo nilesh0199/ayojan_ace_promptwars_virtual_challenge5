@@ -67,7 +67,7 @@ export default function WorkspacePage() {
                 className="inline-flex items-center gap-2 min-h-[44px] px-6 py-2.5 rounded-xl bg-accent text-accent-text text-sm font-semibold hover:bg-accent-hover transition-colors shadow-xs"
               >
                 <PlusCircle className="h-4 w-4" aria-hidden="true" />
-                <span>Start New Plan</span>
+                <span>Create a plan</span>
               </Link>
               <button
                 type="button"
@@ -77,6 +77,13 @@ export default function WorkspacePage() {
                 <BookOpen className="h-4 w-4 text-accent" aria-hidden="true" />
                 <span>Load Wedding Example</span>
               </button>
+              <Link
+                href="/saved"
+                className="inline-flex items-center gap-2 min-h-[44px] px-5 py-2.5 rounded-xl border border-rule bg-paper text-ink text-sm font-semibold hover:bg-paper-subtle transition-colors"
+              >
+                <BookOpen className="h-4 w-4 text-accent" aria-hidden="true" />
+                <span>Open Saved Plans</span>
+              </Link>
             </div>
           </div>
         ) : (

@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   FileText,
   CheckCircle2,
+  HelpCircle,
 } from 'lucide-react';
 
 export const metadata = {
@@ -36,6 +37,49 @@ export default function AboutPage() {
             &ldquo;{APP_TAGLINE}&rdquo;
           </p>
         </div>
+
+        {/* Why the name Aayojan Ace? */}
+        <section
+          className="rounded-2xl border border-rule bg-paper-card p-6 sm:p-8 shadow-xs space-y-5"
+          aria-labelledby="heading-why-name"
+        >
+          <div className="flex items-center gap-2.5 text-accent">
+            <HelpCircle className="h-5 w-5" aria-hidden="true" />
+            <h2 id="heading-why-name" className="font-serif font-bold text-xl sm:text-2xl text-ink">
+              Why the name Aayojan Ace?
+            </h2>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+            {/* Card 1: Aayojan */}
+            <article className="p-5 rounded-xl bg-paper border border-rule flex flex-col justify-between space-y-3">
+              <div className="space-y-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-accent-subtle text-accent text-xs font-semibold tracking-wide">
+                  Aayojan
+                </span>
+                <p className="text-sm text-ink leading-relaxed">
+                  <strong>Aayojan (आयोजन)</strong> is a Hindi word meaning the organizing and arranging of an event or function, which is exactly what the app does for weddings, birthdays and community celebrations.
+                </p>
+              </div>
+            </article>
+
+            {/* Card 2: Ace */}
+            <article className="p-5 rounded-xl bg-paper border border-rule flex flex-col justify-between space-y-3">
+              <div className="space-y-2">
+                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-accent-subtle text-accent text-xs font-semibold tracking-wide">
+                  Ace
+                </span>
+                <p className="text-sm text-ink leading-relaxed">
+                  An <strong>ace</strong> is someone who is top-class and expert at what they do, so the planning is handled with skill, accuracy and confidence.
+                </p>
+              </div>
+            </article>
+          </div>
+
+          <p className="text-sm text-ink-muted leading-relaxed pt-2 border-t border-rule font-medium">
+            Together, Aayojan Ace means expert celebration planning: every event organized with care, from the first budget to the last guest.
+          </p>
+        </section>
 
         {/* What Aayojan Ace Is */}
         <section
