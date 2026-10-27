@@ -18,10 +18,21 @@ import {
 export const PREPARED_PLAN_DELAY_MS = 3000;
 export const PREPARED_PLAN_REDUCED_MOTION_DELAY_MS = 1000;
 
+export const SAFEGUARDS_CHECK_DELAY_MS = 4000;
+export const SAFEGUARDS_CHECK_REDUCED_MOTION_DELAY_MS = 1000;
+
 export const PREPARED_PLAN_LOADING_MESSAGES = [
   'Opening your prepared plan...',
   'Setting your dates...',
   'Arranging your workspace...',
+] as const;
+
+export const SAFEGUARDS_LOADING_MESSAGES = [
+  'Auditing municipal noise cutoffs and local police curfew hours...',
+  'Evaluating seasonal weather patterns and sheltered space contingency...',
+  'Stress-testing vendor delivery handoffs and samagri/ritual dependencies...',
+  'Verifying strict dietary separation protocols (Jain, Halal, allergens)...',
+  'Finalizing operational safeguards and risk mitigation register...',
 ] as const;
 
 export interface PreparedPlanEntry {
@@ -1626,6 +1637,30 @@ export function getPreparedPlan(
     plan: planInstance,
     risks: risksInstance,
   };
+}
+
+/**
+ * Retrieves the complete prepared safeguards check for a plan if it corresponds
+ * to a saved example or preset.
+ */
+export function findPreparedRisksForPlan(plan: EventPlan): RiskRegister {
+  if (PREPARED_PLANS[plan.id]) {
+    return { ...PREPARED_PLANS[plan.id].risks, assessedAt: new Date().toISOString() };
+  }
+  for (const entry of Object.values(PREPARED_PLANS)) {
+    if (
+      entry.plan.eventType === plan.eventType &&
+      entry.plan.city.toLowerCase() === plan.city.toLowerCase()
+    ) {
+      return { ...entry.risks, assessedAt: new Date().toISOString() };
+    }
+  }
+  for (const entry of Object.values(PREPARED_PLANS)) {
+    if (entry.plan.eventType === plan.eventType) {
+      return { ...entry.risks, assessedAt: new Date().toISOString() };
+    }
+  }
+  return { ...PREPARED_PLANS['indian-wedding'].risks, assessedAt: new Date().toISOString() };
 }
 
 /**

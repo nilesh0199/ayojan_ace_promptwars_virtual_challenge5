@@ -1,9 +1,15 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePlan } from '../plan-context';
 import { RiskSeverity } from '@/lib/constants';
 import { getFriendlyAiError } from '@/lib/gemini';
+import { AiLoader } from '../ai-loader';
+import {
+  SAFEGUARDS_CHECK_DELAY_MS,
+  SAFEGUARDS_CHECK_REDUCED_MOTION_DELAY_MS,
+  SAFEGUARDS_LOADING_MESSAGES,
+} from '@/data/preparedPlans';
 import {
   AlertTriangle,
   ShieldCheck,
@@ -23,15 +29,63 @@ export function TabRisks() {
   const {
     activePlan,
     activeRisks,
+    setActiveRisks,
     generateRisks,
     isLoadingRisks,
     error,
     errorCode,
     retryLastAction,
     loadSavedExample,
+    cancelGeneration,
   } = usePlan();
 
+  // For saved examples and presets, show a realistic 4-second safeguards loading screen
+  const [isSimulatingPreloader, setIsSimulatingPreloader] = useState(() => {
+    return Boolean(activePlan?.isSavedExample);
+  });
+
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    if (!isSimulatingPreloader || !activePlan) return;
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const delayMs = prefersReducedMotion
+      ? SAFEGUARDS_CHECK_REDUCED_MOTION_DELAY_MS
+      : SAFEGUARDS_CHECK_DELAY_MS; // 4000ms (4 seconds)
+
+    timerRef.current = setTimeout(() => {
+      setIsSimulatingPreloader(false);
+      if (activePlan.isSavedExample && !activeRisks) {
+        generateRisks();
+      }
+    }, delayMs);
+
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, [isSimulatingPreloader, activePlan, activeRisks, generateRisks]);
+
+  const handleCancelSafeguards = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    setIsSimulatingPreloader(false);
+    cancelGeneration();
+  };
+
+  const handleRunSafeguards = () => {
+    if (activePlan?.isSavedExample) {
+      setIsSimulatingPreloader(true);
+      return;
+    }
+    generateRisks();
+  };
+
   if (!activePlan) return null;
+
+  const isAnalyzing = isSimulatingPreloader || isLoadingRisks;
 
   return (
     <div className="space-y-6">
@@ -51,11 +105,11 @@ export function TabRisks() {
 
         <button
           type="button"
-          onClick={generateRisks}
-          disabled={isLoadingRisks}
+          onClick={handleRunSafeguards}
+          disabled={isAnalyzing}
           className="inline-flex items-center gap-2 min-h-[44px] px-5 py-2.5 rounded-xl bg-accent text-accent-text text-sm font-semibold hover:bg-accent-hover transition-colors shadow-xs disabled:opacity-50 shrink-0"
         >
-          {isLoadingRisks ? (
+          {isAnalyzing ? (
             <>
               <RefreshCw className="h-4 w-4 animate-spin" aria-hidden="true" />
               <span>Analyzing Safeguards...</span>
@@ -69,7 +123,20 @@ export function TabRisks() {
         </button>
       </div>
 
-      {error && (
+      {/* 4-Second Safeguards Analysis Loading Screen */}
+      {isAnalyzing && (
+        <div data-testid="safeguards-loader" className="my-6">
+          <AiLoader
+            title="Analyzing Operational Safeguards & Contingencies"
+            messages={[...SAFEGUARDS_LOADING_MESSAGES]}
+            messageIntervalMs={800}
+            onCancel={handleCancelSafeguards}
+            cancelLabel="Cancel safeguards analysis"
+          />
+        </div>
+      )}
+
+      {error && !isAnalyzing && (
         <div
           role="alert"
           className="p-4 rounded-xl border border-state-error bg-state-error-subtle text-xs text-state-error flex items-start gap-3"
@@ -90,7 +157,7 @@ export function TabRisks() {
                   if (retryLastAction) {
                     retryLastAction();
                   } else {
-                    generateRisks();
+                    handleRunSafeguards();
                   }
                 }}
                 className="inline-flex items-center gap-1.5 min-h-[36px] px-3 py-1.5 rounded-md bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors"
@@ -113,8 +180,8 @@ export function TabRisks() {
         </div>
       )}
 
-      {/* When no risks generated yet */}
-      {!activeRisks && !isLoadingRisks && (
+      {/* When no risks generated yet and not analyzing */}
+      {!activeRisks && !isAnalyzing && (
         <div className="rounded-2xl border border-dashed border-rule bg-paper-card p-12 text-center">
           <AlertTriangle className="h-10 w-10 text-marigold mx-auto mb-3" aria-hidden="true" />
           <h3 className="font-serif font-bold text-lg text-ink">
@@ -126,8 +193,8 @@ export function TabRisks() {
         </div>
       )}
 
-      {/* Display Risk Register Cards */}
-      {activeRisks && (
+      {/* Display Risk Register Cards once loaded */}
+      {activeRisks && !isAnalyzing && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {activeRisks.risks.map((risk) => {
             const badgeStyle = SEVERITY_BADGES[risk.severity] || SEVERITY_BADGES.Medium;

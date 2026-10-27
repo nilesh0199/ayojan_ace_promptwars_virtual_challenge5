@@ -11,10 +11,16 @@ import {
   VendorStatus,
   TimelineTask,
   eventPlanSchema,
+  riskRegisterSchema,
   isIntakeUnclear,
 } from '@/lib/schemas';
 import { SAVED_EXAMPLES, SAVED_EXAMPLE_RISKS } from '@/data/savedExamples';
-import { getPreparedPlan } from '@/data/preparedPlans';
+import {
+  getPreparedPlan,
+  SAFEGUARDS_CHECK_DELAY_MS,
+  SAFEGUARDS_CHECK_REDUCED_MOTION_DELAY_MS,
+  findPreparedRisksForPlan,
+} from '@/data/preparedPlans';
 import { computePlanDiff, applyReplanDiff, PlanDiffView } from '@/lib/diff';
 import { reflowTimelineDates } from '@/lib/timeline';
 import { GeminiErrorCode, getFriendlyAiError } from '@/lib/gemini';
@@ -63,6 +69,7 @@ interface PlanContextType {
   saveSuccessNotice: { message: string; link?: string } | null;
   clearSaveSuccessNotice: () => void;
   setActivePlan: (plan: EventPlan | null) => void;
+  setActiveRisks: (risks: RiskRegister | null) => void;
   clearError: () => void;
   cancelGeneration: () => void;
 }
@@ -71,6 +78,7 @@ const PlanContext = createContext<PlanContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_KEY = 'aayojan_ace_active_plan';
 const LOCAL_STORAGE_HIST_KEY = 'aayojan_ace_plan_history';
+const LOCAL_STORAGE_RISKS_KEY = 'aayojan_ace_active_risks';
 
 export const FOLLOWUP_TIMEOUT_MS = 3500;
 
@@ -126,13 +134,21 @@ export async function fetchFollowUpNonBlocking(
 export function PlanProvider({
   children,
   initialPlan = null,
+  initialRisks = null,
 }: {
   children: React.ReactNode;
   initialPlan?: EventPlan | null;
+  initialRisks?: RiskRegister | null;
 }) {
   const [activePlan, setActivePlanState] = useState<EventPlan | null>(initialPlan);
   const [planHistory, setPlanHistory] = useState<EventPlan[]>([]);
-  const [activeRisks, setActiveRisks] = useState<RiskRegister | null>(null);
+  const [activeRisks, setActiveRisks] = useState<RiskRegister | null>(() => {
+    if (initialRisks) return initialRisks;
+    if (initialPlan?.isSavedExample) {
+      return findPreparedRisksForPlan(initialPlan);
+    }
+    return null;
+  });
   const [pendingDiff, setPendingDiff] = useState<PlanDiffView | null>(null);
   const [rawDiffResponse, setRawDiffResponse] = useState<ReplanDiffResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -169,25 +185,78 @@ export function PlanProvider({
     setIsLoadingRisks(false);
   }, []);
 
+  const setActiveRisksState = useCallback((risks: RiskRegister | null) => {
+    setActiveRisks(risks);
+    try {
+      if (risks) {
+        localStorage.setItem(LOCAL_STORAGE_RISKS_KEY, JSON.stringify(risks));
+      } else {
+        localStorage.removeItem(LOCAL_STORAGE_RISKS_KEY);
+      }
+    } catch {
+      // Storage unavailable
+    }
+  }, []);
+
   // Load from local storage on mount (Guest Mode schema-validated)
   useEffect(() => {
     if (initialPlan) {
       setActivePlanState(initialPlan);
+      if (initialPlan.isSavedExample) {
+        try {
+          const storedRisks = localStorage.getItem(LOCAL_STORAGE_RISKS_KEY);
+          if (storedRisks) {
+            const parsedRisks = JSON.parse(storedRisks);
+            const validatedRisks = riskRegisterSchema.safeParse(parsedRisks);
+            if (validatedRisks.success) {
+              setActiveRisks(validatedRisks.data);
+              return;
+            }
+          }
+          const prepRisks = findPreparedRisksForPlan(initialPlan);
+          if (prepRisks) {
+            setActiveRisks(prepRisks);
+            localStorage.setItem(LOCAL_STORAGE_RISKS_KEY, JSON.stringify(prepRisks));
+          }
+        } catch {
+          // Storage unavailable
+        }
+      }
       return;
     }
     try {
       const stored = localStorage.getItem(LOCAL_STORAGE_KEY);
+      let loadedPlan: EventPlan | null = null;
       if (stored) {
         const parsed = JSON.parse(stored);
         const validated = eventPlanSchema.safeParse(parsed);
         if (validated.success) {
           setActivePlanState(validated.data);
+          loadedPlan = validated.data;
         }
       }
       const storedHist = localStorage.getItem(LOCAL_STORAGE_HIST_KEY);
       if (storedHist) {
         const parsedHist = JSON.parse(storedHist);
         if (Array.isArray(parsedHist)) setPlanHistory(parsedHist);
+      }
+      const storedRisks = localStorage.getItem(LOCAL_STORAGE_RISKS_KEY);
+      if (storedRisks) {
+        const parsedRisks = JSON.parse(storedRisks);
+        const validatedRisks = riskRegisterSchema.safeParse(parsedRisks);
+        if (validatedRisks.success) {
+          setActiveRisks(validatedRisks.data);
+        }
+      } else if (loadedPlan?.isSavedExample) {
+        const prepRisks = findPreparedRisksForPlan(loadedPlan);
+        if (prepRisks) {
+          setActiveRisks(prepRisks);
+          try {
+            localStorage.setItem(LOCAL_STORAGE_RISKS_KEY, JSON.stringify(prepRisks));
+          } catch {
+            // Storage unavailable
+          }
+        }
       }
     } catch {
       // Ignore corrupt storage
@@ -214,6 +283,7 @@ export function PlanProvider({
       try {
         localStorage.removeItem(LOCAL_STORAGE_KEY);
         localStorage.removeItem(LOCAL_STORAGE_HIST_KEY);
+        localStorage.removeItem(LOCAL_STORAGE_RISKS_KEY);
       } catch {
         // Storage unavailable
       }
@@ -436,7 +506,7 @@ export function PlanProvider({
       const prepared = getPreparedPlan(key, userDate);
       if (prepared) {
         setActivePlan(prepared.plan);
-        setActiveRisks(prepared.risks);
+        setActiveRisksState(prepared.risks);
         setPlanHistory([]);
         return;
       }
@@ -444,11 +514,11 @@ export function PlanProvider({
       if (example) {
         setActivePlan(example);
         const risks = SAVED_EXAMPLE_RISKS[key] || null;
-        setActiveRisks(risks);
+        setActiveRisksState(risks);
         setPlanHistory([]);
       }
     },
-    [setActivePlan]
+    [setActivePlan, setActiveRisksState]
   );
 
   const loadPreparedPlan = useCallback(
@@ -458,10 +528,10 @@ export function PlanProvider({
       setRetryLastAction(null);
       setPendingDiff(null);
       setActivePlan(plan);
-      setActiveRisks(risks);
+      setActiveRisksState(risks);
       setPlanHistory([]);
     },
-    [setActivePlan]
+    [setActivePlan, setActiveRisksState]
   );
 
   const startPlanGeneration = async (intake: IntakeFormData): Promise<boolean> => {
@@ -591,7 +661,7 @@ export function PlanProvider({
       const generatedPlan: EventPlan = await res.json();
       setActivePlan(generatedPlan);
       setPlanHistory([]);
-      setActiveRisks(null);
+      setActiveRisksState(null);
 
       // Save initial version to Firestore if authenticated
       if (user) {
@@ -681,6 +751,14 @@ export function PlanProvider({
     setErrorCode(null);
     setRetryLastAction(null);
 
+    // For saved examples and presets, we keep everything ready in memory
+    if (activePlan.isSavedExample) {
+      const preparedRisks = findPreparedRisksForPlan(activePlan);
+      setActiveRisksState(preparedRisks);
+      setIsLoadingRisks(false);
+      return;
+    }
+
     try {
       const res = await fetch('/api/plan/risks', {
         method: 'POST',
@@ -695,7 +773,7 @@ export function PlanProvider({
       }
 
       const risks: RiskRegister = await res.json();
-      setActiveRisks(risks);
+      setActiveRisksState(risks);
     } catch (err: unknown) {
       setMappedError(err, () => generateRisks());
     } finally {
@@ -864,6 +942,7 @@ export function PlanProvider({
       saveSuccessNotice,
       clearSaveSuccessNotice,
       setActivePlan,
+      setActiveRisks: setActiveRisksState,
       clearError,
       cancelGeneration,
     }),
@@ -896,6 +975,7 @@ export function PlanProvider({
       saveSuccessNotice,
       clearSaveSuccessNotice,
       setActivePlan,
+      setActiveRisksState,
       clearError,
       cancelGeneration,
     ]
