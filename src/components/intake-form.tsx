@@ -191,6 +191,19 @@ export function IntakeForm() {
     setFormErrors({});
     setFormErrorAlert(null);
     setChipAnnouncement(`Loaded ${preset.title} preset`);
+
+    if (typeof window !== 'undefined') {
+      const formEl = document.getElementById('planner-intake-form');
+      if (formEl && typeof formEl.scrollIntoView === 'function') {
+        const prefersReducedMotion =
+          typeof window.matchMedia === 'function' &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        formEl.scrollIntoView({
+          behavior: prefersReducedMotion ? 'auto' : 'smooth',
+          block: 'nearest',
+        });
+      }
+    }
   };
 
   const handleQuickLoad = (key: string) => {
@@ -637,9 +650,10 @@ export function IntakeForm() {
 
       {/* Main Intake Form */}
       <form
+        id="planner-intake-form"
         onSubmit={handleSubmit}
         noValidate
-        className="rounded-2xl border border-rule bg-paper-card p-6 sm:p-8 shadow-sm space-y-6"
+        className="rounded-2xl border border-rule bg-paper-card p-6 sm:p-8 shadow-sm space-y-6 scroll-smooth scroll-mt-6"
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {/* 1. Optional Celebration / Event Name */}

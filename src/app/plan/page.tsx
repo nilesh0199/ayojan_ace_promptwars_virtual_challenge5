@@ -11,7 +11,7 @@ export const metadata = {
 export default function PlanPage() {
   return (
     <AppShell>
-      <div className="w-full py-4">
+      <div className="w-full py-4 scroll-smooth">
         <IntakeForm />
       </div>
     </AppShell>

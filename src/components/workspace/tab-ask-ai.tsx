@@ -236,7 +236,7 @@ export function TabAskAi() {
         aria-live="polite"
         data-lenis-prevent
         aria-label="Celebration doubt discussion log"
-        className="rounded-2xl border border-rule bg-paper-card p-4 sm:p-6 min-h-[320px] max-h-[560px] overflow-y-auto space-y-4"
+        className="rounded-2xl border border-rule bg-paper-card p-4 sm:p-6 min-h-[320px] max-h-[560px] overflow-y-auto space-y-4 scroll-smooth"
       >
         {messages.length === 0 && (
           <div className="text-center py-12 text-ink-muted space-y-2">

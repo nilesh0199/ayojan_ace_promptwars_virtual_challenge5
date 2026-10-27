@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, cleanup } from '@testing-library/react';
+import { render, cleanup, screen, fireEvent } from '@testing-library/react';
 import { axe, toHaveNoViolations } from 'jest-axe';
 import { SmoothScroll } from '@/components/smooth-scroll';
 import AboutPage from '@/app/about/page';
@@ -311,6 +311,44 @@ describe('Motion (GSAP) & Smooth Scroll (Lenis) Polish Suite', () => {
       revertSpies.forEach((spy) => expect(spy).toHaveBeenCalled());
 
       matchMediaSpy.mockRestore();
+    });
+  });
+
+  describe('Planner & Workspace Smooth Scrolling', () => {
+    it('applies scroll-smooth to main scroll container and intake form on Plan Creator', () => {
+      const { container } = renderWithProviders(<PlanPage />);
+      const mainScroll = container.querySelector('#app-main-scroll');
+      expect(mainScroll).toHaveClass('scroll-smooth');
+
+      const intakeForm = container.querySelector('#planner-intake-form');
+      expect(intakeForm).toHaveClass('scroll-smooth');
+    });
+
+    it('applies scroll-smooth to tablist and tabpanel in Workspace', () => {
+      const { container } = renderWithProviders(<WorkspacePage />, SAVED_EXAMPLES.wedding);
+      const tablist = container.querySelector('[role="tablist"]');
+      expect(tablist).toHaveClass('scroll-smooth');
+
+      const tabpanel = container.querySelector('[role="tabpanel"]');
+      expect(tabpanel).toHaveClass('scroll-smooth');
+    });
+
+    it('smoothly scrolls main scroll container to top when switching tabs in Workspace', () => {
+      const scrollToMock = vi.fn();
+      const { container } = renderWithProviders(<WorkspacePage />, SAVED_EXAMPLES.wedding);
+      const mainScroll = container.querySelector('#app-main-scroll');
+      if (mainScroll) {
+        mainScroll.scrollTo = scrollToMock;
+      }
+
+      // Switch to Budget tab
+      const budgetTab = screen.getByRole('tab', { name: /Budget/i });
+      fireEvent.click(budgetTab);
+
+      expect(scrollToMock).toHaveBeenCalledWith({
+        top: 0,
+        behavior: 'smooth',
+      });
     });
   });
 

@@ -50,6 +50,21 @@ export default function WorkspacePage() {
 
   const tabPanelRef = useRef<HTMLDivElement>(null);
 
+  const handleTabChange = (newTab: TabId) => {
+    setActiveTab(newTab);
+    const scrollContainer = document.getElementById('app-main-scroll');
+    if (scrollContainer && typeof scrollContainer.scrollTo === 'function') {
+      const prefersReducedMotion =
+        typeof window !== 'undefined' &&
+        typeof window.matchMedia === 'function' &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      scrollContainer.scrollTo({
+        top: 0,
+        behavior: prefersReducedMotion ? 'auto' : 'smooth',
+      });
+    }
+  };
+
   useGSAP(() => {
     if (!tabPanelRef.current) return;
     const mm = gsap.matchMedia();
@@ -119,7 +134,7 @@ export default function WorkspacePage() {
                 role="tablist"
                 data-lenis-prevent
                 aria-label="Workspace plan sections"
-                className="flex items-center gap-1 overflow-x-auto border-b border-rule pb-px mb-8 scrollbar-none no-print"
+                className="flex items-center gap-1 overflow-x-auto border-b border-rule pb-px mb-8 scrollbar-none no-print scroll-smooth"
               >
                 {TABS.map((tab) => {
                   const Icon = tab.icon;
@@ -132,7 +147,7 @@ export default function WorkspacePage() {
                       type="button"
                       aria-selected={isSelected}
                       aria-controls={`panel-${tab.id}`}
-                      onClick={() => setActiveTab(tab.id)}
+                      onClick={() => handleTabChange(tab.id)}
                       className={`inline-flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-medium transition-all border-b-2 whitespace-nowrap min-h-[44px] rounded-t-lg ${
                         isSelected
                           ? 'border-accent text-accent font-bold bg-accent-subtle/50'
@@ -153,10 +168,10 @@ export default function WorkspacePage() {
                 role="tabpanel"
                 aria-labelledby={`tab-${activeTab}`}
                 tabIndex={0}
-                className="focus:outline-hidden"
+                className="focus:outline-hidden scroll-smooth"
               >
                 {activeTab === 'overview' && (
-                  <TabOverview onSelectTab={(t) => setActiveTab(t as TabId)} />
+                  <TabOverview onSelectTab={(t) => handleTabChange(t as TabId)} />
                 )}
                 {activeTab === 'budget' && (
                   <TabBudget onOpenReplan={() => setIsReplanOpen(true)} />

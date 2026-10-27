@@ -50,7 +50,10 @@
   --color-warning: #F59E0B;
 }
 
-html,
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   width: 100%;
   min-height: 100dvh;
@@ -62,6 +65,21 @@ body {
   font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
+}
+
+/* Accessible smooth scrolling for planner and workspace scroll areas */
+#app-main-scroll {
+  scroll-behavior: smooth !important;
+  scroll-padding-top: 2rem;
+}
+
+[role="tabpanel"],
+[role="tablist"],
+.workspace-tab-container,
+.overflow-y-auto,
+.overflow-x-auto,
+.scroll-smooth {
+  scroll-behavior: smooth;
 }
 
 /* Accessible focus ring styling */
