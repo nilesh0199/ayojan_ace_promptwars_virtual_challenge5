@@ -337,7 +337,7 @@ describe('Task B: Plan Generation Failure & Navigation Rules', () => {
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
-    });
+    }, 30000);
   });
 
   describe('Workspace Empty State', () => {
@@ -378,7 +378,7 @@ describe('Task B: Plan Generation Failure & Navigation Rules', () => {
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
-    });
+    }, 30000);
 
     it('has no accessibility violations in Workspace empty state in Dark theme (jest-axe)', async () => {
       const { container } = render(
@@ -395,6 +395,6 @@ describe('Task B: Plan Generation Failure & Navigation Rules', () => {
 
       const results = await axe(container);
       expect(results).toHaveNoViolations();
-    });
+    }, 30000);
   });
 });

@@ -72,13 +72,13 @@ body {
 
 /* Landing Page Scoped Focus Ring */
 .landing-theme :focus-visible {
-  outline: 2px solid #6D28D9;
+  outline: 2px solid #E11D48;
   outline-offset: 2px;
 }
 
 .dark .landing-theme :focus-visible,
 .landing-theme.dark :focus-visible {
-  outline: 2px solid #C4A5F5;
+  outline: 2px solid #FB7185;
   outline-offset: 2px;
 }
 
@@ -122,19 +122,19 @@ body {
 /* Glossy Text Fill with Layered Background Highlights (Shaped strictly by the glyphs) */
 .glossy-heading-text {
   /* Solid fallback text color for browsers without background-clip support */
-  color: #4A1D7A;
+  color: #0F172A;
   background-image: 
     linear-gradient(
       115deg,
       transparent 0%,
       transparent 40%,
-      rgba(255, 255, 255, 0.08) 46%,
-      rgba(255, 255, 255, 0.28) 50%,
-      rgba(255, 255, 255, 0.08) 54%,
+      rgba(255, 255, 255, 0.06) 46%,
+      rgba(255, 255, 255, 0.22) 50%,
+      rgba(255, 255, 255, 0.06) 54%,
       transparent 60%,
       transparent 100%
     ),
-    linear-gradient(to right, #4A1D7A 0%, #6D28D9 50%, #D6203F 100%);
+    linear-gradient(to right, #0F172A 0%, #1E293B 40%, #E11D48 75%, #BE123C 100%);
   background-size: 260% 100%, 100% 100%;
   background-repeat: no-repeat, no-repeat;
   background-position: -160% 0, 0 0;
@@ -146,19 +146,19 @@ body {
 
 .dark .glossy-heading-text {
   /* Solid fallback text color for dark mode */
-  color: #F8EEDC;
+  color: #F8FAFC;
   background-image: 
     linear-gradient(
       115deg,
       transparent 0%,
       transparent 40%,
-      rgba(248, 238, 220, 0.06) 46%,
-      rgba(248, 238, 220, 0.30) 50%,
-      rgba(248, 238, 220, 0.06) 54%,
+      rgba(248, 250, 252, 0.06) 46%,
+      rgba(248, 250, 252, 0.30) 50%,
+      rgba(248, 250, 252, 0.06) 54%,
       transparent 60%,
       transparent 100%
     ),
-    linear-gradient(to right, #F8EEDC 0%, #C4A5F5 50%, #FF6B81 100%);
+    linear-gradient(to right, #F8FAFC 0%, #E2E8F0 45%, #FB7185 80%, #FDA4AF 100%);
   background-size: 260% 100%, 100% 100%;
   background-repeat: no-repeat, no-repeat;
   background-position: -160% 0, 0 0;

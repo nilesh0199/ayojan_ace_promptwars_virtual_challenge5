@@ -18,7 +18,7 @@ export function ThemeToggle({ variant = 'default' }: ThemeToggleProps) {
       aria-label="Color theme selection"
       className={`inline-flex items-center rounded-full p-1 transition-colors ${
         isLanding
-          ? 'border border-[#4A1D7A]/15 dark:border-[#F8EEDC]/15 bg-[#FFF9EE] dark:bg-[#261636] shadow-xs'
+          ? 'border border-[#0F172A]/15 dark:border-[#F8FAFC]/15 bg-[#FFFFFF] dark:bg-[#111C3A] shadow-xs'
           : 'border border-rule bg-paper-card shadow-sm'
       }`}
     >
@@ -30,8 +30,8 @@ export function ThemeToggle({ variant = 'default' }: ThemeToggleProps) {
         className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
           isLanding
             ? theme === 'light'
-              ? 'bg-[#6D28D9] text-[#FFF9EE] font-medium shadow-xs focus-visible:ring-2 focus-visible:ring-[#6D28D9]'
-              : 'text-[#4A1D7A]/70 dark:text-[#F8EEDC]/70 hover:text-[#4A1D7A] dark:hover:text-[#F8EEDC] hover:bg-[#F3E4CB]/60 dark:hover:bg-[#321C45]'
+              ? 'bg-[#0F172A] text-white font-medium shadow-xs focus-visible:ring-2 focus-visible:ring-[#E11D48]'
+              : 'text-[#0F172A]/70 dark:text-[#F8FAFC]/70 hover:text-[#0F172A] dark:hover:text-[#F8FAFC] hover:bg-[#EAE6DC]/60 dark:hover:bg-[#162347]'
             : theme === 'light'
             ? 'bg-accent text-accent-text font-medium shadow-xs'
             : 'text-ink-muted hover:text-ink hover:bg-paper-subtle'
@@ -49,8 +49,8 @@ export function ThemeToggle({ variant = 'default' }: ThemeToggleProps) {
         className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
           isLanding
             ? theme === 'dark'
-              ? 'bg-[#6D28D9] text-[#FFF9EE] font-medium shadow-xs focus-visible:ring-2 focus-visible:ring-[#C4A5F5]'
-              : 'text-[#4A1D7A]/70 dark:text-[#F8EEDC]/70 hover:text-[#4A1D7A] dark:hover:text-[#F8EEDC] hover:bg-[#F3E4CB]/60 dark:hover:bg-[#321C45]'
+              ? 'bg-[#FB7185] text-[#0A1128] font-medium shadow-xs focus-visible:ring-2 focus-visible:ring-[#FB7185]'
+              : 'text-[#0F172A]/70 dark:text-[#F8FAFC]/70 hover:text-[#0F172A] dark:hover:text-[#F8FAFC] hover:bg-[#EAE6DC]/60 dark:hover:bg-[#162347]'
             : theme === 'dark'
             ? 'bg-accent text-accent-text font-medium shadow-xs'
             : 'text-ink-muted hover:text-ink hover:bg-paper-subtle'
@@ -68,8 +68,8 @@ export function ThemeToggle({ variant = 'default' }: ThemeToggleProps) {
         className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
           isLanding
             ? theme === 'system'
-              ? 'bg-[#6D28D9] text-[#FFF9EE] font-medium shadow-xs focus-visible:ring-2 focus-visible:ring-[#6D28D9]'
-              : 'text-[#4A1D7A]/70 dark:text-[#F8EEDC]/70 hover:text-[#4A1D7A] dark:hover:text-[#F8EEDC] hover:bg-[#F3E4CB]/60 dark:hover:bg-[#321C45]'
+              ? 'bg-[#0F172A] text-white font-medium shadow-xs focus-visible:ring-2 focus-visible:ring-[#E11D48]'
+              : 'text-[#0F172A]/70 dark:text-[#F8FAFC]/70 hover:text-[#0F172A] dark:hover:text-[#F8FAFC] hover:bg-[#EAE6DC]/60 dark:hover:bg-[#162347]'
             : theme === 'system'
             ? 'bg-accent text-accent-text font-medium shadow-xs'
             : 'text-ink-muted hover:text-ink hover:bg-paper-subtle'

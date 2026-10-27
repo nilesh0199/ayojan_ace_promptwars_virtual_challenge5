@@ -432,6 +432,56 @@ describe('Landing Page & GSAP/Lenis Motion Suite', () => {
       });
     });
 
+    it('opens auth modal when top right "Sign up / Login" is clicked, asks user to Continue with Google, and allows closing', async () => {
+      renderLandingPage();
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+
+      const loginButton = screen.getByRole('button', { name: /Sign up \/ Login/i });
+      fireEvent.click(loginButton);
+
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /Sign up or Log in/i })).toBeInTheDocument();
+
+      const continueWithGoogle = screen.getByRole('button', { name: /Continue with Google/i });
+      expect(continueWithGoogle).toBeInTheDocument();
+
+      // Test closing with close button
+      const closeButton = screen.getByRole('button', { name: /Close sign-in window/i });
+      fireEvent.click(closeButton);
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('signs in with Google from the auth modal and navigates to /plan', async () => {
+      renderLandingPage();
+
+      const loginButton = screen.getByRole('button', { name: /Sign up \/ Login/i });
+      fireEvent.click(loginButton);
+
+      const continueWithGoogle = screen.getByRole('button', { name: /Continue with Google/i });
+      fireEvent.click(continueWithGoogle);
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/plan');
+      });
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('closes the auth modal when pressing Escape', () => {
+      renderLandingPage();
+
+      const loginButton = screen.getByRole('button', { name: /Sign up \/ Login/i });
+      fireEvent.click(loginButton);
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
     it('changes hero and CTA buttons to "Open planner" when user is signed in', () => {
       mockCurrentUser = {
         uid: 'user-123',

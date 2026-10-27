@@ -110,30 +110,30 @@ describe('WCAG 2.2 AA Contrast Token Pairs Verification', () => {
   });
 
   describe('Landing Page Editorial Palette Contrast (Light & Dark)', () => {
-    // Scoped landing page palette tokens (editorial cream/purple/crimson & dark aubergine)
+    // Scoped landing page palette tokens (Option 3: Midnight Slate & Terracotta Coral)
     const landingLightTokens = {
-      bgCream: '#FAF1E0',
-      cardSurface: '#FFF9EE',
-      sectionBand: '#F3E4CB',
-      purpleHeading: '#4A1D7A',
-      aubergineBody: '#2A1A3A',
-      vividPurpleAccent: '#6D28D9',
-      crimsonEmphasis: '#B91C3C',
-      crimsonLargeText: '#D6203F',
+      bgCream: '#F4F1EA',
+      cardSurface: '#FFFFFF',
+      sectionBand: '#EAE6DC',
+      purpleHeading: '#0F172A',
+      aubergineBody: '#1E293B',
+      vividPurpleAccent: '#0F172A',
+      crimsonEmphasis: '#BE123C',
+      crimsonLargeText: '#E11D48',
       goldDecorative: '#C28A1A',
-      buttonCreamText: '#FFF9EE',
+      buttonCreamText: '#FFFFFF',
     };
 
     const landingDarkTokens = {
-      bgAubergine: '#1B0F26',
-      cardSurface: '#261636',
-      sectionBand: '#20122E',
-      creamText: '#F8EEDC',
-      mutedText: '#DAC7E8',
-      lighterPurpleAccent: '#C4A5F5',
-      softerRedEmphasis: '#FF6B81',
-      crimsonButtonBg: '#B91C3C',
-      crimsonButtonText: '#FFF9EE',
+      bgAubergine: '#0A1128',
+      cardSurface: '#111C3A',
+      sectionBand: '#162347',
+      creamText: '#F8FAFC',
+      mutedText: '#CBD5E1',
+      lighterPurpleAccent: '#FB7185',
+      softerRedEmphasis: '#FB7185',
+      crimsonButtonBg: '#E11D48',
+      crimsonButtonText: '#FFFFFF',
     };
 
     describe('Light Theme Scoped Pairs', () => {
@@ -307,9 +307,9 @@ describe('WCAG 2.2 AA Contrast Token Pairs Verification', () => {
         expect(getContrastRatio(landingLightTokens.crimsonLargeText, landingLightTokens.bgCream)).toBeGreaterThanOrEqual(3.0);
       });
 
-      it('Light: peak highlight (28% white) over all base gradient stops meets large text WCAG AA (>= 3.0:1)', () => {
+      it('Light: peak highlight (22% white) over all base gradient stops meets large text WCAG AA (>= 3.0:1)', () => {
         const highlightWhite = '#FFFFFF';
-        const peakAlpha = 0.28;
+        const peakAlpha = 0.22;
 
         const peakDeepPurple = blendHex(landingLightTokens.purpleHeading, highlightWhite, peakAlpha);
         const peakVividPurple = blendHex(landingLightTokens.vividPurpleAccent, highlightWhite, peakAlpha);

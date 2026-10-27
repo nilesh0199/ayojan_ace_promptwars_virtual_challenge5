@@ -28,7 +28,7 @@ export const metadata: Metadata = {
 
 export default function HomePage() {
   return (
-    <div className="landing-theme min-h-screen w-full bg-[#FAF1E0] dark:bg-[#1B0F26] text-[#2A1A3A] dark:text-[#F8EEDC] flex flex-col selection:bg-[#6D28D9]/20 selection:text-[#4A1D7A] dark:selection:bg-[#C4A5F5]/30 dark:selection:text-[#F8EEDC] transition-colors">
+    <div className="landing-theme min-h-screen w-full bg-[#F4F1EA] dark:bg-[#0A1128] text-[#1E293B] dark:text-[#F8FAFC] flex flex-col selection:bg-[#E11D48]/20 selection:text-[#0F172A] dark:selection:bg-[#FB7185]/30 dark:selection:text-[#F8FAFC] transition-colors">
       {/* Dynamic Scroll & Motion Controller (GSAP + Lenis) */}
       <LandingScrollEffects />
 

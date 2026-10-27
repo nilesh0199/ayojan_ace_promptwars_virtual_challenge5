@@ -1,5 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" role="img" aria-label="Aayojan Ace App Icon">
   <title>Aayojan Ace App Icon</title>
-  <rect width="32" height="32" rx="8" fill="#0D5852" />
+  <defs>
+    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E11D48" />
+      <stop offset="100%" stop-color="#9F1239" />
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#brandGrad)" />
   <text x="16" y="22" font-family="Georgia, serif" font-size="18" font-weight="900" fill="#FFFFFF" text-anchor="middle">A</text>
 </svg>

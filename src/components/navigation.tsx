@@ -44,7 +44,7 @@ export function DesktopNavRail() {
           aria-label="Aayojan Ace Home"
         >
           <div
-            className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center text-accent-text font-serif font-black text-xl shadow-xs"
+            className="h-10 w-10 rounded-xl bg-gradient-to-br from-[#E11D48] via-[#D11138] to-[#9F1239] border-t border-white/30 flex items-center justify-center text-white font-serif font-black text-xl shadow-xs"
             aria-label="Aayojan Ace Brand Emblem"
           >
             A

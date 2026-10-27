@@ -44,8 +44,8 @@ export function LandingHero() {
           {/* Left 60% (7 cols out of 12) */}
           <div className="lg:col-span-7 flex flex-col justify-center space-y-6 sm:space-y-8 hero-content-left">
             {/* Project Category Tag */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#6D28D9]/10 dark:bg-[#C4A5F5]/15 text-[#4A1D7A] dark:text-[#C4A5F5] text-xs font-bold uppercase tracking-widest w-fit border border-[#6D28D9]/20 dark:border-[#C4A5F5]/30 shadow-2xs hero-badge">
-              <Sparkles className="h-3.5 w-3.5 text-[#C28A1A] dark:text-[#E6B34A]" aria-hidden="true" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#0F172A]/5 dark:bg-[#F8FAFC]/10 text-[#0F172A] dark:text-[#F8FAFC] text-xs font-bold uppercase tracking-widest w-fit border border-[#0F172A]/15 dark:border-[#F8FAFC]/20 shadow-2xs hero-badge">
+              <Sparkles className="h-3.5 w-3.5 text-[#E11D48] dark:text-[#FB7185]" aria-hidden="true" />
               <span>PromptWars Challenge 5 · Intelligent Event Architecture</span>
             </div>
 
@@ -66,27 +66,27 @@ export function LandingHero() {
             </div>
 
             {/* Tagline */}
-            <p className="font-serif font-bold text-2xl sm:text-3xl md:text-4xl text-[#4A1D7A] dark:text-[#F8EEDC] leading-[1.2] hero-tagline descender-safe">
-              Your celebration, <span className="text-[#B91C3C] dark:text-[#FF6B81] italic font-normal descender-safe-italic">perfectly planned.</span>
+            <p className="font-serif font-bold text-2xl sm:text-3xl md:text-4xl text-[#0F172A] dark:text-[#F8FAFC] leading-[1.2] hero-tagline descender-safe">
+              Your celebration, <span className="text-[#E11D48] dark:text-[#FB7185] italic font-normal descender-safe-italic">perfectly planned.</span>
             </p>
 
             {/* Narrative description */}
-            <p className="text-base sm:text-lg text-[#2A1A3A] dark:text-[#DAC7E8] max-w-xl leading-relaxed hero-desc">
+            <p className="text-base sm:text-lg text-[#334155] dark:text-[#CBD5E1] max-w-xl leading-relaxed hero-desc">
               From grand Indian weddings to intimate poojas and cultural evenings, Aayojan Ace combines mathematical budget discipline, phased ritual timelines, and multi-tier Gemini AI to architect error-free celebrations.
             </p>
           </div>
 
           {/* Right 40% (5 cols out of 12) - Vertically Centered Panel */}
           <div className="lg:col-span-5 flex flex-col justify-center hero-content-right">
-            <div className="rounded-3xl border border-[#4A1D7A]/15 dark:border-[#F8EEDC]/15 bg-[#FFF9EE]/90 dark:bg-[#261636]/90 backdrop-blur-xl p-6 sm:p-8 md:p-10 shadow-xl space-y-6">
-              <div className="space-y-2 border-b border-[#4A1D7A]/10 dark:border-[#F8EEDC]/10 pb-5">
-                <span className="font-mono text-xs font-bold text-[#6D28D9] dark:text-[#C4A5F5] uppercase tracking-wider block">
+            <div className="rounded-3xl border border-[#0F172A]/12 dark:border-[#F8FAFC]/12 bg-[#FFFFFF]/95 dark:bg-[#111C3A]/95 backdrop-blur-xl p-6 sm:p-8 md:p-10 shadow-xl space-y-6">
+              <div className="space-y-2 border-b border-[#0F172A]/10 dark:border-[#F8FAFC]/10 pb-5">
+                <span className="font-mono text-xs font-bold text-[#E11D48] dark:text-[#FB7185] uppercase tracking-wider block">
                   Quick Access Workspace
                 </span>
-                <h2 className="font-serif font-bold text-xl sm:text-2xl text-[#4A1D7A] dark:text-[#F8EEDC] leading-[1.2] descender-safe">
+                <h2 className="font-serif font-bold text-xl sm:text-2xl text-[#0F172A] dark:text-[#F8FAFC] leading-[1.2] descender-safe">
                   {user ? 'Welcome Back, Planner' : 'Start Planning in Seconds'}
                 </h2>
-                <p className="text-xs sm:text-sm text-[#2A1A3A] dark:text-[#DAC7E8]">
+                <p className="text-xs sm:text-sm text-[#334155] dark:text-[#CBD5E1]">
                   {user
                     ? `Signed in as ${user.displayName || user.email}. Open your celebration blueprint directly.`
                     : 'Design your celebration plan with zero setup or sign-in friction.'}
@@ -123,7 +123,7 @@ export function LandingHero() {
                   /* Signed-In: Open Planner Button */
                   <Link
                     href="/plan"
-                    className="w-full min-h-[48px] px-6 py-3 rounded-2xl bg-gradient-to-r from-[#B91C3C] to-[#D6203F] text-[#FFF9EE] text-base font-bold shadow-[0_4px_14px_rgba(185,28,60,0.35)] hover:shadow-[0_6px_20px_rgba(185,28,60,0.45)] hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border-t border-white/30 dark:border-white/10 dark:shadow-[0_4px_14px_rgba(185,28,60,0.2)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#6D28D9] dark:focus-visible:ring-[#C4A5F5]"
+                    className="w-full min-h-[48px] px-6 py-3 rounded-2xl bg-gradient-to-r from-[#E11D48] to-[#BE123C] text-white text-base font-bold shadow-[0_4px_14px_rgba(225,29,72,0.35)] hover:shadow-[0_6px_20px_rgba(225,29,72,0.45)] hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border-t border-white/30 dark:border-white/10 dark:shadow-[0_4px_14px_rgba(225,29,72,0.2)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#E11D48] dark:focus-visible:ring-[#FB7185]"
                   >
                     <UserCheck className="h-5 w-5" aria-hidden="true" />
                     <span>Open planner</span>
@@ -136,7 +136,7 @@ export function LandingHero() {
                       type="button"
                       onClick={handleGoogleSignIn}
                       disabled={loading || isSigningIn}
-                      className="w-full min-h-[48px] px-6 py-3 rounded-2xl bg-white dark:bg-white border border-[#dadce0] hover:border-[#6D28D9] text-[#3c4043] dark:text-[#3c4043] text-sm sm:text-base font-bold shadow-xs hover:shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-3 group focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#6D28D9]"
+                      className="w-full min-h-[48px] px-6 py-3 rounded-2xl bg-white dark:bg-white border border-[#dadce0] hover:border-[#E11D48] text-[#3c4043] dark:text-[#3c4043] text-sm sm:text-base font-bold shadow-xs hover:shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-3 group focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#E11D48]"
                     >
                       <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                         <path
@@ -163,9 +163,9 @@ export function LandingHero() {
                     <button
                       type="button"
                       onClick={handleGuestEnter}
-                      className="w-full min-h-[48px] px-6 py-3 rounded-2xl border border-[#6D28D9]/40 dark:border-[#C4A5F5]/40 bg-[#6D28D9]/10 dark:bg-[#C4A5F5]/15 hover:bg-[#6D28D9]/15 dark:hover:bg-[#C4A5F5]/25 text-[#4A1D7A] dark:text-[#F8EEDC] text-sm sm:text-base font-bold transition-all flex items-center justify-center gap-2 shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#6D28D9] dark:focus-visible:ring-[#C4A5F5]"
+                      className="w-full min-h-[48px] px-6 py-3 rounded-2xl border border-[#0F172A]/20 dark:border-[#F8FAFC]/20 bg-[#0F172A]/5 dark:bg-[#F8FAFC]/10 hover:bg-[#0F172A]/10 dark:hover:bg-[#F8FAFC]/15 text-[#0F172A] dark:text-[#F8FAFC] text-sm sm:text-base font-bold transition-all flex items-center justify-center gap-2 shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#E11D48] dark:focus-visible:ring-[#FB7185]"
                     >
-                      <Sparkles className="h-4 w-4 text-[#C28A1A] dark:text-[#E6B34A]" aria-hidden="true" />
+                      <Sparkles className="h-4 w-4 text-[#E11D48] dark:text-[#FB7185]" aria-hidden="true" />
                       <span>Try as Guest</span>
                     </button>
                   </>
@@ -173,7 +173,7 @@ export function LandingHero() {
               </div>
 
               {/* Helper Text */}
-              <p className="text-center text-xs text-[#2A1A3A]/80 dark:text-[#DAC7E8] leading-relaxed pt-1">
+              <p className="text-center text-xs text-[#0F172A]/70 dark:text-[#94A3B8] leading-relaxed pt-1">
                 Sign in to save plans across devices, or guests can try everything without creating an account.
               </p>
             </div>
