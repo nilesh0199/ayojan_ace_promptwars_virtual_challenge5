@@ -206,6 +206,15 @@ describe('Landing Page & GSAP/Lenis Motion Suite', () => {
       expect(h1).toHaveAttribute('aria-label', 'Aayojan Ace');
     });
 
+    it('renders transparent sticky header without colored background strip or border', () => {
+      const { container } = renderLandingPage();
+      const header = container.querySelector('header');
+      expect(header).toBeInTheDocument();
+      expect(header).toHaveClass('bg-transparent');
+      expect(header?.className).not.toMatch(/bg-\[#FAF1E0\]/);
+      expect(header?.className).not.toMatch(/border-b/);
+    });
+
     it('renders hero title, tagline, description, and glossy wordmark', () => {
       renderLandingPage();
 

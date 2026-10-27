@@ -23,7 +23,7 @@ export function LandingHeader() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-[#4A1D7A]/10 dark:border-[#F8EEDC]/10 bg-[#FAF1E0]/90 dark:bg-[#1B0F26]/90 backdrop-blur-md transition-colors">
+    <header className="sticky top-0 z-50 w-full bg-transparent transition-colors">
       <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
         {/* Brand / Logo */}
         <Link
