@@ -44,56 +44,49 @@ export function LandingHero() {
           {/* Left 60% (7 cols out of 12) */}
           <div className="lg:col-span-7 flex flex-col justify-center space-y-6 sm:space-y-8 hero-content-left">
             {/* Project Category Tag */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#7E1333]/10 dark:bg-[#F26D8E]/15 text-[#7E1333] dark:text-[#F26D8E] text-xs font-bold uppercase tracking-widest w-fit border border-[#7E1333]/20 dark:border-[#F26D8E]/30 shadow-2xs hero-badge">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#6D28D9]/10 dark:bg-[#C4A5F5]/15 text-[#4A1D7A] dark:text-[#C4A5F5] text-xs font-bold uppercase tracking-widest w-fit border border-[#6D28D9]/20 dark:border-[#C4A5F5]/30 shadow-2xs hero-badge">
+              <Sparkles className="h-3.5 w-3.5 text-[#C28A1A] dark:text-[#E6B34A]" aria-hidden="true" />
               <span>PromptWars Challenge 5 · Intelligent Event Architecture</span>
             </div>
 
             {/* Display Heading with Specular Glossy Highlight */}
-            <div className="relative overflow-hidden py-1 hero-title-wrapper">
+            <div className="relative py-1 hero-title-wrapper reveal-mask-safe">
               <h1
                 id="hero-title"
                 aria-label="Aayojan Ace"
-                className="font-serif font-black tracking-tight text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.05] select-none"
+                className="font-serif font-black tracking-tight text-5xl sm:text-6xl md:text-7xl lg:text-8xl leading-[1.2] select-none descender-safe"
               >
                 <span
                   aria-hidden="true"
-                  className="relative inline-block bg-gradient-to-r from-[#300D26] via-[#7E1333] to-[#96193E] dark:from-[#FAF6EE] dark:via-[#F26D8E] dark:to-[#FB7185] bg-clip-text text-transparent hero-heading-text"
+                  className="relative inline-block hero-heading-text descender-safe-clip glossy-heading-text"
                 >
                   Aayojan Ace
-                  {/* Glossy specular highlight band */}
-                  <span
-                    aria-hidden="true"
-                    className="absolute inset-0 w-full h-full pointer-events-none overflow-hidden"
-                  >
-                    <span className="absolute inset-0 w-1/2 h-full bg-gradient-to-r from-transparent via-white/40 dark:via-white/25 to-transparent animate-specular-sweep" />
-                  </span>
                 </span>
               </h1>
             </div>
 
             {/* Tagline */}
-            <p className="font-serif font-bold text-2xl sm:text-3xl md:text-4xl text-[#5C3852] dark:text-[#D6BDCE] leading-tight hero-tagline">
-              Your celebration, <span className="text-[#7E1333] dark:text-[#F26D8E] italic font-normal">perfectly planned.</span>
+            <p className="font-serif font-bold text-2xl sm:text-3xl md:text-4xl text-[#4A1D7A] dark:text-[#F8EEDC] leading-[1.2] hero-tagline descender-safe">
+              Your celebration, <span className="text-[#B91C3C] dark:text-[#FF6B81] italic font-normal descender-safe-italic">perfectly planned.</span>
             </p>
 
             {/* Narrative description */}
-            <p className="text-base sm:text-lg text-[#5C3852] dark:text-[#D6BDCE] max-w-xl leading-relaxed hero-desc">
+            <p className="text-base sm:text-lg text-[#2A1A3A] dark:text-[#DAC7E8] max-w-xl leading-relaxed hero-desc">
               From grand Indian weddings to intimate poojas and cultural evenings, Aayojan Ace combines mathematical budget discipline, phased ritual timelines, and multi-tier Gemini AI to architect error-free celebrations.
             </p>
           </div>
 
           {/* Right 40% (5 cols out of 12) - Vertically Centered Panel */}
           <div className="lg:col-span-5 flex flex-col justify-center hero-content-right">
-            <div className="rounded-3xl border border-[#300D26]/15 dark:border-[#FAF6EE]/15 bg-white/80 dark:bg-[#1E111D]/80 backdrop-blur-xl p-6 sm:p-8 md:p-10 shadow-xl space-y-6">
-              <div className="space-y-2 border-b border-[#300D26]/10 dark:border-[#FAF6EE]/10 pb-5">
-                <span className="font-mono text-xs font-bold text-[#7E1333] dark:text-[#F26D8E] uppercase tracking-wider block">
+            <div className="rounded-3xl border border-[#4A1D7A]/15 dark:border-[#F8EEDC]/15 bg-[#FFF9EE]/90 dark:bg-[#261636]/90 backdrop-blur-xl p-6 sm:p-8 md:p-10 shadow-xl space-y-6">
+              <div className="space-y-2 border-b border-[#4A1D7A]/10 dark:border-[#F8EEDC]/10 pb-5">
+                <span className="font-mono text-xs font-bold text-[#6D28D9] dark:text-[#C4A5F5] uppercase tracking-wider block">
                   Quick Access Workspace
                 </span>
-                <h2 className="font-serif font-bold text-xl sm:text-2xl text-[#300D26] dark:text-[#FAF6EE]">
+                <h2 className="font-serif font-bold text-xl sm:text-2xl text-[#4A1D7A] dark:text-[#F8EEDC] leading-[1.2] descender-safe">
                   {user ? 'Welcome Back, Planner' : 'Start Planning in Seconds'}
                 </h2>
-                <p className="text-xs sm:text-sm text-[#5C3852] dark:text-[#D6BDCE]">
+                <p className="text-xs sm:text-sm text-[#2A1A3A] dark:text-[#DAC7E8]">
                   {user
                     ? `Signed in as ${user.displayName || user.email}. Open your celebration blueprint directly.`
                     : 'Design your celebration plan with zero setup or sign-in friction.'}
@@ -130,7 +123,7 @@ export function LandingHero() {
                   /* Signed-In: Open Planner Button */
                   <Link
                     href="/plan"
-                    className="w-full min-h-[48px] px-6 py-3 rounded-2xl bg-gradient-to-r from-[#7E1333] to-[#96193E] dark:from-[#96193E] dark:to-[#B31D4A] text-white text-base font-bold shadow-md hover:shadow-lg hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border-t border-white/30"
+                    className="w-full min-h-[48px] px-6 py-3 rounded-2xl bg-gradient-to-r from-[#B91C3C] to-[#D6203F] text-[#FFF9EE] text-base font-bold shadow-[0_4px_14px_rgba(185,28,60,0.35)] hover:shadow-[0_6px_20px_rgba(185,28,60,0.45)] hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border-t border-white/30 dark:border-white/10 dark:shadow-[0_4px_14px_rgba(185,28,60,0.2)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#6D28D9] dark:focus-visible:ring-[#C4A5F5]"
                   >
                     <UserCheck className="h-5 w-5" aria-hidden="true" />
                     <span>Open planner</span>
@@ -143,7 +136,7 @@ export function LandingHero() {
                       type="button"
                       onClick={handleGoogleSignIn}
                       disabled={loading || isSigningIn}
-                      className="w-full min-h-[48px] px-6 py-3 rounded-2xl bg-white dark:bg-[#140A13] border border-[#300D26]/20 dark:border-[#FAF6EE]/20 hover:border-[#7E1333] dark:hover:border-[#F26D8E] text-[#300D26] dark:text-[#FAF6EE] text-sm sm:text-base font-bold shadow-xs hover:shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-3 group"
+                      className="w-full min-h-[48px] px-6 py-3 rounded-2xl bg-white dark:bg-white border border-[#dadce0] hover:border-[#6D28D9] text-[#3c4043] dark:text-[#3c4043] text-sm sm:text-base font-bold shadow-xs hover:shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-3 group focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#6D28D9]"
                     >
                       <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                         <path
@@ -170,9 +163,9 @@ export function LandingHero() {
                     <button
                       type="button"
                       onClick={handleGuestEnter}
-                      className="w-full min-h-[48px] px-6 py-3 rounded-2xl bg-[#7E1333]/10 dark:bg-[#F26D8E]/15 hover:bg-[#7E1333]/20 dark:hover:bg-[#F26D8E]/25 text-[#7E1333] dark:text-[#F26D8E] text-sm sm:text-base font-bold transition-all flex items-center justify-center gap-2 border border-[#7E1333]/25 dark:border-[#F26D8E]/30"
+                      className="w-full min-h-[48px] px-6 py-3 rounded-2xl border border-[#6D28D9]/40 dark:border-[#C4A5F5]/40 bg-[#6D28D9]/10 dark:bg-[#C4A5F5]/15 hover:bg-[#6D28D9]/15 dark:hover:bg-[#C4A5F5]/25 text-[#4A1D7A] dark:text-[#F8EEDC] text-sm sm:text-base font-bold transition-all flex items-center justify-center gap-2 shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#6D28D9] dark:focus-visible:ring-[#C4A5F5]"
                     >
-                      <Sparkles className="h-4 w-4" aria-hidden="true" />
+                      <Sparkles className="h-4 w-4 text-[#C28A1A] dark:text-[#E6B34A]" aria-hidden="true" />
                       <span>Try as Guest</span>
                     </button>
                   </>
@@ -180,7 +173,7 @@ export function LandingHero() {
               </div>
 
               {/* Helper Text */}
-              <p className="text-center text-xs text-[#5C3852] dark:text-[#D6BDCE] leading-relaxed pt-1">
+              <p className="text-center text-xs text-[#2A1A3A]/80 dark:text-[#DAC7E8] leading-relaxed pt-1">
                 Sign in to save plans across devices, or guests can try everything without creating an account.
               </p>
             </div>

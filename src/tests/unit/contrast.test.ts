@@ -110,62 +110,234 @@ describe('WCAG 2.2 AA Contrast Token Pairs Verification', () => {
   });
 
   describe('Landing Page Editorial Palette Contrast (Light & Dark)', () => {
-    // Landing page palette tokens (editorial cream/plum/crimson & dark aubergine)
+    // Scoped landing page palette tokens (editorial cream/purple/crimson & dark aubergine)
     const landingLightTokens = {
-      bgCream: '#FDFBF7',
-      plumText: '#300D26',
-      crimsonAccent: '#7E1333',
-      crimsonLargeText: '#96193E',
-      mutedPlum: '#5C3852',
+      bgCream: '#FAF1E0',
+      cardSurface: '#FFF9EE',
+      sectionBand: '#F3E4CB',
+      purpleHeading: '#4A1D7A',
+      aubergineBody: '#2A1A3A',
+      vividPurpleAccent: '#6D28D9',
+      crimsonEmphasis: '#B91C3C',
+      crimsonLargeText: '#D6203F',
+      goldDecorative: '#C28A1A',
+      buttonCreamText: '#FFF9EE',
     };
 
     const landingDarkTokens = {
-      bgAubergine: '#140A13',
-      creamText: '#FAF6EE',
-      lightPlum: '#D6BDCE',
-      lightCrimson: '#F26D8E',
-      crimsonButtonBg: '#96193E',
-      crimsonButtonText: '#FAF6EE',
+      bgAubergine: '#1B0F26',
+      cardSurface: '#261636',
+      sectionBand: '#20122E',
+      creamText: '#F8EEDC',
+      mutedText: '#DAC7E8',
+      lighterPurpleAccent: '#C4A5F5',
+      softerRedEmphasis: '#FF6B81',
+      crimsonButtonBg: '#B91C3C',
+      crimsonButtonText: '#FFF9EE',
     };
 
-    it('Light: deep plum text against cream background meets WCAG AA (>= 4.5:1)', () => {
-      const ratio = getContrastRatio(landingLightTokens.plumText, landingLightTokens.bgCream);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    describe('Light Theme Scoped Pairs', () => {
+      it('deep royal purple headings against warm cream background meet WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.purpleHeading, landingLightTokens.bgCream);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('deep royal purple headings against card surface meet WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.purpleHeading, landingLightTokens.cardSurface);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('deep royal purple headings against section band meet WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.purpleHeading, landingLightTokens.sectionBand);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('dark aubergine body text against warm cream background meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.aubergineBody, landingLightTokens.bgCream);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('dark aubergine body text against card surface meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.aubergineBody, landingLightTokens.cardSurface);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('dark aubergine body text against section band meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.aubergineBody, landingLightTokens.sectionBand);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('vivid purple accent and links against warm cream background meet WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.vividPurpleAccent, landingLightTokens.bgCream);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('vivid purple accent against card surface meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.vividPurpleAccent, landingLightTokens.cardSurface);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('vivid purple accent against section band meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.vividPurpleAccent, landingLightTokens.sectionBand);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('crimson emphasis against warm cream background meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.crimsonEmphasis, landingLightTokens.bgCream);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('crimson emphasis against card surface meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.crimsonEmphasis, landingLightTokens.cardSurface);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('crimson emphasis against section band meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.crimsonEmphasis, landingLightTokens.sectionBand);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('crimson large display heading against warm cream meets WCAG AA Large (>= 3.0:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.crimsonLargeText, landingLightTokens.bgCream);
+        expect(ratio).toBeGreaterThanOrEqual(3.0);
+      });
+
+      it('crimson large display heading against card surface meets WCAG AA Large (>= 3.0:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.crimsonLargeText, landingLightTokens.cardSurface);
+        expect(ratio).toBeGreaterThanOrEqual(3.0);
+      });
+
+      it('cream button text against crimson primary button meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.buttonCreamText, landingLightTokens.crimsonEmphasis);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('cream button text against vivid purple active theme toggle button meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.buttonCreamText, landingLightTokens.vividPurpleAccent);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('vivid purple UI focus ring against warm cream background meets WCAG AA UI (>= 3.0:1)', () => {
+        const ratio = getContrastRatio(landingLightTokens.vividPurpleAccent, landingLightTokens.bgCream);
+        expect(ratio).toBeGreaterThanOrEqual(3.0);
+      });
     });
 
-    it('Light: crimson accent against cream background meets WCAG AA (>= 4.5:1)', () => {
-      const ratio = getContrastRatio(landingLightTokens.crimsonAccent, landingLightTokens.bgCream);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    describe('Dark Theme Scoped Pairs', () => {
+      it('cream text against deep aubergine background meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.creamText, landingDarkTokens.bgAubergine);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('cream text against card surface meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.creamText, landingDarkTokens.cardSurface);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('cream text against section band meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.creamText, landingDarkTokens.sectionBand);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('muted text against deep aubergine background meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.mutedText, landingDarkTokens.bgAubergine);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('muted text against card surface meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.mutedText, landingDarkTokens.cardSurface);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('lighter purple accent against deep aubergine background meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.lighterPurpleAccent, landingDarkTokens.bgAubergine);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('lighter purple accent against card surface meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.lighterPurpleAccent, landingDarkTokens.cardSurface);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('softer red highlight against deep aubergine background meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.softerRedEmphasis, landingDarkTokens.bgAubergine);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('softer red highlight against card surface meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.softerRedEmphasis, landingDarkTokens.cardSurface);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('cream button text against crimson button background meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.crimsonButtonText, landingDarkTokens.crimsonButtonBg);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('cream button text against vivid purple active theme toggle button meets WCAG AA (>= 4.5:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.crimsonButtonText, landingLightTokens.vividPurpleAccent);
+        expect(ratio).toBeGreaterThanOrEqual(4.5);
+      });
+
+      it('lighter purple UI focus ring against deep aubergine background meets WCAG AA UI (>= 3.0:1)', () => {
+        const ratio = getContrastRatio(landingDarkTokens.lighterPurpleAccent, landingDarkTokens.bgAubergine);
+        expect(ratio).toBeGreaterThanOrEqual(3.0);
+      });
     });
 
-    it('Light: crimson large display heading against cream background meets WCAG AA Large (>= 3.0:1)', () => {
-      const ratio = getContrastRatio(landingLightTokens.crimsonLargeText, landingLightTokens.bgCream);
-      expect(ratio).toBeGreaterThanOrEqual(3.0);
-    });
+    describe('Glossy Highlight Animation Extremes Contrast (Light & Dark)', () => {
+      // Helper to calculate alpha-blended RGB color over base
+      const blendHex = (baseHex: string, overlayHex: string, alpha: number): string => {
+        const parse = (h: string) => {
+          const c = h.replace('#', '');
+          return [parseInt(c.slice(0, 2), 16), parseInt(c.slice(2, 4), 16), parseInt(c.slice(4, 6), 16)];
+        };
+        const [r1, g1, b1] = parse(baseHex);
+        const [r2, g2, b2] = parse(overlayHex);
+        const r = Math.round((1 - alpha) * r1 + alpha * r2);
+        const g = Math.round((1 - alpha) * g1 + alpha * g2);
+        const b = Math.round((1 - alpha) * b1 + alpha * b2);
+        const toHex = (n: number) => n.toString(16).padStart(2, '0');
+        return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+      };
 
-    it('Light: muted plum body text against cream background meets WCAG AA (>= 4.5:1)', () => {
-      const ratio = getContrastRatio(landingLightTokens.mutedPlum, landingLightTokens.bgCream);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-    });
+      it('Light: base gradient extremes without highlight meet large text WCAG AA (>= 3.0:1)', () => {
+        expect(getContrastRatio(landingLightTokens.purpleHeading, landingLightTokens.bgCream)).toBeGreaterThanOrEqual(3.0);
+        expect(getContrastRatio(landingLightTokens.vividPurpleAccent, landingLightTokens.bgCream)).toBeGreaterThanOrEqual(3.0);
+        expect(getContrastRatio(landingLightTokens.crimsonLargeText, landingLightTokens.bgCream)).toBeGreaterThanOrEqual(3.0);
+      });
 
-    it('Dark: light cream text against deep aubergine background meets WCAG AA (>= 4.5:1)', () => {
-      const ratio = getContrastRatio(landingDarkTokens.creamText, landingDarkTokens.bgAubergine);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-    });
+      it('Light: peak highlight (28% white) over all base gradient stops meets large text WCAG AA (>= 3.0:1)', () => {
+        const highlightWhite = '#FFFFFF';
+        const peakAlpha = 0.28;
 
-    it('Dark: light plum text against deep aubergine background meets WCAG AA (>= 4.5:1)', () => {
-      const ratio = getContrastRatio(landingDarkTokens.lightPlum, landingDarkTokens.bgAubergine);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-    });
+        const peakDeepPurple = blendHex(landingLightTokens.purpleHeading, highlightWhite, peakAlpha);
+        const peakVividPurple = blendHex(landingLightTokens.vividPurpleAccent, highlightWhite, peakAlpha);
+        const peakCrimson = blendHex(landingLightTokens.crimsonLargeText, highlightWhite, peakAlpha);
 
-    it('Dark: light crimson accent against deep aubergine background meets WCAG AA (>= 4.5:1)', () => {
-      const ratio = getContrastRatio(landingDarkTokens.lightCrimson, landingDarkTokens.bgAubergine);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
-    });
+        expect(getContrastRatio(peakDeepPurple, landingLightTokens.bgCream)).toBeGreaterThanOrEqual(3.0);
+        expect(getContrastRatio(peakVividPurple, landingLightTokens.bgCream)).toBeGreaterThanOrEqual(3.0);
+        expect(getContrastRatio(peakCrimson, landingLightTokens.bgCream)).toBeGreaterThanOrEqual(3.0);
+      });
 
-    it('Dark: button text against crimson button background meets WCAG AA (>= 4.5:1)', () => {
-      const ratio = getContrastRatio(landingDarkTokens.crimsonButtonText, landingDarkTokens.crimsonButtonBg);
-      expect(ratio).toBeGreaterThanOrEqual(4.5);
+      it('Dark: base gradient extremes without highlight meet large text WCAG AA (>= 3.0:1)', () => {
+        expect(getContrastRatio(landingDarkTokens.creamText, landingDarkTokens.bgAubergine)).toBeGreaterThanOrEqual(3.0);
+        expect(getContrastRatio(landingDarkTokens.lighterPurpleAccent, landingDarkTokens.bgAubergine)).toBeGreaterThanOrEqual(3.0);
+        expect(getContrastRatio(landingDarkTokens.softerRedEmphasis, landingDarkTokens.bgAubergine)).toBeGreaterThanOrEqual(3.0);
+      });
+
+      it('Dark: peak highlight (30% warm cream) over all base gradient stops meets large text WCAG AA (>= 3.0:1)', () => {
+        const highlightWarmCream = landingDarkTokens.creamText;
+        const peakAlpha = 0.30;
+
+        const peakSoftRed = blendHex(landingDarkTokens.softerRedEmphasis, highlightWarmCream, peakAlpha);
+        const peakLighterPurple = blendHex(landingDarkTokens.lighterPurpleAccent, highlightWarmCream, peakAlpha);
+        const peakCream = blendHex(landingDarkTokens.creamText, highlightWarmCream, peakAlpha);
+
+        expect(getContrastRatio(peakSoftRed, landingDarkTokens.bgAubergine)).toBeGreaterThanOrEqual(3.0);
+        expect(getContrastRatio(peakLighterPurple, landingDarkTokens.bgAubergine)).toBeGreaterThanOrEqual(3.0);
+        expect(getContrastRatio(peakCream, landingDarkTokens.bgAubergine)).toBeGreaterThanOrEqual(3.0);
+      });
     });
   });
 });

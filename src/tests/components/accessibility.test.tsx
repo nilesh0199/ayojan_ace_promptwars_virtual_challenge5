@@ -87,10 +87,20 @@ describe('Accessibility (a11y) Verification with jest-axe', () => {
     expect(results).toHaveNoViolations();
   });
 
-  it('ThemeToggle has no accessibility violations', async () => {
+  it('ThemeToggle has no accessibility violations in default variant', async () => {
     const { container } = render(
       <ThemeProvider>
         <ThemeToggle />
+      </ThemeProvider>
+    );
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('ThemeToggle has no accessibility violations in landing variant', async () => {
+    const { container } = render(
+      <ThemeProvider>
+        <ThemeToggle variant="landing" />
       </ThemeProvider>
     );
     const results = await axe(container);

@@ -38,23 +38,23 @@ export function LandingCta() {
     <section
       id="cta-section"
       aria-labelledby="cta-heading"
-      className="w-full py-20 sm:py-28 border-t border-[#300D26]/10 dark:border-[#FAF6EE]/10 bg-gradient-to-b from-transparent via-[#7E1333]/5 to-[#7E1333]/10 dark:via-[#F26D8E]/5 dark:to-[#F26D8E]/10 overflow-hidden text-center"
+      className="w-full py-20 sm:py-28 border-t border-[#4A1D7A]/10 dark:border-[#F8EEDC]/10 bg-gradient-to-b from-[#FAF1E0] via-[#F3E4CB] to-[#FAF1E0] dark:from-[#1B0F26] dark:via-[#261636] dark:to-[#1B0F26] overflow-hidden text-center"
     >
       <div className="w-full max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8 cta-container">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#7E1333]/10 dark:bg-[#F26D8E]/15 text-[#7E1333] dark:text-[#F26D8E] text-xs font-bold uppercase tracking-widest border border-[#7E1333]/20 dark:border-[#F26D8E]/30">
-          <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#6D28D9]/10 dark:bg-[#C4A5F5]/15 text-[#4A1D7A] dark:text-[#C4A5F5] text-xs font-bold uppercase tracking-widest border border-[#6D28D9]/20 dark:border-[#C4A5F5]/30">
+          <Sparkles className="h-3.5 w-3.5 text-[#C28A1A] dark:text-[#E6B34A]" aria-hidden="true" />
           <span>Begin Your Celebration Plan</span>
         </div>
 
         {/* CTA Heading that scales in */}
         <h2
           id="cta-heading"
-          className="font-serif font-black text-4xl sm:text-5xl md:text-6xl text-[#300D26] dark:text-[#FAF6EE] tracking-tight leading-tight cta-title"
+          className="font-serif font-black text-4xl sm:text-5xl md:text-6xl text-[#4A1D7A] dark:text-[#F8EEDC] tracking-tight leading-[1.2] cta-title descender-safe"
         >
-          Your celebration, perfectly planned from the first muhurat.
+          Your celebration, <span className="text-[#B91C3C] dark:text-[#FF6B81] italic font-normal descender-safe-italic">perfectly planned</span> from the first muhurat.
         </h2>
 
-        <p className="text-base sm:text-lg text-[#5C3852] dark:text-[#D6BDCE] max-w-2xl mx-auto leading-relaxed cta-desc">
+        <p className="text-base sm:text-lg text-[#2A1A3A] dark:text-[#DAC7E8] max-w-2xl mx-auto leading-relaxed cta-desc">
           Ready to experience mathematical budget fitting, phased ritual timelines, and cultural vendor checklists? Launch your plan now.
         </p>
 
@@ -87,7 +87,7 @@ export function LandingCta() {
           {user ? (
             <Link
               href="/plan"
-              className="w-full sm:w-auto min-h-[48px] px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#7E1333] to-[#96193E] dark:from-[#96193E] dark:to-[#B31D4A] text-white text-base font-bold shadow-lg hover:shadow-xl hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border-t border-white/30"
+              className="w-full sm:w-auto min-h-[48px] px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#B91C3C] to-[#D6203F] text-[#FFF9EE] text-base font-bold shadow-[0_4px_14px_rgba(185,28,60,0.35)] hover:shadow-[0_6px_20px_rgba(185,28,60,0.45)] hover:brightness-105 active:scale-[0.99] transition-all flex items-center justify-center gap-2 border-t border-white/30 dark:border-white/10 dark:shadow-[0_4px_14px_rgba(185,28,60,0.2)] focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#6D28D9] dark:focus-visible:ring-[#C4A5F5]"
             >
               <UserCheck className="h-5 w-5" aria-hidden="true" />
               <span>Open planner</span>
@@ -100,7 +100,7 @@ export function LandingCta() {
                 type="button"
                 onClick={handleGoogleSignIn}
                 disabled={loading || isSigningIn}
-                className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 rounded-2xl bg-white dark:bg-[#140A13] border border-[#300D26]/20 dark:border-[#FAF6EE]/20 hover:border-[#7E1333] dark:hover:border-[#F26D8E] text-[#300D26] dark:text-[#FAF6EE] text-sm sm:text-base font-bold shadow-xs hover:shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-3 group"
+                className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 rounded-2xl bg-white dark:bg-white border border-[#dadce0] hover:border-[#6D28D9] text-[#3c4043] dark:text-[#3c4043] text-sm sm:text-base font-bold shadow-xs hover:shadow-md active:scale-[0.99] transition-all flex items-center justify-center gap-3 group focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#6D28D9]"
               >
                 <svg className="h-5 w-5 shrink-0" viewBox="0 0 24 24" aria-hidden="true">
                   <path
@@ -127,16 +127,16 @@ export function LandingCta() {
               <button
                 type="button"
                 onClick={handleGuestEnter}
-                className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 rounded-2xl bg-[#7E1333]/10 dark:bg-[#F26D8E]/15 hover:bg-[#7E1333]/20 dark:hover:bg-[#F26D8E]/25 text-[#7E1333] dark:text-[#F26D8E] text-sm sm:text-base font-bold transition-all flex items-center justify-center gap-2 border border-[#7E1333]/25 dark:border-[#F26D8E]/30"
+                className="w-full sm:w-auto min-h-[48px] px-6 py-3.5 rounded-2xl border border-[#6D28D9]/40 dark:border-[#C4A5F5]/40 bg-[#6D28D9]/10 dark:bg-[#C4A5F5]/15 hover:bg-[#6D28D9]/15 dark:hover:bg-[#C4A5F5]/25 text-[#4A1D7A] dark:text-[#F8EEDC] text-sm sm:text-base font-bold transition-all flex items-center justify-center gap-2 shadow-2xs focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-[#6D28D9] dark:focus-visible:ring-[#C4A5F5]"
               >
-                <Sparkles className="h-4 w-4" aria-hidden="true" />
+                <Sparkles className="h-4 w-4 text-[#C28A1A] dark:text-[#E6B34A]" aria-hidden="true" />
                 <span>Try as Guest</span>
               </button>
             </>
           )}
         </div>
 
-        <p className="text-xs text-[#5C3852] dark:text-[#D6BDCE]">
+        <p className="text-xs text-[#2A1A3A]/80 dark:text-[#DAC7E8]">
           Sign in to save plans across devices, or guests can try everything instantly.
         </p>
       </div>

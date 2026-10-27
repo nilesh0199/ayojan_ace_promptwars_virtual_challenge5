@@ -238,6 +238,98 @@ describe('Landing Page & GSAP/Lenis Motion Suite', () => {
       expect(screen.getByText(/Step 04/i)).toBeInTheDocument();
     });
 
+    it('applies scoped landing-theme class and purple theme toggle styling without teal', () => {
+      const { container } = renderLandingPage();
+      const landingRoot = container.querySelector('.landing-theme');
+      expect(landingRoot).toBeInTheDocument();
+
+      // Theme toggle active button should NOT contain default teal bg-accent class
+      const headerThemeToggle = container.querySelector('header [role="group"]');
+      expect(headerThemeToggle).toBeInTheDocument();
+      expect(headerThemeToggle?.querySelector('.bg-accent')).toBeNull();
+    });
+
+    it('applies descender-safe typography classes to prevent clipping tails (y, j, g, p, q) on large display text', () => {
+      const { container } = renderLandingPage();
+
+      // 1. Hero title h1 and span
+      const heroTitle = container.querySelector('#hero-title');
+      expect(heroTitle).toHaveClass('descender-safe');
+      const heroTitleSpan = container.querySelector('.hero-heading-text');
+      expect(heroTitleSpan).toHaveClass('descender-safe-clip');
+
+      // 2. Line-reveal wrapper replaces plain overflow-hidden with reveal-mask-safe
+      const heroTitleWrapper = container.querySelector('.hero-title-wrapper');
+      expect(heroTitleWrapper).toHaveClass('reveal-mask-safe');
+      expect(heroTitleWrapper).not.toHaveClass('overflow-hidden');
+
+      // 3. Hero tagline and italic overhang part
+      const heroTagline = container.querySelector('.hero-tagline');
+      expect(heroTagline).toHaveClass('descender-safe');
+      const italicPart = heroTagline?.querySelector('.descender-safe-italic');
+      expect(italicPart).toBeInTheDocument();
+
+      // 4. Marquee words have descender-safe
+      const marqueeTrack = container.querySelector('#word-band-track');
+      const marqueeWords = marqueeTrack?.querySelectorAll('.descender-safe');
+      expect(marqueeWords?.length).toBeGreaterThanOrEqual(14); // 7 words * 2 iterations
+
+      // 5. Section headings (How it works, About, Privacy & Terms, CTA) have descender-safe
+      const howItWorksTitle = container.querySelector('#how-it-works-title');
+      expect(howItWorksTitle).toHaveClass('descender-safe');
+
+      const aboutTitle = container.querySelector('#about-section-title');
+      expect(aboutTitle).toHaveClass('descender-safe');
+
+      const privacyTermsTitle = container.querySelector('#privacy-terms-title');
+      expect(privacyTermsTitle).toHaveClass('descender-safe');
+
+      const ctaHeading = container.querySelector('#cta-heading');
+      expect(ctaHeading).toHaveClass('descender-safe');
+      const ctaItalicPart = ctaHeading?.querySelector('.descender-safe-italic');
+      expect(ctaItalicPart).toBeInTheDocument();
+    });
+
+    it('renders hero title with single-element background-clip glossy fill without rectangular overlays or mix-blend-mode', () => {
+      const { container } = renderLandingPage();
+
+      // 1. Hero title text element
+      const heroTitleSpan = container.querySelector('.hero-heading-text');
+      expect(heroTitleSpan).toBeInTheDocument();
+      expect(heroTitleSpan).toHaveClass('glossy-heading-text');
+
+      // 2. Must be a single element with NO overlay child elements or specular strip spans
+      expect(heroTitleSpan?.children.length).toBe(0);
+      expect(container.querySelector('.animate-specular-sweep')).toBeNull();
+
+      // 3. No mix-blend-mode overlay
+      expect(container.querySelector('[style*="mix-blend-mode"]')).toBeNull();
+    });
+
+    it('renders consistently across 320px, 768px and 1440px viewport widths with intact 60/40 grid layout', () => {
+      const viewports = [320, 768, 1440];
+
+      viewports.forEach((width) => {
+        window.innerWidth = width;
+        const { container } = renderLandingPage();
+
+        // 60/40 grid structure on hero
+        const heroGrid = container.querySelector('.hero-content-left');
+        const heroPanel = container.querySelector('.hero-content-right');
+        expect(heroGrid).toBeInTheDocument();
+        expect(heroPanel).toBeInTheDocument();
+
+        // Left 60% holds hero title and tagline with descender-safe class
+        expect(heroGrid?.querySelector('#hero-title')).toHaveClass('descender-safe');
+        expect(heroGrid?.querySelector('.hero-tagline')).toHaveClass('descender-safe');
+
+        // Right 40% holds quick access panel
+        expect(heroPanel?.querySelector('h2')).toHaveClass('descender-safe');
+
+        cleanup();
+      });
+    });
+
     it('renders About section with Why the name cards and technology foundations', () => {
       renderLandingPage();
 

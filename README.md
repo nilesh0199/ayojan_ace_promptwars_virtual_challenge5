@@ -376,7 +376,7 @@ Aayojan Ace features a bespoke, professional editorial landing page at `/` power
 - **"How It Works" Sequence**: Pinned multi-step orchestration on desktop ($\ge 768px$) and graceful vertical reveals on mobile ($< 768px$).
 - **Shared About Content Module**: Both the landing page and `/about` share `src/data/aboutContent.ts` to ensure consistency without code duplication.
 - **Privacy & Terms Summaries**: Concise plain-language summaries taken directly from `/privacy` and `/terms`, ending with direct links.
-- **Reduced Motion & Accessibility**: Strictly skips Lenis smooth scrolling, parallax, and scrubbing under `prefers-reduced-motion: reduce`, on touch devices, and during print. Full keyboard navigation and anchor jumps are preserved. Contrast tokens in both light (cream `#FDFBF7`) and dark (aubergine `#140A13`) exceed WCAG AA 4.5:1.
+- **Reduced Motion & Accessibility**: Strictly skips Lenis smooth scrolling, parallax, and scrubbing under `prefers-reduced-motion: reduce`, on touch devices, and during print. Full keyboard navigation and anchor jumps are preserved. Scoped contrast tokens in both light (cream `#FAF1E0`, card `#FFF9EE`, band `#F3E4CB`, purple `#4A1D7A`, aubergine `#2A1A3A`, crimson `#B91C3C`) and dark (deep aubergine `#1B0F26`, card `#261636`, cream `#F8EEDC`, lighter purple `#C4A5F5`, softer red `#FF6B81`) exceed WCAG AA 4.5:1 (3:1 for large display text and UI controls).
 
 ---
 

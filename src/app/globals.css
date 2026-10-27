@@ -70,21 +70,114 @@ body {
   outline-offset: 2px;
 }
 
-/* Specular highlight sweep for glossy landing typography */
-@keyframes glossy-sheen {
-  0% {
-    transform: translateX(-120%) skewX(-20deg);
-  }
-  25% {
-    transform: translateX(140%) skewX(-20deg);
-  }
-  100% {
-    transform: translateX(140%) skewX(-20deg);
-  }
+/* Landing Page Scoped Focus Ring */
+.landing-theme :focus-visible {
+  outline: 2px solid #6D28D9;
+  outline-offset: 2px;
 }
 
-.animate-specular-sweep {
-  animation: glossy-sheen 7s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
+.dark .landing-theme :focus-visible,
+.landing-theme.dark :focus-visible {
+  outline: 2px solid #C4A5F5;
+  outline-offset: 2px;
+}
+
+/* Descender-safe display typography utilities (prevents clipping tails of y, j, g, p, q) */
+.descender-safe {
+  line-height: 1.2 !important;
+  padding-bottom: 0.22em;
+  margin-bottom: -0.22em;
+}
+
+/* For display text with background-clip: text (gradient headings) */
+.descender-safe-clip {
+  line-height: 1.2 !important;
+  padding-bottom: 0.25em;
+  margin-bottom: -0.25em;
+  padding-right: 0.08em;
+  margin-right: -0.08em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+/* For italic display text with right-side overhang and descender curl */
+.descender-safe-italic {
+  display: inline-block;
+  line-height: 1.2 !important;
+  padding-bottom: 0.22em;
+  margin-bottom: -0.22em;
+  padding-right: 0.15em;
+  margin-right: -0.15em;
+}
+
+/* For line-reveal wrappers: replaces plain overflow:hidden with generous clip-path mask */
+.reveal-mask-safe {
+  position: relative;
+  overflow: visible !important;
+  clip-path: inset(-0.5em -0.5em -0.6em -0.5em);
+  padding-bottom: 0.25em;
+  margin-bottom: -0.25em;
+}
+
+/* Glossy Text Fill with Layered Background Highlights (Shaped strictly by the glyphs) */
+.glossy-heading-text {
+  /* Solid fallback text color for browsers without background-clip support */
+  color: #4A1D7A;
+  background-image: 
+    linear-gradient(
+      115deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(255, 255, 255, 0.08) 46%,
+      rgba(255, 255, 255, 0.28) 50%,
+      rgba(255, 255, 255, 0.08) 54%,
+      transparent 60%,
+      transparent 100%
+    ),
+    linear-gradient(to right, #4A1D7A 0%, #6D28D9 50%, #D6203F 100%);
+  background-size: 260% 100%, 100% 100%;
+  background-repeat: no-repeat, no-repeat;
+  background-position: -160% 0, 0 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-gloss-sweep 8.5s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+.dark .glossy-heading-text {
+  /* Solid fallback text color for dark mode */
+  color: #F8EEDC;
+  background-image: 
+    linear-gradient(
+      115deg,
+      transparent 0%,
+      transparent 40%,
+      rgba(248, 238, 220, 0.06) 46%,
+      rgba(248, 238, 220, 0.30) 50%,
+      rgba(248, 238, 220, 0.06) 54%,
+      transparent 60%,
+      transparent 100%
+    ),
+    linear-gradient(to right, #F8EEDC 0%, #C4A5F5 50%, #FF6B81 100%);
+  background-size: 260% 100%, 100% 100%;
+  background-repeat: no-repeat, no-repeat;
+  background-position: -160% 0, 0 0;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: text-gloss-sweep 8.5s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+@keyframes text-gloss-sweep {
+  0% {
+    background-position: -160% 0, 0 0;
+  }
+  26% {
+    background-position: 160% 0, 0 0;
+  }
+  100% {
+    background-position: 160% 0, 0 0;
+  }
 }
 
 /* Reduced motion accessibility */
@@ -96,6 +189,12 @@ body {
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
+  }
+
+  /* Static soft highlight inside letters with no sweep */
+  .glossy-heading-text {
+    animation: none !important;
+    background-position: 50% 0, 0 0 !important;
   }
 }
 
