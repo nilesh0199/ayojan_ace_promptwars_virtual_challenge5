@@ -244,21 +244,21 @@ export const NON_NEGOTIABLE_CHIPS: Record<EventType, string[]> = {
 export const EVENT_NAME_EXAMPLES: Record<EventType, string[]> = {
   Wedding: [
     'Aarav & Diya’s Royal Pheras',
+    'Faizan & Ayesha’s Royal Nikah',
+    'Joshua & Maria’s Church Nuptials',
     'Heritage Courtyard Shaadi',
-    'Sunrise Beachside Vivah',
-    'Anandotsav Wedding Celebration',
   ],
   Birthday: [
     'Vihaan’s 1st Safari Milestone',
-    'Sneha’s Artisan 30th Garden Soiree',
-    'Golden Jubilee 50th Banquet',
-    'Kabir’s Superhero Bash',
+    'Amina’s 25th Garden Dawat',
+    'David’s 50th Jubilee Banquet',
+    'Golden Milestone Gala',
   ],
   'Community Event': [
     'Anand Mela Diwali Society Gathering',
+    'Grand Eid Milan Community Dawat',
+    'St. Jude’s Annual Christmas Carnival',
     'Green Horizon Eco Cultural Night',
-    'Vasundhara Annual Mela',
-    'Vibrant Dandiya Utsav',
   ],
 };
 

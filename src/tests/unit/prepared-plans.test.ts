@@ -151,7 +151,7 @@ describe('Prepared Plans Unit Tests', () => {
       expect(matched?.id).toBe(preset.id);
     });
 
-    it('returns null if eventName is provided', () => {
+    it('matches preset when custom eventName is provided without sending to AI', () => {
       const preset = EVENT_PRESETS[0];
       const formData = {
         eventType: preset.eventType,
@@ -164,7 +164,21 @@ describe('Prepared Plans Unit Tests', () => {
         eventName: 'Aarav & Diya Grand Wedding',
       };
 
-      expect(findMatchingPreset(formData)).toBeNull();
+      const matched = findMatchingPreset(formData);
+      expect(matched).not.toBeNull();
+      expect(matched?.id).toBe(preset.id);
+    });
+
+    it('applies customEventName to the prepared plan instance when supplied', () => {
+      const prepared = getPreparedPlan('indian-wedding', undefined, undefined, 'Aarav & Diya Wedding');
+      expect(prepared).not.toBeNull();
+      expect(prepared?.plan.eventName).toBe('Aarav & Diya Wedding');
+    });
+
+    it('falls back to default preset eventName when customEventName is empty or omitted', () => {
+      const prepared = getPreparedPlan('indian-wedding');
+      expect(prepared).not.toBeNull();
+      expect(prepared?.plan.eventName).toBe(PREPARED_PLANS['indian-wedding'].plan.eventName);
     });
 
     it('returns null if city is changed', () => {

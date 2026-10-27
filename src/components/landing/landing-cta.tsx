@@ -51,7 +51,7 @@ export function LandingCta() {
           id="cta-heading"
           className="font-serif font-black text-4xl sm:text-5xl md:text-6xl text-[#0F172A] dark:text-[#F8FAFC] tracking-tight leading-[1.2] cta-title descender-safe"
         >
-          Your celebration, <span className="italic font-normal descender-safe-italic">perfectly planned</span> from the first muhurat.
+          Your celebration, <span className="italic font-normal descender-safe-italic">perfectly planned</span> from the very first spark.
         </h2>
 
         <p className="text-base sm:text-lg text-[#334155] dark:text-[#CBD5E1] max-w-2xl mx-auto leading-relaxed cta-desc">

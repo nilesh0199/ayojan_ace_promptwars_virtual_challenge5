@@ -143,7 +143,7 @@ export function IntakeForm() {
     setIsOpeningPreparedPlan(false);
   };
 
-  const startPreparedPlanFlow = (presetIdOrKey: string, userDate?: string) => {
+  const startPreparedPlanFlow = (presetIdOrKey: string, userDate?: string, customEventName?: string) => {
     if (isLoading || isOpeningPreparedPlan) return;
     setIsOpeningPreparedPlan(true);
     setFormErrors({});
@@ -163,7 +163,7 @@ export function IntakeForm() {
       : PREPARED_PLAN_DELAY_MS;
 
     preparedPlanTimeoutRef.current = setTimeout(() => {
-      const prepared = getPreparedPlan(presetIdOrKey, userDate);
+      const prepared = getPreparedPlan(presetIdOrKey, userDate, undefined, customEventName);
       if (prepared) {
         loadPreparedPlan(prepared.plan, prepared.risks);
       }
@@ -181,7 +181,10 @@ export function IntakeForm() {
     setTotalBudget(preset.suggestedBudget);
     setStyleCulture(preset.styleCulture);
     setNonNegotiables(preset.nonNegotiables);
-    setEventName('');
+    // Keep user's custom event name if already typed, or start clean
+    if (!eventName.trim()) {
+      setEventName('');
+    }
     setMuhuratTime('');
     setMuhuratLabel('');
     setCurrency('INR');
@@ -191,7 +194,7 @@ export function IntakeForm() {
   };
 
   const handleQuickLoad = (key: string) => {
-    startPreparedPlanFlow(key, date || undefined);
+    startPreparedPlanFlow(key, date || undefined, eventName.trim() || undefined);
   };
 
   // Chip Pick Handlers
@@ -323,10 +326,10 @@ export function IntakeForm() {
       return;
     }
 
-    // Check if every field still equals a preset's default values, ignoring the date
+    // Check if every field still equals a preset's default values, ignoring the date and custom name
     const matchingPreset = findMatchingPreset(rawData);
     if (matchingPreset) {
-      startPreparedPlanFlow(matchingPreset.id, rawData.date);
+      startPreparedPlanFlow(matchingPreset.id, rawData.date, rawData.eventName);
       return;
     }
 
@@ -660,7 +663,7 @@ export function IntakeForm() {
               maxLength={80}
               value={eventName}
               onChange={(e) => setEventName(e.target.value)}
-              placeholder="e.g. Aarav & Diya’s Royal Pheras, Sneha’s Artisan 30th Soiree"
+              placeholder="e.g. Aarav & Diya’s Royal Pheras, Faizan & Ayesha’s Nikah, Joshua & Maria’s Nuptials"
               className="w-full min-h-[44px] rounded-lg border border-rule bg-paper px-3 py-2 text-sm text-ink focus:border-accent focus:outline-hidden"
             />
             {/* Idea Chips for Event Name */}

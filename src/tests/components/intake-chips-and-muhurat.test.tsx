@@ -108,6 +108,31 @@ describe('IntakeForm Idea Chips & Muhurat Timing', () => {
     expect(budgetInput.value).toBe('1000000');
   });
 
+  it('renders inclusive Muslim and Christian example celebration name chips across event types', () => {
+    renderComponent();
+
+    // 1. Wedding (default)
+    expect(screen.getByRole('button', { name: /Faizan & Ayesha’s Royal Nikah/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Joshua & Maria’s Church Nuptials/i })).toBeInTheDocument();
+
+    // Clicking a chip updates the Celebration Name input
+    const nikahChip = screen.getByRole('button', { name: /Faizan & Ayesha’s Royal Nikah/i });
+    fireEvent.click(nikahChip);
+    const nameInput = screen.getByLabelText(/Celebration Name/i) as HTMLInputElement;
+    expect(nameInput.value).toBe('Faizan & Ayesha’s Royal Nikah');
+
+    // 2. Birthday
+    const eventTypeSelect = screen.getByLabelText(/Event Type/i);
+    fireEvent.change(eventTypeSelect, { target: { value: 'Birthday' } });
+    expect(screen.getByRole('button', { name: /Amina’s 25th Garden Dawat/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /David’s 50th Jubilee Banquet/i })).toBeInTheDocument();
+
+    // 3. Community Event
+    fireEvent.change(eventTypeSelect, { target: { value: 'Community Event' } });
+    expect(screen.getByRole('button', { name: /Grand Eid Milan Community Dawat/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /St. Jude’s Annual Christmas Carnival/i })).toBeInTheDocument();
+  });
+
   it('IntakeForm with 6 presets and ceremony time field has no axe violations', async () => {
     const { container } = renderComponent();
     const results = await axe(container);

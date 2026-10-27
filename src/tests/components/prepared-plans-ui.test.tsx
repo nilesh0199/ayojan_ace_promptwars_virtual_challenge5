@@ -307,6 +307,37 @@ describe('Prepared Plans UI and Loading Motion', () => {
     expect(mockPush).toHaveBeenCalledWith('/workspace');
   });
 
+  it('triggers prepared plan flow from memory without calling AI when a celebration name is added to an unchanged preset', () => {
+    const fetchSpy = vi.fn();
+    global.fetch = fetchSpy;
+    vi.useFakeTimers();
+    renderComponent();
+
+    // 1. Click Indian Wedding preset
+    const weddingPreset = screen.getByRole('button', {
+      name: /Indian Wedding/i,
+    });
+    fireEvent.click(weddingPreset);
+
+    // 2. Add celebration name (does NOT require AI processing)
+    const nameInput = screen.getByLabelText(/Celebration Name/i);
+    fireEvent.change(nameInput, { target: { value: 'Aarav & Diya Royal Vivah' } });
+
+    // 3. Submit plan
+    const submitBtn = screen.getByRole('button', { name: /Generate Celebration Plan/i });
+    fireEvent.click(submitBtn);
+
+    // 4. Memory loader appears without calling AI fetch
+    expect(screen.getByTestId('prepared-plan-loader')).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
+
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(mockPush).toHaveBeenCalledWith('/workspace');
+  });
+
   it('passes accessibility validation (jest-axe)', async () => {
     const { container } = renderComponent();
     const results = await axe(container);

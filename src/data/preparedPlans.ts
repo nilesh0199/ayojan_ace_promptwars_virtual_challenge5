@@ -1569,7 +1569,8 @@ export function computeDefaultPreparedDate(
 export function createPreparedPlanInstance(
   basePlan: EventPlan,
   userChosenDate?: string,
-  referenceDate: string = formatDateISO(new Date())
+  referenceDate: string = formatDateISO(new Date()),
+  customEventName?: string
 ): EventPlan {
   const targetEventDate =
     userChosenDate && /^\d{4}-\d{2}-\d{2}$/.test(userChosenDate.trim())
@@ -1586,6 +1587,7 @@ export function createPreparedPlanInstance(
 
   return {
     ...basePlan,
+    ...(customEventName && customEventName.trim() ? { eventName: customEventName.trim() } : {}),
     date: targetEventDate,
     timeline: reflow.updatedTasks,
     muhuratTime: undefined,
@@ -1603,12 +1605,18 @@ export function createPreparedPlanInstance(
 export function getPreparedPlan(
   keyOrPresetId: string,
   userChosenDate?: string,
-  referenceDate: string = formatDateISO(new Date())
+  referenceDate: string = formatDateISO(new Date()),
+  customEventName?: string
 ): { plan: EventPlan; risks: RiskRegister } | null {
   const entry = PREPARED_PLANS[keyOrPresetId];
   if (!entry) return null;
 
-  const planInstance = createPreparedPlanInstance(entry.plan, userChosenDate, referenceDate);
+  const planInstance = createPreparedPlanInstance(
+    entry.plan,
+    userChosenDate,
+    referenceDate,
+    customEventName
+  );
   const risksInstance: RiskRegister = {
     ...entry.risks,
     assessedAt: new Date().toISOString(),
@@ -1622,8 +1630,8 @@ export function getPreparedPlan(
 
 /**
  * Pure function that checks whether all form values equal a preset's default values,
- * ignoring the event date.
- * If ANY other field was changed (event name, city, guests, budget, style, non-negotiables,
+ * ignoring the event date and celebration name (custom name needs no AI processing and is applied directly to the loaded preset).
+ * If ANY planning detail was changed (city, guests, budget, style, non-negotiables,
  * muhurat, currency), returns null.
  */
 export function findMatchingPreset(formData: {
@@ -1638,8 +1646,6 @@ export function findMatchingPreset(formData: {
   muhuratTime?: string;
   muhuratLabel?: string;
 }): EventPreset | null {
-  // If event name was given, it has been customized
-  if (formData.eventName && formData.eventName.trim().length > 0) return null;
   // If muhurat time was entered, it has been customized
   if (formData.muhuratTime && formData.muhuratTime.trim().length > 0) return null;
   if (formData.muhuratLabel && formData.muhuratLabel.trim().length > 0) return null;
