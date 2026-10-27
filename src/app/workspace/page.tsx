@@ -1,7 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { AppShell } from '@/components/app-shell';
 import { usePlan } from '@/components/plan-context';
 import { WorkspaceHeader } from '@/components/workspace/workspace-header';
@@ -46,6 +48,21 @@ export default function WorkspacePage() {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
   const [isReplanOpen, setIsReplanOpen] = useState(false);
 
+  const tabPanelRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    if (!tabPanelRef.current) return;
+    const mm = gsap.matchMedia();
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.fromTo(
+        tabPanelRef.current,
+        { opacity: 0.7, y: 4 },
+        { opacity: 1, y: 0, duration: 0.25, ease: 'power1.out' }
+      );
+    });
+    return () => mm.revert();
+  }, { scope: tabPanelRef, dependencies: [activeTab] });
+
   return (
     <AppShell>
       <div className="w-full max-w-7xl mx-auto">
@@ -63,7 +80,7 @@ export default function WorkspacePage() {
             </p>
             <div className="flex flex-wrap items-center justify-center gap-3">
               <Link
-                href="/"
+                href="/plan"
                 className="inline-flex items-center gap-2 min-h-[44px] px-6 py-2.5 rounded-xl bg-accent text-accent-text text-sm font-semibold hover:bg-accent-hover transition-colors shadow-xs"
               >
                 <PlusCircle className="h-4 w-4" aria-hidden="true" />
@@ -100,6 +117,7 @@ export default function WorkspacePage() {
               {/* Navigation Tabs */}
               <div
                 role="tablist"
+                data-lenis-prevent
                 aria-label="Workspace plan sections"
                 className="flex items-center gap-1 overflow-x-auto border-b border-rule pb-px mb-8 scrollbar-none no-print"
               >
@@ -130,6 +148,7 @@ export default function WorkspacePage() {
 
               {/* Tab Panels */}
               <div
+                ref={tabPanelRef}
                 id={`panel-${activeTab}`}
                 role="tabpanel"
                 aria-labelledby={`tab-${activeTab}`}

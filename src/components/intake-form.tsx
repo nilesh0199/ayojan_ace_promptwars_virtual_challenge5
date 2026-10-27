@@ -17,6 +17,13 @@ import {
   EVENT_NAME_EXAMPLES,
 } from '@/lib/constants';
 import { intakeFormSchema } from '@/lib/schemas';
+import {
+  findMatchingPreset,
+  getPreparedPlan,
+  PREPARED_PLAN_DELAY_MS,
+  PREPARED_PLAN_REDUCED_MOTION_DELAY_MS,
+  PREPARED_PLAN_LOADING_MESSAGES,
+} from '@/data/preparedPlans';
 import { getFriendlyAiError } from '@/lib/gemini';
 import { usePlan } from './plan-context';
 import { AiLoader } from './ai-loader';
@@ -41,6 +48,7 @@ export function IntakeForm() {
   const {
     startPlanGeneration,
     loadSavedExample,
+    loadPreparedPlan,
     isLoading,
     error,
     errorCode,
@@ -50,6 +58,17 @@ export function IntakeForm() {
     skipFollowUp,
     cancelGeneration,
   } = usePlan();
+
+  const [isOpeningPreparedPlan, setIsOpeningPreparedPlan] = useState(false);
+  const preparedPlanTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (preparedPlanTimeoutRef.current) {
+        clearTimeout(preparedPlanTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const [eventType, setEventType] = useState<EventType>('Wedding');
   const [eventName, setEventName] = useState('');
@@ -95,14 +114,63 @@ export function IntakeForm() {
     }
   }, [error, formErrorAlert]);
 
+  // Ref for the loader container — auto-scroll to top when generation starts so user sees the animated loader
+  const loaderContainerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (isLoading && !followUp) {
+      if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      loaderContainerRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    }
+  }, [isLoading, followUp]);
+
   // Whether muhurat fields should display by default
   const isMuhuratDefault =
     eventType === 'Wedding' ||
     styleCulture.toLowerCase().includes('pooja') ||
     styleCulture.toLowerCase().includes('diwali') ||
+    styleCulture.toLowerCase().includes('festival') ||
     styleCulture.toLowerCase().includes('griha pravesh');
 
   const shouldShowMuhurat = isMuhuratDefault || showMuhuratCustom || Boolean(muhuratTime);
+
+  const handleCancelPreparedPlan = () => {
+    if (preparedPlanTimeoutRef.current) {
+      clearTimeout(preparedPlanTimeoutRef.current);
+      preparedPlanTimeoutRef.current = null;
+    }
+    setIsOpeningPreparedPlan(false);
+  };
+
+  const startPreparedPlanFlow = (presetIdOrKey: string, userDate?: string) => {
+    if (isLoading || isOpeningPreparedPlan) return;
+    setIsOpeningPreparedPlan(true);
+    setFormErrors({});
+    setFormErrorAlert(null);
+
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    loaderContainerRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+
+    const prefersReducedMotion =
+      typeof window !== 'undefined' &&
+      typeof window.matchMedia === 'function' &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const delayMs = prefersReducedMotion
+      ? PREPARED_PLAN_REDUCED_MOTION_DELAY_MS
+      : PREPARED_PLAN_DELAY_MS;
+
+    preparedPlanTimeoutRef.current = setTimeout(() => {
+      const prepared = getPreparedPlan(presetIdOrKey, userDate);
+      if (prepared) {
+        loadPreparedPlan(prepared.plan, prepared.risks);
+      }
+      setIsOpeningPreparedPlan(false);
+      router.push('/workspace');
+    }, delayMs);
+  };
 
   const applyPreset = (presetId: string) => {
     const preset = EVENT_PRESETS.find((p) => p.id === presetId);
@@ -113,14 +181,17 @@ export function IntakeForm() {
     setTotalBudget(preset.suggestedBudget);
     setStyleCulture(preset.styleCulture);
     setNonNegotiables(preset.nonNegotiables);
+    setEventName('');
+    setMuhuratTime('');
+    setMuhuratLabel('');
+    setCurrency('INR');
     setFormErrors({});
     setFormErrorAlert(null);
     setChipAnnouncement(`Loaded ${preset.title} preset`);
   };
 
   const handleQuickLoad = (key: string) => {
-    loadSavedExample(key);
-    router.push('/workspace');
+    startPreparedPlanFlow(key, date || undefined);
   };
 
   // Chip Pick Handlers
@@ -252,6 +323,17 @@ export function IntakeForm() {
       return;
     }
 
+    // Check if every field still equals a preset's default values, ignoring the date
+    const matchingPreset = findMatchingPreset(rawData);
+    if (matchingPreset) {
+      startPreparedPlanFlow(matchingPreset.id, rawData.date);
+      return;
+    }
+
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
     const success = await startPlanGeneration(validation.data);
     if (success) router.push('/workspace');
   };
@@ -259,6 +341,9 @@ export function IntakeForm() {
   const handleFollowUpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!followUpAnswer.trim()) return;
+    if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
     const success = await submitFollowUp(followUpAnswer.trim());
     setFollowUpAnswer('');
     if (success) router.push('/workspace');
@@ -302,21 +387,24 @@ export function IntakeForm() {
             <button
               type="button"
               onClick={() => handleQuickLoad('wedding')}
-              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors min-h-[36px]"
+              disabled={isLoading || isOpeningPreparedPlan}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors min-h-[36px] disabled:opacity-50"
             >
               Wedding Example
             </button>
             <button
               type="button"
               onClick={() => handleQuickLoad('birthday')}
-              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors min-h-[36px]"
+              disabled={isLoading || isOpeningPreparedPlan}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors min-h-[36px] disabled:opacity-50"
             >
               Birthday Example
             </button>
             <button
               type="button"
               onClick={() => handleQuickLoad('community')}
-              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors min-h-[36px]"
+              disabled={isLoading || isOpeningPreparedPlan}
+              className="text-xs font-medium px-2.5 py-1.5 rounded-md border border-rule bg-paper-subtle hover:bg-paper-card hover:border-accent transition-colors min-h-[36px] disabled:opacity-50"
             >
               Community Event Example
             </button>
@@ -335,9 +423,9 @@ export function IntakeForm() {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" aria-hidden="true" />
             <div className="flex-1">
-              <h3 className="font-serif font-bold text-base">
+              <h2 className="font-serif font-bold text-base">
                 Incomplete Celebration Details
-              </h3>
+              </h2>
               <p className="mt-1 text-sm leading-relaxed">{formErrorAlert}</p>
             </div>
           </div>
@@ -355,47 +443,97 @@ export function IntakeForm() {
           <div className="flex items-start gap-3">
             <AlertCircle className="h-5 w-5 shrink-0 mt-0.5" aria-hidden="true" />
             <div className="flex-1">
-              <h3 className="font-serif font-bold text-base">
+              <h2 className="font-serif font-bold text-base">
                 {getFriendlyAiError(errorCode).title}
-              </h3>
+              </h2>
               <p className="mt-1 text-sm leading-relaxed">{error}</p>
               <p className="mt-1.5 text-[11px] font-mono text-state-error/80 tracking-wide" data-testid="error-reference">
                 Reference: {errorCode || 'AI_ERROR'}
               </p>
               <div className="mt-3 flex flex-wrap items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (retryLastAction) {
-                      retryLastAction();
-                    } else {
-                      handleSubmit(new Event('submit') as unknown as React.FormEvent);
-                    }
-                  }}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-accent text-accent-text hover:bg-accent-hover transition-colors min-h-[36px]"
-                  aria-label="Retry celebration planning"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
-                  Retry
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleQuickLoad('wedding')}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-paper-card text-ink border border-rule hover:bg-paper-subtle transition-colors min-h-[36px]"
-                  aria-label="Load pre-built saved example celebration plan"
-                >
-                  <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
-                  Load saved example
-                </button>
+                {errorCode === 'AI_QUOTA_EXHAUSTED' ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickLoad('wedding')}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-accent text-accent-text hover:bg-accent-hover transition-colors min-h-[36px]"
+                      aria-label="Load a prepared plan"
+                    >
+                      <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                      Load a prepared plan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                        if (retryLastAction) {
+                          retryLastAction();
+                        } else {
+                          handleSubmit(new Event('submit') as unknown as React.FormEvent);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-paper-card text-ink border border-rule hover:bg-paper-subtle transition-colors min-h-[36px]"
+                      aria-label="Retry later"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                      Retry later
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }
+                        if (retryLastAction) {
+                          retryLastAction();
+                        } else {
+                          handleSubmit(new Event('submit') as unknown as React.FormEvent);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-accent text-accent-text hover:bg-accent-hover transition-colors min-h-[36px]"
+                      aria-label="Retry celebration planning"
+                    >
+                      <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
+                      Retry
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleQuickLoad('wedding')}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md bg-paper-card text-ink border border-rule hover:bg-paper-subtle transition-colors min-h-[36px]"
+                      aria-label="Load pre-built saved example celebration plan"
+                    >
+                      <BookOpen className="h-3.5 w-3.5" aria-hidden="true" />
+                      Load saved example
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* Prepared Plan Honest Rotating Loader */}
+      {isOpeningPreparedPlan && (
+        <div ref={loaderContainerRef} className="mb-8" data-testid="prepared-plan-loader">
+          <AiLoader
+            title="Opening Prepared Plan"
+            messages={[...PREPARED_PLAN_LOADING_MESSAGES]}
+            messageIntervalMs={900}
+            onCancel={handleCancelPreparedPlan}
+            cancelLabel="Cancel"
+          />
+        </div>
+      )}
+
       {/* Reusable AiLoader when generating */}
-      {isLoading && !followUp && (
-        <div className="mb-8">
+      {isLoading && !followUp && !isOpeningPreparedPlan && (
+        <div ref={loaderContainerRef} className="mb-8">
           <AiLoader onCancel={cancelGeneration} />
         </div>
       )}
@@ -448,6 +586,9 @@ export function IntakeForm() {
                   <button
                     type="button"
                     onClick={async () => {
+                      if (typeof window !== 'undefined' && typeof window.scrollTo === 'function') {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
                       const success = await skipFollowUp();
                       if (success) router.push('/workspace');
                     }}
@@ -468,13 +609,14 @@ export function IntakeForm() {
         <label className="block text-xs font-mono text-ink-muted uppercase tracking-wider mb-2">
           Start from an editable preset
         </label>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
           {EVENT_PRESETS.map((preset) => (
             <button
               key={preset.id}
               type="button"
               onClick={() => applyPreset(preset.id)}
-              className="text-left p-3 rounded-xl border border-rule bg-paper-card hover:border-accent hover:bg-paper-subtle transition-all group min-h-[44px]"
+              disabled={isLoading || isOpeningPreparedPlan}
+              className="text-left p-3 rounded-xl border border-rule bg-paper-card hover:border-accent hover:bg-paper-subtle transition-all group min-h-[44px] disabled:opacity-50"
             >
               <span className="font-serif font-bold text-sm text-ink block group-hover:text-accent">
                 {preset.title}
@@ -485,6 +627,9 @@ export function IntakeForm() {
             </button>
           ))}
         </div>
+        <p className="text-xs text-ink-muted mt-2">
+          Presets open a prepared plan. Change any detail and AI builds a fresh one.
+        </p>
       </div>
 
       {/* Main Intake Form */}
@@ -621,11 +766,11 @@ export function IntakeForm() {
             )}
           </div>
 
-          {/* 5. Auspicious Muhurat / Ritual Time */}
+          {/* 5. Ceremony / Muhurat Time */}
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label htmlFor="muhurat-time" className="block text-sm font-medium text-ink">
-                Auspicious Muhurat / Ritual Time
+                Ceremony / muhurat time (as advised by your priest, pandit, imam or pastor)
               </label>
               {!shouldShowMuhurat && (
                 <button
@@ -634,7 +779,7 @@ export function IntakeForm() {
                   className="inline-flex items-center gap-1 text-xs text-accent hover:underline font-medium"
                 >
                   <Plus className="h-3 w-3" />
-                  <span>Add ritual time</span>
+                  <span>Add ceremony / muhurat time</span>
                 </button>
               )}
             </div>
@@ -645,30 +790,30 @@ export function IntakeForm() {
                   id="muhurat-time"
                   value={muhuratTime}
                   onChange={setMuhuratTime}
-                  label="Auspicious Muhurat / Ritual Time"
+                  label="Ceremony / muhurat time (as advised by your priest, pandit, imam or pastor)"
                   legendClassName="sr-only"
                 />
                 <div>
                   <label htmlFor="muhurat-label" className="sr-only">
-                    Ritual Label
+                    Ceremony / Ritual Label
                   </label>
                   <input
                     id="muhurat-label"
                     type="text"
                     maxLength={40}
-                    placeholder="Label (e.g. Pheras, Pooja, Ring Exchange)"
+                    placeholder="Label (e.g. Nikah, Nuptial Mass, Pheras, Pooja)"
                     value={muhuratLabel}
                     onChange={(e) => setMuhuratLabel(e.target.value)}
                     className="w-full min-h-[44px] rounded-lg border border-rule bg-paper px-3 py-2 text-sm text-ink placeholder:text-ink-muted focus:border-accent focus:ring-2 focus:ring-accent/30 focus:outline-hidden"
                   />
                 </div>
                 <p className="text-[11px] text-ink-muted">
-                  Auspicious timing for the main ritual. Automatically schedules the event day milestone and calendar export.
+                  Ceremony or auspicious timing as advised by your priest, pandit, imam or pastor. Automatically schedules the event day milestone and calendar export.
                 </p>
               </div>
             ) : (
               <div className="min-h-[44px] flex items-center p-2 rounded-lg border border-dashed border-rule bg-paper-subtle/50 text-xs text-ink-muted">
-                <span>Optional for this celebration type. Click &ldquo;Add ritual time&rdquo; to specify.</span>
+                <span>Optional for this celebration type. Click &ldquo;Add ceremony / muhurat time&rdquo; to specify.</span>
               </div>
             )}
           </div>
@@ -864,10 +1009,15 @@ export function IntakeForm() {
           </span>
           <button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isOpeningPreparedPlan}
             className="w-full sm:w-auto min-h-[48px] px-8 py-3 rounded-xl bg-accent text-accent-text font-serif font-bold text-base hover:bg-accent-hover transition-all shadow-sm flex items-center justify-center gap-2 focus-visible:ring-2 focus-visible:ring-accent disabled:opacity-50"
           >
-            {isLoading ? (
+            {isOpeningPreparedPlan ? (
+              <>
+                <RefreshCw className="h-5 w-5 animate-spin" aria-hidden="true" />
+                <span>Opening Prepared Plan...</span>
+              </>
+            ) : isLoading ? (
               <>
                 <RefreshCw className="h-5 w-5 animate-spin" aria-hidden="true" />
                 <span>Designing Plan with AI...</span>
@@ -923,7 +1073,7 @@ export function IntakeForm() {
                 <p className="text-xs text-ink-muted">Synthesizing creative titles...</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="space-y-2 max-h-60 overflow-y-auto" data-lenis-prevent>
                 {suggestedNames.map((suggestion, idx) => (
                   <button
                     key={idx}

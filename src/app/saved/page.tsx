@@ -606,7 +606,7 @@ export default function SavedPlansPage() {
                 </button>
               </div>
 
-              <div className="flex-1 overflow-y-auto space-y-2">
+              <div className="flex-1 overflow-y-auto space-y-2" data-lenis-prevent>
                 {loadingVersions ? (
                   <div className="text-center py-8 text-xs text-ink-muted">
                     <Loader2 className="h-5 w-5 animate-spin mx-auto text-accent mb-2" />

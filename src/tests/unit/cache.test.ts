@@ -64,6 +64,15 @@ describe('SimpleLruCache', () => {
 
     expect(key1).toBe(key2);
 
+    // Nested payload test: ensure nested fields are NOT stripped
+    const nested1 = { intake: { city: 'Jaipur', guestCount: 300 }, followUps: [] };
+    const nested2 = { followUps: [], intake: { guestCount: 300, city: 'Jaipur' } };
+    const nestedDifferent = { intake: { city: 'Mumbai', guestCount: 300 }, followUps: [] };
+
+    expect(createPayloadKey('plan', nested1)).toBe(createPayloadKey('plan', nested2));
+    expect(createPayloadKey('plan', nested1)).not.toBe(createPayloadKey('plan', nestedDifferent));
+    expect(createPayloadKey('plan', nested1)).toContain('Jaipur');
+
     const primKey = createPayloadKey('scalar', 'simple-string');
     expect(primKey).toBe('scalar:"simple-string"');
 

@@ -67,17 +67,20 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 
 1. **Zero Upstream Error Leakage**:
    - `handleApiError` ([`src/lib/api-helper.ts`](file:///src/lib/api-helper.ts)) and `mapGeminiError` ([`src/lib/gemini.ts`](file:///src/lib/gemini.ts)) guarantee that raw upstream JSON dumps, internal IP addresses, stack traces, and API keys are strictly never returned to the client or rendered in the UI.
-   - All server failures map to a typed `GeminiErrorCode` union (`'AI_BUSY' | 'AI_TIMEOUT' | 'AI_NOT_CONFIGURED' | 'AI_INVALID_KEY' | 'AI_MODEL_NOT_FOUND' | 'AI_VALIDATION_FAILED' | 'AI_ERROR'`) with positive, reassuring copy.
+   - All server failures map to a typed `GeminiErrorCode` union (`'AI_BUSY' | 'AI_QUOTA_EXHAUSTED' | 'AI_TIMEOUT' | 'AI_NOT_CONFIGURED' | 'AI_INVALID_KEY' | 'AI_BACKUP_KEY_EXPIRED' | 'AI_MODEL_NOT_FOUND' | 'AI_VALIDATION_FAILED' | 'AI_NETWORK_ERROR' | 'HOSTING_TIMEOUT' | 'AI_ERROR'`) with positive, reassuring copy.
 2. **Safe Server-Only Operational Logging**:
    - Server-side error alerts log high-level metadata only (`[AI Attempt] provider=gemini model=<model> status=200 category=success attempt=1 duration=1200ms`).
    - Strictly omits prompt contents, user input text, credentials, or API keys.
-3. **Overload Hardening, Multi-Provider Failover & Circuit Breakers**:
+3. **Overload Hardening, Quota Awareness, Multi-Provider Failover & Circuit Breakers**:
    - *Cascading Execution Order*:
      1. Primary Key (`GEMINI_API_KEY`) + Configured Primary Model [up to 2 retries with exponential backoff & jitter]
      2. Primary Key + Configured Fallback Model [1 retry]
-     3. Groq Provider (if `GROQ_API_KEY` configured, on overload / quota / timeout / invalid-key) [1 retry]. Hardened against demo expiration (`GROQ_KEY_EXPIRES_ON`) and 401/403 authorization rejection: maps to `AI_BACKUP_KEY_EXPIRED`, disables the provider for process lifetime (>= 1 hour) with safe single-instance logging, and continues seamlessly to the template planner.
+     3. Groq Provider (if `GROQ_API_KEY` configured, on overload / quota / timeout / invalid-key) [1 retry]. Fully configurable via `GROQ_MODEL`. Hardened against demo expiration (`GROQ_KEY_EXPIRES_ON`), 401/403 authorization rejection, and 404 model-not-found (disables Groq for the session with `AI_MODEL_NOT_FOUND`), continuing seamlessly to the template planner.
      4. Built-in Deterministic Template Planner (zero network transmission, complete schema-verified plan)
-   - *Independent Per-Combination Circuit Breakers*: Each `(provider, model)` pair maintains its own failure counter and 60-second cooldown timer. If a model trips due to repeated overloads, subsequent requests immediately bypass it and invoke the working combination without latency penalties. Circuit breaker only trips on genuine overload/quota errors, never on schema validation or key errors, and auto-resets after cooldown.
+   - *Daily Quota Exhaustion vs Short Rate Limits*: 429 errors mentioning daily/per-day limits map to `AI_QUOTA_EXHAUSTED` (non-retryable) and trigger a 30-minute breaker cooldown for that provider/model combo. Burst per-minute rate limits keep transient retry backoffs.
+   - *Independent Per-Combination Circuit Breakers*: Each `(provider, model)` pair maintains its own failure counter and cooldown timer (60s for transient overload, 30m for daily quota). Subsequent requests bypass tripped combinations with a firm cap on re-probing. Breaker only trips on overload/quota errors, never on schema validation or key errors.
+   - *Intake Unclear Heuristic & Request Conservation*: Adaptive follow-up calls (`/api/plan/followup`) are dispatched only when intake details are genuinely ambiguous or contradictory (`isIntakeUnclear`), guaranteeing plan generation operates as a single AI call whenever possible.
+   - *Deterministic Canonical Caching*: Generation requests are keyed using canonical sorted payloads in an in-memory LRU cache. Failures and template fallback plans are strictly never cached.
    - *Targeted Schema Repair Retry*: If a model returns malformed JSON or invalid schema properties, an automated single repair instruction is dispatched before declaring the attempt failed.
    - *Total Time Budget & Hosting Protection*: Strict time budgets per call type (e.g. 55s for full plan generation, 15s for follow-up/names) and `maxDuration = 60` export guarantee requests finish within Vercel serverless limits. If a primary attempt times out, remaining budget is reserved for fallback models.
 4. **Protected Live Health Probe (`GET /api/health/probe`)**:
@@ -96,7 +99,7 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
    - `getMissingFirebaseConfigVars()` validates the config on mount and detects missing, empty, whitespace-only, or obvious placeholder templates (values starting with `<`, `your_`, `mock-`, etc.) without ever disclosing or logging actual credentials.
    - **Important Operations Note**: Because `NEXT_PUBLIC_*` values are baked into client JS bundles at build time, any changes to Firebase environment variables in Vercel require triggering a **Redeploy**. For local development, set values in `.env.local` and **restart the Next.js dev server** (`npm run dev`).
 2. **Server Health Check (`/api/health`)**:
-   Protected by IP-based token bucket rate limiting. Returns only abstract booleans and status strings (`{ status: "ok" | "degraded", gemini: "configured" | "missing", groq: "configured" | "missing" | "expired", fallbackKey: "configured" | "missing", model: "configured" | "missing" }`). Never returns environment values, API keys, or stack traces.
+   Protected by IP-based token bucket rate limiting. Returns only abstract booleans and status strings (`{ status: "ok" | "degraded", gemini: "configured" | "missing" | "quota-exhausted" | "model-not-found", groq: "configured" | "missing" | "quota-exhausted" | "model-not-found" | "expired", fallbackKey: "configured" | "missing" | "quota-exhausted", model: "configured" | "missing" }`). Never returns environment values, API keys, or stack traces.
 
 ---
 
@@ -113,7 +116,7 @@ In Cloud Firestore Security Rules, calling `.size()` on a map (such as `request.
    - `vendors`: bounded between 1 and 50 items (`data.vendors.size() >= 1 && data.vendors.size() <= 50`).
    - `budget.categories`: bounded between 1 and 30 items (`data.budget.categories.size() >= 1 && data.budget.categories.size() <= 30`).
    - `budget.statedAssumptions`: bounded to $\le 20$ items.
-4. **String Length Ceilings**: Title (2–120 chars), City (2–80 chars), Style & Culture ($\le 200$ chars), Non-negotiables ($\le 500$ chars), Timestamps (`createdAt`, `updatedAt`, `savedAt` between 10 and 40 chars).
+4. **String Length Ceilings**: Title (2–120 chars), City (2–80 chars), Style & Culture ($\le 300$ chars), Non-negotiables ($\le 500$ chars), Timestamps (`createdAt`, `updatedAt`, `savedAt` between 10 and 40 chars), and optional fields (`eventName` $\le 120$, `muhuratTime` $\le 10$, `muhuratLabel` $\le 40$, `generationSource` in enum, `generationErrorCode` $\le 40$, `providerNotice` $\le 500$).
 5. **Native Document Limit**: Relies on Cloud Firestore's native 1 MiB ($1,048,576$ bytes) storage ceiling per document.
 6. **Immutable Version Snapshots**: Under `/users/{userId}/plans/{planId}/versions/{versionId}`, versions can be created and deleted by the owner, but `allow update: if false;` guarantees that historic version snapshots are immutable and tamper-proof.
 7. **Per-User Isolation & Top-Level Deny-All**: All documents require `request.auth != null && request.auth.uid == userId`. Root collections fallback to `allow read, write: if false;`.

@@ -24,7 +24,7 @@ service cloud.firestore {
         'guestCount', 'totalBudget', 'currency', 'styleCulture', 
         'nonNegotiables', 'budget', 'timeline', 'vendors', 
         'ideas', 'createdAt', 'updatedAt', 'version', 'isSavedExample',
-        'eventName', 'muhuratTime', 'muhuratLabel', 'generationSource', 'providerNotice'
+        'eventName', 'muhuratTime', 'muhuratLabel', 'generationSource', 'generationErrorCode', 'providerNotice'
       ])
       && data.keys().hasAll([
         'id', 'title', 'eventType', 'city', 'date', 
@@ -58,6 +58,7 @@ service cloud.firestore {
       && (!('muhuratTime' in data) || (data.muhuratTime is string && data.muhuratTime.size() <= 10))
       && (!('muhuratLabel' in data) || (data.muhuratLabel is string && data.muhuratLabel.size() <= 40))
       && (!('generationSource' in data) || (data.generationSource in ['primary', 'backup', 'template']))
+      && (!('generationErrorCode' in data) || (data.generationErrorCode is string && data.generationErrorCode.size() <= 40))
       && (!('providerNotice' in data) || (data.providerNotice is string && data.providerNotice.size() <= 500));
     }
 

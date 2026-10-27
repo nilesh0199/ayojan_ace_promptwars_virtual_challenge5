@@ -104,4 +104,30 @@ describe('IntakeForm Component', () => {
       global.fetch = originalFetch;
     }
   });
+
+  it('scrolls user to the top of the page when generation starts so they see the animated loader', async () => {
+    const scrollToSpy = vi.spyOn(window, 'scrollTo');
+    const originalFetch = global.fetch;
+    global.fetch = vi.fn().mockImplementation((url: string) => {
+      if (url.includes('/api/plan/followup')) {
+        return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+      }
+      return new Promise(() => {}); // Keep in loading state
+    });
+
+    try {
+      renderComponent();
+
+      const submitBtn = screen.getByRole('button', { name: /Generate Celebration Plan/i });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(scrollToSpy).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
+        expect(screen.getByTestId('ai-loader')).toBeInTheDocument();
+      });
+    } finally {
+      global.fetch = originalFetch;
+      scrollToSpy.mockRestore();
+    }
+  });
 });

@@ -6,6 +6,7 @@ import { ThemeProvider } from '@/components/theme-provider';
 import { AuthProvider } from '@/components/auth-context';
 import { PlanProvider } from '@/components/plan-context';
 import HomePage from '@/app/page';
+import PlanPage from '@/app/plan/page';
 import PrivacyPage from '@/app/privacy/page';
 import TermsPage from '@/app/terms/page';
 import NotFound from '@/app/not-found';
@@ -38,14 +39,26 @@ describe('Accessibility (a11y) Verification with jest-axe', () => {
     );
   };
 
-  it('Home / Intake screen has no accessibility violations in Light theme', async () => {
+  it('Landing Page (Home) has no accessibility violations in Light theme', async () => {
     const { container } = renderInTheme(<HomePage />, false);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });
 
-  it('Home / Intake screen has no accessibility violations in Dark theme', async () => {
+  it('Landing Page (Home) has no accessibility violations in Dark theme', async () => {
     const { container } = renderInTheme(<HomePage />, true);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('Plan Creator screen has no accessibility violations in Light theme', async () => {
+    const { container } = renderInTheme(<PlanPage />, false);
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
+  });
+
+  it('Plan Creator screen has no accessibility violations in Dark theme', async () => {
+    const { container } = renderInTheme(<PlanPage />, true);
     const results = await axe(container);
     expect(results).toHaveNoViolations();
   });

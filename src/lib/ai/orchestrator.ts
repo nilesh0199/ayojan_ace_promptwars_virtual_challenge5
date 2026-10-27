@@ -12,6 +12,8 @@ import {
   GeminiApiError,
   isOverloadOrTransientError,
   isQuotaError,
+  isDailyQuotaError,
+  isDailyQuotaCombination,
   isCombinationCircuitOpen,
   recordCombinationFailure,
   recordCombinationSuccess,
@@ -55,6 +57,7 @@ export function isEligibleForProviderFallback(err: unknown): boolean {
       err.statusCode === 403 ||
       err.statusCode === 404 ||
       err.code === 'AI_BUSY' ||
+      err.code === 'AI_QUOTA_EXHAUSTED' ||
       err.code === 'AI_TIMEOUT' ||
       err.code === 'AI_INVALID_KEY' ||
       err.code === 'AI_BACKUP_KEY_EXPIRED' ||
@@ -150,6 +153,8 @@ export async function executeAiCascade<T>(
 
   let lastError: unknown = null;
   let previousWasQuota = false;
+  let candidatesCount = 0;
+  let openCircuitsCount = 0;
 
   for (let sIdx = 0; sIdx < stages.length; sIdx++) {
     const stage = stages[sIdx];
@@ -159,18 +164,21 @@ export async function executeAiCascade<T>(
       continue;
     }
 
+    const provider = stage.createProvider();
+    if (!provider.isConfigured()) {
+      continue;
+    }
+
+    candidatesCount++;
+
     // Check circuit breaker for this specific (provider, model) combination
     if (isCombinationCircuitOpen(stage.providerId as any, stage.model, Date.now())) {
+      openCircuitsCount++;
       if (process.env.NODE_ENV !== 'test') {
         console.warn(
           `[AI Cascade] Circuit is OPEN for (${stage.providerId}, model ${stage.model}). Skipping to next available candidate.`
         );
       }
-      continue;
-    }
-
-    const provider = stage.createProvider();
-    if (!provider.isConfigured()) {
       continue;
     }
 
@@ -230,10 +238,21 @@ export async function executeAiCascade<T>(
           durationMs,
         });
 
+        const isDailyQuota = isDailyQuotaError(err);
         const isOverload = isOverloadOrTransientError(err);
-        previousWasQuota = isQuotaError(err);
+        previousWasQuota = isQuotaError(err) || isDailyQuota;
 
-        recordCombinationFailure(stage.providerId as any, stage.model, isOverload);
+        recordCombinationFailure(stage.providerId as any, stage.model, isOverload, Date.now(), isDailyQuota);
+
+        // For a daily quota, do not retry this candidate model; break immediately to secondary provider or abort
+        if (isDailyQuota) {
+          if (process.env.NODE_ENV !== 'test') {
+            console.warn(
+              `[AI Cascade] Daily quota exhausted on (${stage.providerId}, model ${stage.model}). Disabling combination for 30 minutes and skipping retries.`
+            );
+          }
+          break;
+        }
 
         // If a primary model attempt timed out, reserve the remaining budget for the fallback model
         // instead of retrying and burning the entire budget on the timed-out primary model.
@@ -280,10 +299,40 @@ export async function executeAiCascade<T>(
     throw mapGeminiError(lastError);
   }
 
+  // If all candidate stages were skipped due to open circuit breakers,
+  // the models are in cooldown from temporary overload/quota spikes.
+  if (candidatesCount > 0 && openCircuitsCount >= candidatesCount) {
+    const hasDailyQuota = stages.some((s) => isDailyQuotaCombination(s.providerId, s.model));
+    if (hasDailyQuota) {
+      throw new GeminiApiError(
+        "Today's AI capacity for this demo has been used. Prepared plans still work, or try again later.",
+        429,
+        false,
+        'AI_QUOTA_EXHAUSTED'
+      );
+    }
+    throw new GeminiApiError(
+      'All configured AI models are currently cooling down due to temporary high demand. Please try again in a few moments, or explore a pre-built celebration plan.',
+      503,
+      true,
+      'AI_BUSY'
+    );
+  }
+
+  if (candidatesCount === 0) {
+    throw new GeminiApiError(
+      'No AI provider is configured. Please verify server environment variables or load a saved example plan.',
+      500,
+      false,
+      'AI_NOT_CONFIGURED'
+    );
+  }
+
+  // Last-resort fallback for unexpected provider cascade exhaustion
   throw new GeminiApiError(
-    'AI service is currently unavailable across all configured providers.',
-    500,
-    false,
-    'AI_ERROR'
+    'AI service is currently busy or unavailable across configured providers. Please retry in a moment.',
+    503,
+    true,
+    'AI_BUSY'
   );
 }

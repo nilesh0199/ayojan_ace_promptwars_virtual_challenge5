@@ -1,7 +1,9 @@
 import React from 'react';
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
+import { SmoothScroll } from '@/components/smooth-scroll';
 import { APP_NAME, APP_TAGLINE, AUTHOR_NAME, CONTACT_LINKS } from '@/lib/constants';
+import { ABOUT_PROJECT } from '@/data/aboutContent';
 import {
   Sparkles,
   Heart,
@@ -11,7 +13,6 @@ import {
   ExternalLink,
   ShieldAlert,
   FileText,
-  CheckCircle2,
   HelpCircle,
 } from 'lucide-react';
 
@@ -23,6 +24,7 @@ export const metadata = {
 export default function AboutPage() {
   return (
     <AppShell>
+      <SmoothScroll />
       <div className="w-full max-w-4xl mx-auto space-y-10 pb-16">
         {/* Header Hero */}
         <div className="border-b border-rule pb-8">
@@ -46,38 +48,30 @@ export default function AboutPage() {
           <div className="flex items-center gap-2.5 text-accent">
             <HelpCircle className="h-5 w-5" aria-hidden="true" />
             <h2 id="heading-why-name" className="font-serif font-bold text-xl sm:text-2xl text-ink">
-              Why the name Aayojan Ace?
+              {ABOUT_PROJECT.whyTheName.heading}
             </h2>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
-            {/* Card 1: Aayojan */}
-            <article className="p-5 rounded-xl bg-paper border border-rule flex flex-col justify-between space-y-3">
-              <div className="space-y-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-accent-subtle text-accent text-xs font-semibold tracking-wide">
-                  Aayojan
-                </span>
-                <p className="text-sm text-ink leading-relaxed">
-                  <strong>Aayojan (आयोजन)</strong> is a Hindi word meaning the organizing and arranging of an event or function, which is exactly what the app does for weddings, birthdays and community celebrations.
-                </p>
-              </div>
-            </article>
-
-            {/* Card 2: Ace */}
-            <article className="p-5 rounded-xl bg-paper border border-rule flex flex-col justify-between space-y-3">
-              <div className="space-y-2">
-                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-accent-subtle text-accent text-xs font-semibold tracking-wide">
-                  Ace
-                </span>
-                <p className="text-sm text-ink leading-relaxed">
-                  An <strong>ace</strong> is someone who is top-class and expert at what they do, so the planning is handled with skill, accuracy and confidence.
-                </p>
-              </div>
-            </article>
+            {ABOUT_PROJECT.whyTheName.cards.map((card) => (
+              <article
+                key={card.badge}
+                className="p-5 rounded-xl bg-paper border border-rule flex flex-col justify-between space-y-3"
+              >
+                <div className="space-y-2">
+                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-accent-subtle text-accent text-xs font-semibold tracking-wide">
+                    {card.badge}
+                  </span>
+                  <p className="text-sm text-ink leading-relaxed">
+                    {card.description}
+                  </p>
+                </div>
+              </article>
+            ))}
           </div>
 
           <p className="text-sm text-ink-muted leading-relaxed pt-2 border-t border-rule font-medium">
-            Together, Aayojan Ace means expert celebration planning: every event organized with care, from the first budget to the last guest.
+            {ABOUT_PROJECT.whyTheName.summary}
           </p>
         </section>
 
@@ -89,21 +83,14 @@ export default function AboutPage() {
           <div className="flex items-center gap-2.5 text-accent">
             <Heart className="h-5 w-5" aria-hidden="true" />
             <h2 id="heading-what-is" className="font-serif font-bold text-xl sm:text-2xl text-ink">
-              What Aayojan Ace Is
+              {ABOUT_PROJECT.whatItIs.heading}
             </h2>
           </div>
           <p className="text-ink text-sm sm:text-base leading-relaxed">
-            <strong>{APP_NAME}</strong> is an intelligent celebration and event planning companion
-            tailored for Indian and multicultural festivities. Whether you are organizing a royal
-            multi-day wedding in Jaipur, an intimate Griha Pravesh pooja in Bengaluru, a milestone
-            birthday, or a vibrant society Diwali gathering, {APP_NAME} structures your celebration
-            into practical, actionable blueprints.
+            {ABOUT_PROJECT.whatItIs.lead}
           </p>
           <p className="text-ink-muted text-sm leading-relaxed">
-            Traditional event planning often suffers from fragmented spreadsheets, unrealistic budget
-            creep, and missed ritual timings. {APP_NAME} harmonizes culture, budget discipline, and
-            timelines into one unified workspace with realistic cost caps, milestone dates,
-            curated vendor checklists, and personalized ideas.
+            {ABOUT_PROJECT.whatItIs.body}
           </p>
         </section>
 
@@ -115,34 +102,23 @@ export default function AboutPage() {
           <div className="flex items-center gap-2.5 text-accent">
             <Sparkles className="h-5 w-5" aria-hidden="true" />
             <h2 id="heading-why-made" className="font-serif font-bold text-xl sm:text-2xl text-ink">
-              Why It Was Made
+              {ABOUT_PROJECT.whyItWasMade.heading}
             </h2>
           </div>
           <p className="text-ink text-sm sm:text-base leading-relaxed">
-            {APP_NAME} was built for the <strong>PromptWars Challenge 5 · Celebration &amp; Event Planner</strong>.
-            The goal was to demonstrate how state-of-the-art agentic AI, robust software architecture,
-            and strict validation can transform complex, emotionally significant event planning into
-            an accessible, delightful, and error-free digital experience.
+            {ABOUT_PROJECT.whyItWasMade.lead}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-            <div className="p-4 rounded-xl bg-paper border border-rule space-y-1.5">
-              <span className="font-mono text-xs font-bold text-accent uppercase block">Strict Math</span>
-              <p className="text-xs text-ink-muted">
-                Guaranteed hard budget ceiling where category targets, tax, and contingency never exceed total funds.
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-paper border border-rule space-y-1.5">
-              <span className="font-mono text-xs font-bold text-accent uppercase block">Cultural Context</span>
-              <p className="text-xs text-ink-muted">
-                Native support for Muhurat timings, regional traditions, satvik catering, and local vendor questions.
-              </p>
-            </div>
-            <div className="p-4 rounded-xl bg-paper border border-rule space-y-1.5">
-              <span className="font-mono text-xs font-bold text-accent uppercase block">Zero Lock-in</span>
-              <p className="text-xs text-ink-muted">
-                Direct export to Google Calendar, standard .ics files, print-ready reports, and local-first guest mode.
-              </p>
-            </div>
+            {ABOUT_PROJECT.whyItWasMade.pillars.map((pillar) => (
+              <div key={pillar.title} className="p-4 rounded-xl bg-paper border border-rule space-y-1.5">
+                <span className="font-mono text-xs font-bold text-accent uppercase block">
+                  {pillar.title}
+                </span>
+                <p className="text-xs text-ink-muted">
+                  {pillar.description}
+                </p>
+              </div>
+            ))}
           </div>
         </section>
 
@@ -227,46 +203,45 @@ export default function AboutPage() {
           <div className="space-y-4 text-sm text-ink leading-relaxed">
             <h3 className="font-semibold text-base text-ink">How It Works</h3>
             <ol className="list-decimal list-inside space-y-2 text-ink-muted pl-1">
-              <li>
-                <strong className="text-ink">Cultural &amp; Event Intake:</strong> Select an event preset
-                or specify your celebration type, city, date, guest headcount, auspicious Muhurat time, and cultural traditions.
-              </li>
-              <li>
-                <strong className="text-ink">Multi-Tier AI Orchestrator:</strong> Google Gemini, with models configured through environment variables, synthesizes
-                an itemized plan validated by strict Zod schemas. If the primary model encounters heavy traffic, the system
-                automatically engages retry with jitter, fallback model, backup AI provider, or the deterministic template planner.
-              </li>
-              <li>
-                <strong className="text-ink">Hard Budget Fitting:</strong> All line items undergo post-processing
-                benchmarking to guarantee that subtotal plus contingency and tax never exceed your total budget.
-              </li>
-              <li>
-                <strong className="text-ink">Interactive Workspace:</strong> Explore interactive timeline phases,
-                export to Google Calendar or .ics files, print dedicated reports, assess risk registers, and ask AI doubts.
-              </li>
+              {ABOUT_PROJECT.howItWorksSteps.map((step) => (
+                <li key={step.step}>
+                  <strong className="text-ink">{step.title}:</strong> {step.detail}
+                </li>
+              ))}
             </ol>
           </div>
 
           <div className="pt-4 border-t border-rule space-y-3">
             <h3 className="font-semibold text-base text-ink">Built With</h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-              <div className="p-3 rounded-xl bg-paper border border-rule flex flex-col justify-between">
-                <span className="font-semibold text-ink">Google Antigravity</span>
-                <span className="text-ink-muted mt-1">Agentic AI Pair Programming</span>
-              </div>
-              <div className="p-3 rounded-xl bg-paper border border-rule flex flex-col justify-between">
-                <span className="font-semibold text-ink">Google Gemini</span>
-                <span className="text-ink-muted mt-1">Configurable AI Models</span>
-              </div>
-              <div className="p-3 rounded-xl bg-paper border border-rule flex flex-col justify-between">
-                <span className="font-semibold text-ink">Firebase Auth &amp; Firestore</span>
-                <span className="text-ink-muted mt-1">Google Sign-in &amp; Secure Cloud Sync</span>
-              </div>
-              <div className="p-3 rounded-xl bg-paper border border-rule flex flex-col justify-between">
-                <span className="font-semibold text-ink">Next.js 14 &amp; Vercel</span>
-                <span className="text-ink-muted mt-1">App Router, Tailwind CSS, Strict TS</span>
-              </div>
+              {ABOUT_PROJECT.builtWith.map((item) => (
+                <div key={item.name} className="p-3 rounded-xl bg-paper border border-rule flex flex-col justify-between">
+                  <span className="font-semibold text-ink">{item.name}</span>
+                  <span className="text-ink-muted mt-1">{item.role}</span>
+                </div>
+              ))}
             </div>
+          </div>
+        </section>
+
+        {/* Application Routes, Landing Page & Motion Architecture */}
+        <section
+          className="rounded-2xl border border-rule bg-paper-card p-6 sm:p-8 shadow-xs space-y-4"
+          aria-labelledby="heading-routes-motion"
+        >
+          <div className="flex items-center gap-2.5 text-accent">
+            <Sparkles className="h-5 w-5" aria-hidden="true" />
+            <h2 id="heading-routes-motion" className="font-serif font-bold text-xl sm:text-2xl text-ink">
+              Application Routes &amp; Motion Architecture
+            </h2>
+          </div>
+          <div className="space-y-3 text-sm text-ink leading-relaxed">
+            <p>
+              Aayojan Ace is organized into clear functional routes: our professional <strong>Landing Page</strong> lives at <code className="font-mono text-xs bg-paper-subtle px-1.5 py-0.5 rounded border border-rule">/</code>, while the interactive <strong>Plan Creator</strong> intake is located at <code className="font-mono text-xs bg-paper-subtle px-1.5 py-0.5 rounded border border-rule">/plan</code>. Active celebrations are managed within <code className="font-mono text-xs bg-paper-subtle px-1.5 py-0.5 rounded border border-rule">/workspace</code>, and saved history resides at <code className="font-mono text-xs bg-paper-subtle px-1.5 py-0.5 rounded border border-rule">/saved</code>.
+            </p>
+            <p className="text-ink-muted text-xs sm:text-sm">
+              Fluid motion on the landing page and narrative pages is powered by <strong>GSAP (with ScrollTrigger and @gsap/react)</strong> and <strong>Lenis</strong> smooth scrolling. To honor digital accessibility standards, all animations and smooth scrolling are completely bypassed whenever <code className="font-mono text-xs bg-paper-subtle px-1 py-0.5 rounded">prefers-reduced-motion: reduce</code> is active, on touch devices, and during print, rendering all content statically and immediately.
+            </p>
           </div>
         </section>
 
@@ -278,15 +253,11 @@ export default function AboutPage() {
           <div className="flex items-center gap-2.5 text-accent">
             <ShieldCheck className="h-5 w-5" aria-hidden="true" />
             <h2 id="heading-responsible-ai" className="font-serif font-bold text-lg sm:text-xl text-ink">
-              Responsible AI &amp; Planning Estimates
+              {ABOUT_PROJECT.responsibleAi.heading}
             </h2>
           </div>
           <p className="text-sm text-ink-muted leading-relaxed">
-            All financial ranges, vendor costs, and timeline estimates generated by {APP_NAME} are
-            advisory planning guides and benchmarks, <strong>not legally binding commercial quotes</strong>.
-            Market conditions, local vendor availability, seasonal peak dates, and custom decor requirements
-            will influence actual market rates. Always independently negotiate, verify credentials, and
-            obtain written contracts directly with vendors before committing deposits or making financial decisions.
+            {ABOUT_PROJECT.responsibleAi.text}
           </p>
         </section>
 

@@ -110,6 +110,7 @@ export function ReplanModal({ isOpen, onClose }: ReplanModalProps) {
   return (
     <div
       role="presentation"
+      data-lenis-prevent
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs overflow-y-auto"
       onClick={onClose}
     >
@@ -117,6 +118,7 @@ export function ReplanModal({ isOpen, onClose }: ReplanModalProps) {
         ref={modalRef}
         role="dialog"
         aria-modal="true"
+        data-lenis-prevent
         aria-labelledby="replan-modal-title"
         className="relative w-full max-w-2xl rounded-2xl border border-rule bg-paper-card p-6 sm:p-8 shadow-2xl my-8 max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}

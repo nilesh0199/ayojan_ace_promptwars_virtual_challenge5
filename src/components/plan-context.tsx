@@ -11,8 +11,10 @@ import {
   VendorStatus,
   TimelineTask,
   eventPlanSchema,
+  isIntakeUnclear,
 } from '@/lib/schemas';
-import { SAVED_EXAMPLES } from '@/data/savedExamples';
+import { SAVED_EXAMPLES, SAVED_EXAMPLE_RISKS } from '@/data/savedExamples';
+import { getPreparedPlan } from '@/data/preparedPlans';
 import { computePlanDiff, applyReplanDiff, PlanDiffView } from '@/lib/diff';
 import { reflowTimelineDates } from '@/lib/timeline';
 import { GeminiErrorCode, getFriendlyAiError } from '@/lib/gemini';
@@ -43,7 +45,8 @@ interface PlanContextType {
   guestPlanPrompt: EventPlan | null;
   importGuestPlan: () => Promise<void>;
   dismissGuestImport: () => void;
-  loadSavedExample: (key: string) => void;
+  loadSavedExample: (key: string, userDate?: string) => void;
+  loadPreparedPlan: (plan: EventPlan, risks: RiskRegister) => void;
   startPlanGeneration: (intake: IntakeFormData) => Promise<boolean>;
   submitFollowUp: (answer: string) => Promise<boolean>;
   skipFollowUp: () => Promise<boolean>;
@@ -302,7 +305,7 @@ export function PlanProvider({
   }, []);
 
   const setMappedError = (
-    errPayload: { code?: string; message?: string; retryAfterSeconds?: number } | unknown,
+    errPayload: { code?: string; message?: string; retryAfterSeconds?: number; status?: number; statusCode?: number; error?: string } | unknown,
     retryFn?: () => Promise<void | boolean>
   ) => {
     let resolvedCode: GeminiErrorCode = 'AI_ERROR';
@@ -321,31 +324,74 @@ export function PlanProvider({
         } else {
           resolvedCode = obj.code as GeminiErrorCode;
         }
-      } else if (obj instanceof Error) {
-        const lower = obj.message.toLowerCase();
-        if (lower.includes('network') || lower.includes('fetch failed') || lower.includes('econnrefused')) {
+      } else {
+        const rawStatus = obj.status ?? obj.statusCode;
+        const status = typeof rawStatus === 'number' ? rawStatus : Number(rawStatus || 0);
+        const rawMsg = String(
+          obj.message || obj.error || (obj instanceof Error ? obj.message : '')
+        ).toLowerCase();
+
+        if (
+          rawMsg.includes('failed to fetch') ||
+          rawMsg.includes('fetch failed') ||
+          rawMsg.includes('network') ||
+          rawMsg.includes('econnrefused') ||
+          rawMsg.includes('enotfound') ||
+          rawMsg.includes('offline')
+        ) {
           resolvedCode = 'AI_NETWORK_ERROR';
-        } else if (lower.includes('hosting') || lower.includes('execution budget') || lower.includes('504')) {
+        } else if (
+          status === 504 ||
+          rawMsg.includes('hosting') ||
+          rawMsg.includes('execution budget') ||
+          rawMsg.includes('function_invocation_timeout')
+        ) {
           resolvedCode = 'HOSTING_TIMEOUT';
-        } else if (lower.includes('timeout') || lower.includes('timed out')) {
+        } else if (
+          status === 408 ||
+          rawMsg.includes('timeout') ||
+          rawMsg.includes('timed out') ||
+          rawMsg.includes('deadline exceeded')
+        ) {
           resolvedCode = 'AI_TIMEOUT';
-        } else if (lower.includes('invalid key') || lower.includes('unauthorized') || lower.includes('401') || lower.includes('403')) {
+        } else if (
+          status === 401 ||
+          status === 403 ||
+          rawMsg.includes('invalid key') ||
+          rawMsg.includes('api_key_invalid') ||
+          rawMsg.includes('unauthorized') ||
+          rawMsg.includes('forbidden')
+        ) {
           resolvedCode = 'AI_INVALID_KEY';
-        } else if (lower.includes('not found') || lower.includes('404')) {
+        } else if (
+          status === 404 ||
+          rawMsg.includes('not found') ||
+          rawMsg.includes('does not exist') ||
+          rawMsg.includes('unknown model')
+        ) {
           resolvedCode = 'AI_MODEL_NOT_FOUND';
-        } else if (lower.includes('validation') || lower.includes('format') || lower.includes('schema') || lower.includes('400')) {
+        } else if (
+          status === 400 ||
+          status === 422 ||
+          status === 502 ||
+          rawMsg.includes('validation') ||
+          rawMsg.includes('format') ||
+          rawMsg.includes('schema') ||
+          rawMsg.includes('malformed')
+        ) {
           resolvedCode = 'AI_VALIDATION_FAILED';
-        } else if (lower.includes('busy') || lower.includes('quota') || lower.includes('overload') || lower.includes('429') || lower.includes('503')) {
+        } else if (
+          status === 429 ||
+          status === 503 ||
+          rawMsg.includes('busy') ||
+          rawMsg.includes('quota') ||
+          rawMsg.includes('overload') ||
+          rawMsg.includes('high demand') ||
+          rawMsg.includes('rate limit') ||
+          rawMsg.includes('resource_exhausted')
+        ) {
           resolvedCode = 'AI_BUSY';
         }
-      } else if (typeof obj.statusCode === 'number' || typeof obj.status === 'number') {
-        const status = (obj.statusCode ?? obj.status) as number;
-        if (status === 429 || status === 503) resolvedCode = 'AI_BUSY';
-        else if (status === 504) resolvedCode = 'HOSTING_TIMEOUT';
-        else if (status === 408) resolvedCode = 'AI_TIMEOUT';
-        else if (status === 401 || status === 403) resolvedCode = 'AI_INVALID_KEY';
-        else if (status === 404) resolvedCode = 'AI_MODEL_NOT_FOUND';
-        else if (status === 400) resolvedCode = 'AI_VALIDATION_FAILED';
       }
     }
     const friendly = getFriendlyAiError(resolvedCode);
@@ -381,18 +427,42 @@ export function PlanProvider({
     setGuestPlanPrompt(null);
   }, []);
 
-  const loadSavedExample = useCallback((key: string) => {
-    setError(null);
-    setErrorCode(null);
-    setRetryLastAction(null);
-    setPendingDiff(null);
-    setActiveRisks(null);
-    const example = SAVED_EXAMPLES[key];
-    if (example) {
-      setActivePlan(example);
+  const loadSavedExample = useCallback(
+    (key: string, userDate?: string) => {
+      setError(null);
+      setErrorCode(null);
+      setRetryLastAction(null);
+      setPendingDiff(null);
+      const prepared = getPreparedPlan(key, userDate);
+      if (prepared) {
+        setActivePlan(prepared.plan);
+        setActiveRisks(prepared.risks);
+        setPlanHistory([]);
+        return;
+      }
+      const example = SAVED_EXAMPLES[key];
+      if (example) {
+        setActivePlan(example);
+        const risks = SAVED_EXAMPLE_RISKS[key] || null;
+        setActiveRisks(risks);
+        setPlanHistory([]);
+      }
+    },
+    [setActivePlan]
+  );
+
+  const loadPreparedPlan = useCallback(
+    (plan: EventPlan, risks: RiskRegister) => {
+      setError(null);
+      setErrorCode(null);
+      setRetryLastAction(null);
+      setPendingDiff(null);
+      setActivePlan(plan);
+      setActiveRisks(risks);
       setPlanHistory([]);
-    }
-  }, [setActivePlan]);
+    },
+    [setActivePlan]
+  );
 
   const startPlanGeneration = async (intake: IntakeFormData): Promise<boolean> => {
     setIsLoading(true);
@@ -406,26 +476,28 @@ export function PlanProvider({
     abortControllerRef.current = new AbortController();
 
     try {
-      // Step 1: Check if Gemini has an adaptive follow-up question (strictly non-blocking with short timeout)
-      const followUpData = await fetchFollowUpNonBlocking(
-        { intake, previousFollowUpsCount: 0 },
-        abortControllerRef.current.signal
-      );
+      // Step 1: Check if intake is genuinely unclear before calling follow-up (saves AI requests)
+      if (isIntakeUnclear(intake)) {
+        const followUpData = await fetchFollowUpNonBlocking(
+          { intake, previousFollowUpsCount: 0 },
+          abortControllerRef.current.signal
+        );
 
-      // Check if user explicitly cancelled during the follow-up check
-      if (abortControllerRef.current?.signal.aborted) {
-        setIsLoading(false);
-        return false;
+        // Check if user explicitly cancelled during the follow-up check
+        if (abortControllerRef.current?.signal.aborted) {
+          setIsLoading(false);
+          return false;
+        }
+
+        if (followUpData?.needsFollowUp && followUpData.questionText) {
+          setFollowUp(followUpData);
+          setFollowUpCount(1);
+          setIsLoading(false);
+          return false; // Pause for user input — not a failure, but not ready to navigate
+        }
       }
 
-      if (followUpData?.needsFollowUp && followUpData.questionText) {
-        setFollowUp(followUpData);
-        setFollowUpCount(1);
-        setIsLoading(false);
-        return false; // Pause for user input — not a failure, but not ready to navigate
-      }
-
-      // Step 2: Proceed immediately to plan generation
+      // Step 2: Proceed immediately to plan generation (single AI call when intake is clear)
       return await triggerPlanGeneration(intake, []);
     } catch (err: unknown) {
       if (err instanceof Error && err.name === 'AbortError') {
@@ -510,7 +582,9 @@ export function PlanProvider({
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        setMappedError(errJson, () => triggerPlanGeneration(intake, followUpAnswers));
+        setMappedError({ ...errJson, status: res.status }, () =>
+          triggerPlanGeneration(intake, followUpAnswers)
+        );
         return false;
       }
 
@@ -558,7 +632,7 @@ export function PlanProvider({
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        setMappedError(errJson, () => requestReplan(changes));
+        setMappedError({ ...errJson, status: res.status }, () => requestReplan(changes));
         return;
       }
 
@@ -616,7 +690,7 @@ export function PlanProvider({
 
       if (!res.ok) {
         const errJson = await res.json().catch(() => ({}));
-        setMappedError(errJson, () => generateRisks());
+        setMappedError({ ...errJson, status: res.status }, () => generateRisks());
         return;
       }
 
@@ -773,6 +847,7 @@ export function PlanProvider({
       importGuestPlan,
       dismissGuestImport,
       loadSavedExample,
+      loadPreparedPlan,
       startPlanGeneration,
       submitFollowUp,
       skipFollowUp,
@@ -813,6 +888,7 @@ export function PlanProvider({
       guestPlanPrompt,
       dismissGuestImport,
       loadSavedExample,
+      loadPreparedPlan,
       toggleTaskCompletion,
       updateTimelineTasks,
       updateVendorStatus,

@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { usePlan } from '../plan-context';
 import { calculateBudgetSummary, formatCurrency, calculateBudgetTotals } from '@/lib/budget';
 import { formatTime12h } from '@/lib/time';
@@ -31,6 +33,23 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
   const [tempTime, setTempTime] = useState(activePlan?.muhuratTime || '');
   const [tempLabel, setTempLabel] = useState(activePlan?.muhuratLabel || '');
   const [isMasterReportOpen, setIsMasterReportOpen] = useState(true);
+
+  const overviewContainerRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    if (!overviewContainerRef.current) return;
+    const mm = gsap.matchMedia();
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.from('.overview-card', {
+        opacity: 0,
+        y: 12,
+        duration: 0.35,
+        stagger: 0.06,
+        ease: 'power2.out',
+      });
+    });
+    return () => mm.revert();
+  }, { scope: overviewContainerRef });
 
   if (!activePlan) return null;
 
@@ -63,11 +82,11 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
   };
 
   return (
-    <div className="space-y-8">
+    <div ref={overviewContainerRef} className="space-y-8">
       {/* Overview Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Budget Status Card */}
-        <div className="rounded-2xl border border-rule bg-paper-card p-5 shadow-xs">
+        <div className="overview-card rounded-2xl border border-rule bg-paper-card p-5 shadow-xs">
           <div className="flex items-center justify-between text-ink-muted mb-2">
             <span className="text-xs font-mono uppercase tracking-wider">Committed Budget</span>
             <Coins className="h-4 w-4 text-accent" aria-hidden="true" />
@@ -92,7 +111,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
         </div>
 
         {/* Timeline Progress Card */}
-        <div className="rounded-2xl border border-rule bg-paper-card p-5 shadow-xs">
+        <div className="overview-card rounded-2xl border border-rule bg-paper-card p-5 shadow-xs">
           <div className="flex items-center justify-between text-ink-muted mb-2">
             <span className="text-xs font-mono uppercase tracking-wider">Milestones Done</span>
             <CheckCircle2 className="h-4 w-4 text-accent" aria-hidden="true" />
@@ -106,7 +125,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
         </div>
 
         {/* Vendors Status Card */}
-        <div className="rounded-2xl border border-rule bg-paper-card p-5 shadow-xs">
+        <div className="overview-card rounded-2xl border border-rule bg-paper-card p-5 shadow-xs">
           <div className="flex items-center justify-between text-ink-muted mb-2">
             <span className="text-xs font-mono uppercase tracking-wider">Vendor Categories</span>
             <Compass className="h-4 w-4 text-accent" aria-hidden="true" />
@@ -120,7 +139,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
         </div>
 
         {/* Event Vibe Card */}
-        <div className="rounded-2xl border border-rule bg-paper-card p-5 shadow-xs">
+        <div className="overview-card rounded-2xl border border-rule bg-paper-card p-5 shadow-xs">
           <div className="flex items-center justify-between text-ink-muted mb-2">
             <span className="text-xs font-mono uppercase tracking-wider">Gathering Scale</span>
             <Users className="h-4 w-4 text-accent" aria-hidden="true" />
@@ -134,8 +153,8 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
         </div>
       </div>
 
-      {/* Auspicious Muhurat Time Highlight / Inline Edit Card */}
-      <div className="rounded-2xl border border-amber-300/80 dark:border-amber-800/80 bg-amber-50/70 dark:bg-amber-950/30 p-5 shadow-xs">
+      {/* Auspicious Ceremony / Muhurat Time Highlight / Inline Edit Card */}
+      <div className="overview-card rounded-2xl border border-amber-300/80 dark:border-amber-800/80 bg-amber-50/70 dark:bg-amber-950/30 p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3">
             <div className="h-9 w-9 rounded-xl bg-amber-100 dark:bg-amber-900/50 text-amber-800 dark:text-amber-200 flex items-center justify-center shrink-0 mt-0.5">
@@ -144,7 +163,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs uppercase tracking-wider font-bold text-amber-900 dark:text-amber-300">
-                  Auspicious Muhurat / Ritual Timing
+                  Ceremony / Muhurat Timing (as advised by your priest, pandit, imam or pastor)
                 </span>
                 {!isEditingMuhurat && (
                   <button
@@ -155,7 +174,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
                       setIsEditingMuhurat(true);
                     }}
                     className="p-1 rounded-md text-amber-800 dark:text-amber-300 hover:bg-amber-200/50 dark:hover:bg-amber-900/50 transition-colors"
-                    aria-label="Edit auspicious muhurat time"
+                    aria-label="Edit ceremony / muhurat time"
                   >
                     <Pencil className="h-3.5 w-3.5" aria-hidden="true" />
                   </button>
@@ -180,7 +199,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
                     </div>
                   ) : (
                     <p className="text-xs text-ink-muted">
-                      No auspicious muhurat time set yet. Click the pencil to add ritual timing for your celebration.
+                      No ceremony / muhurat time set yet. Click the pencil to add timing as advised by your priest, pandit, imam or pastor.
                     </p>
                   )}
                 </div>
@@ -191,7 +210,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
                     id="edit-muhurat-time"
                     value={tempTime}
                     onChange={setTempTime}
-                    label="Auspicious Muhurat / Ritual Time"
+                    label="Ceremony / muhurat time (as advised by your priest, pandit, imam or pastor)"
                     legendClassName="sr-only"
                   />
                   <div className="flex flex-wrap items-center gap-2">
@@ -203,7 +222,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
                         id="edit-muhurat-label"
                         type="text"
                         maxLength={40}
-                        placeholder="Label (e.g. Pheras, Pooja)"
+                        placeholder="Label (e.g. Nikah, Nuptial Mass, Pheras, Pooja)"
                         value={tempLabel}
                         onChange={(e) => setTempLabel(e.target.value)}
                         className="w-full min-h-[40px] px-3 py-1.5 rounded-lg border border-amber-400 bg-paper text-sm text-ink placeholder:text-ink-muted focus:ring-2 focus:ring-accent focus:outline-hidden"
@@ -213,7 +232,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
                       <button
                         type="button"
                         onClick={handleSaveMuhurat}
-                        aria-label="Save muhurat time"
+                        aria-label="Save ceremony / muhurat time"
                         className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-accent text-accent-text text-xs font-semibold hover:bg-accent-hover transition-colors min-h-[40px]"
                       >
                         <Check className="h-3.5 w-3.5" aria-hidden="true" />
@@ -222,7 +241,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
                       <button
                         type="button"
                         onClick={handleCancelMuhurat}
-                        aria-label="Cancel editing muhurat time"
+                        aria-label="Cancel editing ceremony / muhurat time"
                         className="p-1.5 rounded-lg border border-rule text-ink-muted hover:text-ink hover:bg-paper transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
                       >
                         <X className="h-4 w-4" aria-hidden="true" />
@@ -238,7 +257,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
 
       {/* Cultural Style & Non-negotiables Details */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="rounded-2xl border border-rule bg-paper-card p-6 shadow-xs">
+        <div className="overview-card rounded-2xl border border-rule bg-paper-card p-6 shadow-xs">
           <div className="flex items-center gap-2 mb-3">
             <Sparkles className="h-4 w-4 text-accent" aria-hidden="true" />
             <h2 className="font-serif font-bold text-lg text-ink">Style &amp; Cultural Vision</h2>
@@ -260,7 +279,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-rule bg-paper-card p-6 shadow-xs">
+        <div className="overview-card rounded-2xl border border-rule bg-paper-card p-6 shadow-xs">
           <div className="flex items-center gap-2 mb-3">
             <AlertOctagon className="h-4 w-4 text-marigold" aria-hidden="true" />
             <h2 className="font-serif font-bold text-lg text-ink">Non-Negotiable Constraints</h2>
@@ -409,7 +428,7 @@ export function TabOverview({ onSelectTab }: TabOverviewProps) {
               <h3 className="font-serif font-bold text-base text-ink">
                 Itemized Budget Allocations
               </h3>
-              <div className="overflow-x-auto rounded-xl border border-rule">
+              <div className="overflow-x-auto rounded-xl border border-rule" data-lenis-prevent>
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-paper-subtle border-b border-rule font-semibold text-ink">

@@ -16,7 +16,7 @@ interface AuthContextType {
   authError: string | null;
   missingConfigVars: string[];
   clearAuthError: () => void;
-  signIn: () => Promise<PlanUser | null>;
+  signIn: (returnUrl?: string | unknown) => Promise<PlanUser | null>;
   signOut: () => Promise<void>;
   isSaveModalOpen: boolean;
   openSaveModal: () => void;
@@ -47,6 +47,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then((redirectUser) => {
         if (redirectUser && isMounted) {
           setUser(redirectUser);
+          if (typeof window !== 'undefined') {
+            try {
+              const returnUrl = window.sessionStorage.getItem('aayojan_auth_return_url');
+              if (returnUrl) {
+                window.sessionStorage.removeItem('aayojan_auth_return_url');
+                window.location.assign(returnUrl);
+              }
+            } catch {
+              // Ignore session storage errors
+            }
+          }
         }
       })
       .catch((err) => {
@@ -72,8 +83,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthError(null);
   }, []);
 
-  const signIn = async (): Promise<PlanUser | null> => {
+  const signIn = async (returnUrl?: string | unknown): Promise<PlanUser | null> => {
     clearAuthError();
+
+    const targetUrl = typeof returnUrl === 'string' ? returnUrl : undefined;
+
+    if (targetUrl && typeof window !== 'undefined') {
+      try {
+        window.sessionStorage.setItem('aayojan_auth_return_url', targetUrl);
+      } catch {
+        // Ignore session storage errors
+      }
+    }
 
     if (missingConfigVars.length > 0) {
       const err = `Firebase configuration incomplete. Missing environment variable(s): ${missingConfigVars.join(', ')}`;
@@ -85,6 +106,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const loggedUser = await signInWithGoogle();
       if (loggedUser && loggedUser.uid !== 'pending-redirect') {
         setUser(loggedUser);
+        if (typeof window !== 'undefined') {
+          try {
+            window.sessionStorage.removeItem('aayojan_auth_return_url');
+          } catch {
+            // Ignore session storage errors
+          }
+        }
       }
       setIsSaveModalOpen(false);
       return loggedUser;

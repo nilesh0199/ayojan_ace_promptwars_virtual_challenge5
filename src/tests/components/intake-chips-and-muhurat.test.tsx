@@ -1,7 +1,10 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { axe, toHaveNoViolations } from 'jest-axe';
 import { IntakeForm } from '@/components/intake-form';
+
+expect.extend(toHaveNoViolations);
 import { PlanProvider } from '@/components/plan-context';
 import { AuthProvider } from '@/components/auth-context';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -75,10 +78,39 @@ describe('IntakeForm Idea Chips & Muhurat Timing', () => {
     expect(styleInput.value).toBe(`${initialStyle}, Minimalist Elegant`);
   });
 
-  it('shows Muhurat time input by default for Wedding celebrations', () => {
+  it('shows Ceremony / muhurat time input by default for Wedding celebrations with new label', () => {
     renderComponent();
 
-    const timeInput = screen.getByLabelText(/Auspicious Muhurat \/ Ritual Time/i);
+    const timeInput = screen.getByLabelText(/Ceremony \/ muhurat time \(as advised by your priest, pandit, imam or pastor\)/i);
     expect(timeInput).toBeInTheDocument();
+  });
+
+  it('renders all six presets and loads Nikah & Walima and Church Wedding properly', () => {
+    renderComponent();
+
+    const nikahPresetBtn = screen.getByRole('button', { name: /Nikah & Walima/i });
+    expect(nikahPresetBtn).toBeInTheDocument();
+    fireEvent.click(nikahPresetBtn);
+
+    const cityInput = screen.getByLabelText(/City \/ Location/i) as HTMLInputElement;
+    expect(cityInput.value).toBe('Hyderabad');
+    const guestInput = screen.getByLabelText(/Guest Count/i) as HTMLInputElement;
+    expect(guestInput.value).toBe('250');
+    const budgetInput = screen.getByLabelText(/Total Budget/i) as HTMLInputElement;
+    expect(budgetInput.value).toBe('1200000');
+
+    const churchPresetBtn = screen.getByRole('button', { name: /Church Wedding & Reception/i });
+    expect(churchPresetBtn).toBeInTheDocument();
+    fireEvent.click(churchPresetBtn);
+
+    expect(cityInput.value).toBe('Kochi');
+    expect(guestInput.value).toBe('200');
+    expect(budgetInput.value).toBe('1000000');
+  });
+
+  it('IntakeForm with 6 presets and ceremony time field has no axe violations', async () => {
+    const { container } = renderComponent();
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 });

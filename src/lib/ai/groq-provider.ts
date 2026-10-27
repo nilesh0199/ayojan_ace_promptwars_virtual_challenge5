@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { AiProvider, AiCallOptions } from './types';
 import { executeWithRepairRetry } from './repair';
-import { GeminiApiError } from '../gemini';
+import { GeminiApiError, isDailyQuotaError } from '../gemini';
 
 export const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
 export const GROQ_COMPLETIONS_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
@@ -46,8 +46,12 @@ export function isGroqKeyExpired(nowMs: number = Date.now()): boolean {
   return isDatePassed(expiresOn, nowMs);
 }
 
+export type GroqDisabledReason = 'expired' | 'model-not-found';
+let groqDisabledReason: GroqDisabledReason | null = null;
+
 /**
- * Checks whether Groq has been temporarily or permanently disabled after an authorization rejection (401/403).
+ * Checks whether Groq has been temporarily or permanently disabled after an authorization rejection (401/403)
+ * or missing model (404).
  */
 export function isGroqDisabled(nowMs: number = Date.now()): boolean {
   return nowMs < groqDisabledUntil;
@@ -56,14 +60,31 @@ export function isGroqDisabled(nowMs: number = Date.now()): boolean {
 /**
  * Disables the Groq provider for at least 1 hour (or process lifetime) and logs once on server with no secrets.
  */
-export function disableGroqProvider(durationMs: number = 365 * 24 * 3600 * 1000): void {
+export function disableGroqProvider(
+  durationMs: number = 365 * 24 * 3600 * 1000,
+  reason: GroqDisabledReason = 'expired'
+): void {
   groqDisabledUntil = Date.now() + durationMs;
+  groqDisabledReason = reason;
   if (!hasLoggedBackupKeyExpired) {
     hasLoggedBackupKeyExpired = true;
-    console.warn(
-      '[AI Groq] Backup AI provider key was rejected (401/403: invalid, expired or revoked). Groq provider is now disabled.'
-    );
+    if (reason === 'model-not-found') {
+      console.warn(
+        '[AI Groq] Configured Groq model was not found (404). Groq provider is now disabled for this session.'
+      );
+    } else {
+      console.warn(
+        '[AI Groq] Backup AI provider key was rejected (401/403: invalid, expired or revoked). Groq provider is now disabled.'
+      );
+    }
   }
+}
+
+/**
+ * Returns the reason why Groq provider was disabled ('expired' or 'model-not-found').
+ */
+export function getGroqDisabledReason(): GroqDisabledReason | null {
+  return groqDisabledReason;
 }
 
 /**
@@ -71,6 +92,7 @@ export function disableGroqProvider(durationMs: number = 365 * 24 * 3600 * 1000)
  */
 export function resetGroqDisabledStateForTesting(): void {
   groqDisabledUntil = 0;
+  groqDisabledReason = null;
   hasLoggedBackupKeyExpired = false;
 }
 
@@ -213,6 +235,15 @@ export class GroqProvider implements AiProvider {
 
         if (!response.ok) {
           const status = response.status;
+          const errData = await response.json().catch(() => null);
+          const errMsg =
+            typeof errData?.error?.message === 'string'
+              ? errData.error.message
+              : typeof errData?.message === 'string'
+              ? errData.message
+              : '';
+          const lowerMsg = errMsg.toLowerCase();
+
           if (status === 401 || status === 403) {
             disableGroqProvider();
             throw new GeminiApiError(
@@ -222,7 +253,13 @@ export class GroqProvider implements AiProvider {
               'AI_BACKUP_KEY_EXPIRED'
             );
           }
-          if (status === 404) {
+          if (
+            status === 404 ||
+            lowerMsg.includes('not found') ||
+            lowerMsg.includes('does not exist') ||
+            lowerMsg.includes('unknown model')
+          ) {
+            disableGroqProvider(365 * 24 * 3600 * 1000, 'model-not-found');
             throw new GeminiApiError(
               `Configured Groq model was not found: ${model}.`,
               404,
@@ -230,12 +267,28 @@ export class GroqProvider implements AiProvider {
               'AI_MODEL_NOT_FOUND'
             );
           }
-          if (status === 429) {
+          if (status === 429 || lowerMsg.includes('rate limit') || lowerMsg.includes('quota')) {
+            if (isDailyQuotaError(errMsg || 'Groq quota exceeded')) {
+              throw new GeminiApiError(
+                "Today's AI capacity for this demo has been used. Prepared plans still work, or try again later.",
+                429,
+                false,
+                'AI_QUOTA_EXHAUSTED'
+              );
+            }
             throw new GeminiApiError(
               'Groq API rate limit or quota exceeded.',
               429,
               true,
               'AI_BUSY'
+            );
+          }
+          if (status === 504 || status === 408) {
+            throw new GeminiApiError(
+              'Groq API request timed out.',
+              504,
+              true,
+              'AI_TIMEOUT'
             );
           }
           if (status >= 500) {
@@ -244,6 +297,14 @@ export class GroqProvider implements AiProvider {
               503,
               true,
               'AI_BUSY'
+            );
+          }
+          if (status === 400 || status === 422) {
+            throw new GeminiApiError(
+              `Groq request validation failed: ${errMsg || 'Invalid request parameters'}.`,
+              502,
+              false,
+              'AI_VALIDATION_FAILED'
             );
           }
           throw new GeminiApiError(

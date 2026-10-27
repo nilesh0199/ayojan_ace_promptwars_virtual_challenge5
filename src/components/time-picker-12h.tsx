@@ -30,7 +30,7 @@ export function TimePicker12h({
   id: externalId,
   value = '',
   onChange,
-  label = 'Auspicious Muhurat / Ritual Time',
+  label = 'Ceremony / muhurat time (as advised by your priest, pandit, imam or pastor)',
   legendClassName = 'block text-sm font-medium text-ink mb-1.5',
   className = '',
   disabled = false,

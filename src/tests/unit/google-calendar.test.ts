@@ -239,7 +239,7 @@ describe('Google Calendar Integration Utilities', () => {
       });
 
       expect(urlString).toContain('dates=20261120T113000%2F20261120T123000');
-      expect(urlString).toContain('Scheduled+Auspicious+Time%3A+11%3A30+AM');
+      expect(urlString).toContain('Scheduled+Ceremony+%2F+Muhurat+Time%3A+11%3A30+AM');
     });
   });
 

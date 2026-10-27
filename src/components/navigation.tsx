@@ -23,7 +23,7 @@ export function DesktopNavRail() {
   const { user, signIn, signOut, loading } = useAuth();
 
   const navItems = [
-    { href: '/', label: 'Plan Creator', icon: Sparkles },
+    { href: '/plan', label: 'Plan Creator', icon: Sparkles },
     { href: '/workspace', label: 'Workspace', icon: LayoutDashboard },
     { href: '/saved', label: 'Saved Plans', icon: BookmarkCheck },
     { href: '/about', label: 'About', icon: Info },
@@ -36,9 +36,13 @@ export function DesktopNavRail() {
       aria-label="Desktop primary navigation rail"
       className="hidden md:flex flex-col justify-between w-64 shrink-0 border-r border-rule bg-paper-card/70 backdrop-blur-md h-full p-5 overflow-hidden select-none no-print"
     >
-      <div className="flex flex-col min-h-0 overflow-y-auto">
+      <div className="flex flex-col min-h-0 overflow-y-auto" data-lenis-prevent>
         {/* Brand Header */}
-        <div className="flex items-center gap-3 pb-6 border-b border-rule shrink-0">
+        <Link
+          href="/"
+          className="flex items-center gap-3 pb-6 border-b border-rule shrink-0 hover:opacity-90 transition-opacity"
+          aria-label="Aayojan Ace Home"
+        >
           <div
             className="h-10 w-10 rounded-xl bg-accent flex items-center justify-center text-accent-text font-serif font-black text-xl shadow-xs"
             aria-label="Aayojan Ace Brand Emblem"
@@ -56,7 +60,7 @@ export function DesktopNavRail() {
               Planner&apos;s Notebook
             </span>
           </div>
-        </div>
+        </Link>
 
         {/* Navigation Links */}
         <nav className="mt-6 flex flex-col gap-1.5" aria-label="Main menu">
@@ -162,7 +166,7 @@ export function MobileNavBar() {
   const { user, signIn, loading } = useAuth();
 
   const navItems = [
-    { href: '/', label: 'Plan', icon: Sparkles },
+    { href: '/plan', label: 'Plan', icon: Sparkles },
     { href: '/workspace', label: 'Workspace', icon: LayoutDashboard },
     { href: '/saved', label: 'Saved', icon: BookmarkCheck },
     { href: '/about', label: 'About', icon: Info },

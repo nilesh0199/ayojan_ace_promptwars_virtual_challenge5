@@ -66,7 +66,7 @@ export function generateTimelineIcs(
       task.owner ? `Owner: ${task.owner}` : '',
       `Phase: ${task.phase}`,
       isEventDay && muhuratTime
-        ? `Auspicious Muhurat Timing: ${formatTime12h(muhuratTime)}${muhuratLabel ? ` (${muhuratLabel})` : ''}`
+        ? `Ceremony / Muhurat Timing (as advised by your priest, pandit, imam or pastor): ${formatTime12h(muhuratTime)}${muhuratLabel ? ` (${muhuratLabel})` : ''}`
         : '',
       task.estimatedCostLink ? `Estimated Cost Reference: ${task.estimatedCostLink}` : '',
     ]

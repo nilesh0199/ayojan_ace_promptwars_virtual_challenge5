@@ -1,4 +1,4 @@
-import { EventPlan } from '../lib/schemas';
+import { EventPlan, RiskRegister } from '../lib/schemas';
 import { injectGuestMilestones } from '../lib/timeline';
 
 export const SAMPLE_WEDDING_PLAN: EventPlan = {
@@ -564,8 +564,112 @@ export const SAMPLE_COMMUNITY_PLAN: EventPlan = {
   generationSource: 'primary',
 };
 
+export const SAMPLE_WEDDING_RISKS: RiskRegister = {
+  risks: [
+    {
+      id: 'risk-sw-1',
+      category: 'Dependencies',
+      severity: 'High',
+      potentialIssue: 'Vendor delivery delay during peak afternoon setup hours',
+      rootCause: 'Heavy weekend transit congestion and overlapping bookings in Jaipur heritage areas',
+      mitigationTask: 'Mandate arrival and setup completion 2 hours prior to guest arrival with written vendor confirmation.',
+    },
+    {
+      id: 'risk-sw-2',
+      category: 'Dietary & Accessibility',
+      severity: 'High',
+      potentialIssue: 'Accidental root-vegetable contamination in dedicated Jain buffet line',
+      rootCause: 'High guest volume dining concurrently at combined live counters',
+      mitigationTask: 'Establish a physically segregated kitchen and counter marked with clear signage and dedicated servers.',
+    },
+    {
+      id: 'risk-sw-3',
+      category: 'Permits & Legal',
+      severity: 'Medium',
+      potentialIssue: 'Sound curfew enforcement and municipal decibel limits after 10 PM',
+      rootCause: 'Local city administration enforcement near residential heritage zones',
+      mitigationTask: 'Obtain municipal sound NOC in advance and schedule outdoor amplified music to conclude by 10:00 PM.',
+    },
+    {
+      id: 'risk-sw-4',
+      category: 'Single Point of Failure',
+      severity: 'High',
+      potentialIssue: 'Power grid tripping from high-wattage sound and lawn lighting equipment',
+      rootCause: 'Heritage property standard electrical outlets overloaded by heavy amplification gear',
+      mitigationTask: 'Confirm on-site silent diesel generator with automatic changeover switch for continuous audio and stage power.',
+    },
+  ],
+  assessedAt: '2026-05-01T10:00:00.000Z',
+};
+
+export const SAMPLE_BIRTHDAY_RISKS: RiskRegister = {
+  risks: [
+    {
+      id: 'risk-sb-1',
+      category: 'Dietary & Accessibility',
+      severity: 'High',
+      potentialIssue: 'Gluten cross-contamination in custom milestone birthday cake',
+      rootCause: 'Bakery preparation sharing equipment with regular flour products',
+      mitigationTask: 'Require certified allergen-free kitchen written confirmation from baker.',
+    },
+    {
+      id: 'risk-sb-2',
+      category: 'Weather & Season',
+      severity: 'Medium',
+      potentialIssue: 'Sudden evening rain or damp lawn at outdoor garden villa',
+      rootCause: 'Monsoon or transitional showers in Bengaluru garden areas',
+      mitigationTask: 'Confirm covered villa verandah standby space with patio furniture.',
+    },
+    {
+      id: 'risk-sb-3',
+      category: 'Single Point of Failure',
+      severity: 'Low',
+      potentialIssue: 'Portable acoustic PA system battery depletion during sundowner set',
+      rootCause: 'Acoustic duo performing on battery power without outdoor extension cable',
+      mitigationTask: 'Run heavy-duty weather-sealed outdoor power extension reel from villa.',
+    },
+  ],
+  assessedAt: '2026-05-10T12:00:00.000Z',
+};
+
+export const SAMPLE_COMMUNITY_RISKS: RiskRegister = {
+  risks: [
+    {
+      id: 'risk-sc-1',
+      category: 'Permits & Legal',
+      severity: 'High',
+      potentialIssue: 'Society residential noise restriction violation after 10 PM',
+      rootCause: 'Outdoor sound equipment playing past prescribed residential society quiet hours',
+      mitigationTask: 'Set calibrated automatic volume limiters and transition to acoustic music by 9:30 PM.',
+    },
+    {
+      id: 'risk-sc-2',
+      category: 'Single Point of Failure',
+      severity: 'High',
+      potentialIssue: 'Electrical tripping from food stall heating burners and string lights',
+      rootCause: 'All live food kiosk heaters connected to single residential circuit breaker',
+      mitigationTask: 'Distribute heating equipment loads across multiple electrical distribution boards with safety fuses.',
+    },
+    {
+      id: 'risk-sc-3',
+      category: 'Dietary & Accessibility',
+      severity: 'Medium',
+      potentialIssue: 'Senior residents tripping over outdoor shamiyana cables and tent ropes',
+      rootCause: 'Temporary event wiring laid across pedestrian walking pathways',
+      mitigationTask: 'Enclose all wiring in heavy rubber floor cable ramps and position bright LED caution markers.',
+    },
+  ],
+  assessedAt: '2026-05-15T14:00:00.000Z',
+};
+
 export const SAVED_EXAMPLES: Record<string, EventPlan> = {
   wedding: SAMPLE_WEDDING_PLAN,
   birthday: SAMPLE_BIRTHDAY_PLAN,
   community: SAMPLE_COMMUNITY_PLAN,
+};
+
+export const SAVED_EXAMPLE_RISKS: Record<string, RiskRegister> = {
+  wedding: SAMPLE_WEDDING_RISKS,
+  birthday: SAMPLE_BIRTHDAY_RISKS,
+  community: SAMPLE_COMMUNITY_RISKS,
 };

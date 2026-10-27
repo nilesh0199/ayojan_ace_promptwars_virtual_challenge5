@@ -16,7 +16,7 @@ import {
   GeminiErrorCode,
 } from '@/lib/gemini';
 import { SAVED_EXAMPLES } from '@/data/savedExamples';
-import { EventPlan, IntakeFormData } from '@/lib/schemas';
+import { EventPlan, IntakeFormData, isIntakeUnclear } from '@/lib/schemas';
 
 // Mock next/navigation
 vi.mock('next/navigation', () => ({
@@ -47,6 +47,25 @@ describe('Non-blocking Follow-up and Typed Error Representation', () => {
   afterEach(() => {
     global.fetch = originalFetch;
   });
+
+  function TestGenerationTrigger({ intake = testIntake }: { intake?: IntakeFormData }) {
+    const { startPlanGeneration, activePlan, isLoading, error, errorCode } = usePlan();
+    return (
+      <div>
+        <button
+          type="button"
+          onClick={() => startPlanGeneration(intake)}
+          data-testid="trigger-generate-btn"
+        >
+          Generate
+        </button>
+        <div data-testid="is-loading">{isLoading ? 'true' : 'false'}</div>
+        {activePlan && <div data-testid="plan-title">{activePlan.title}</div>}
+        {error && <div data-testid="error-message">{error}</div>}
+        {errorCode && <div data-testid="error-code">{errorCode}</div>}
+      </div>
+    );
+  }
 
   describe('1. fetchFollowUpNonBlocking Utility', () => {
     it('returns follow-up data on successful HTTP 200', async () => {
@@ -168,6 +187,7 @@ describe('Non-blocking Follow-up and Typed Error Representation', () => {
       { code: 'AI_NETWORK_ERROR', expectedKeyword: 'Network connection issue' },
       { code: 'AI_NOT_CONFIGURED', expectedKeyword: 'AI not configured' },
       { code: 'AI_BACKUP_KEY_EXPIRED', expectedKeyword: 'AI key expired' },
+      { code: 'AI_QUOTA_EXHAUSTED', expectedKeyword: 'Daily AI quota reached' },
       { code: 'AI_BUSY', expectedKeyword: 'AI is busy' },
     ];
 
@@ -182,27 +202,74 @@ describe('Non-blocking Follow-up and Typed Error Representation', () => {
     );
   });
 
-  describe('4. Plan Generation Flow: Follow-up failure never halts generation', () => {
-    function TestGenerationTrigger() {
-      const { startPlanGeneration, activePlan, isLoading, error, errorCode } = usePlan();
-      return (
-        <div>
-          <button
-            type="button"
-            onClick={() => startPlanGeneration(testIntake)}
-            data-testid="trigger-generate-btn"
-          >
-            Generate
-          </button>
-          <div data-testid="is-loading">{isLoading ? 'true' : 'false'}</div>
-          {activePlan && <div data-testid="plan-title">{activePlan.title}</div>}
-          {error && <div data-testid="error-message">{error}</div>}
-          {errorCode && <div data-testid="error-code">{errorCode}</div>}
-        </div>
-      );
-    }
+  describe('Intake Unclear Local Rule & Single-Call Conservation', () => {
+    it('accurately identifies clear vs unclear intakes to conserve AI requests', () => {
+      // Clear intake with adequate style details and realistic budget
+      expect(isIntakeUnclear(testIntake)).toBe(false);
 
-    it('skips follow-up questions silently and generates plan when /api/plan/followup returns 500', async () => {
+      // Unclear: empty or missing style
+      expect(isIntakeUnclear({ ...testIntake, styleCulture: '' })).toBe(true);
+      expect(isIntakeUnclear({ ...testIntake, styleCulture: '   ' })).toBe(true);
+
+      // Unclear: placeholder / vague style
+      expect(isIntakeUnclear({ ...testIntake, styleCulture: 'tbd' })).toBe(true);
+      expect(isIntakeUnclear({ ...testIntake, styleCulture: 'none' })).toBe(true);
+      expect(isIntakeUnclear({ ...testIntake, styleCulture: 'any' })).toBe(true);
+      expect(isIntakeUnclear({ ...testIntake, styleCulture: 'standard' })).toBe(true);
+      expect(isIntakeUnclear({ ...testIntake, styleCulture: 'n/a' })).toBe(true);
+
+      // Unclear: contradictory budget and guest counts
+      // Wedding in INR with < 150 INR per guest
+      expect(isIntakeUnclear({ ...testIntake, totalBudget: 20000, guestCount: 500 })).toBe(true);
+      // Large guest count (>= 300) with budget < 50000 INR
+      expect(isIntakeUnclear({ ...testIntake, totalBudget: 40000, guestCount: 350 })).toBe(true);
+    });
+
+    it('skips /api/plan/followup entirely on clear intake, executing generation in a single AI call', async () => {
+      const mockGeneratedPlan: EventPlan = {
+        ...SAVED_EXAMPLES.wedding,
+        title: 'Single-Call Generated Wedding',
+      };
+
+      const fetchSpy = vi.fn().mockImplementation(async (url: string) => {
+        if (url.includes('/api/plan/generate')) {
+          return {
+            ok: true,
+            status: 200,
+            json: async () => mockGeneratedPlan,
+          };
+        }
+        return { ok: false, status: 404 };
+      });
+      global.fetch = fetchSpy;
+
+      render(
+        <AuthProvider>
+          <PlanProvider>
+            <TestGenerationTrigger intake={testIntake} />
+          </PlanProvider>
+        </AuthProvider>
+      );
+
+      fireEvent.click(screen.getByTestId('trigger-generate-btn'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('plan-title').textContent).toBe('Single-Call Generated Wedding');
+      });
+
+      // Verify that /api/plan/followup was NEVER called!
+      const followupCalls = fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/plan/followup'));
+      expect(followupCalls).toHaveLength(0);
+
+      // Single generation call made
+      const generateCalls = fetchSpy.mock.calls.filter(([url]) => String(url).includes('/api/plan/generate'));
+      expect(generateCalls).toHaveLength(1);
+    });
+  });
+
+  describe('4. Plan Generation Flow: Follow-up failure never halts generation', () => {
+    it('skips follow-up questions silently and generates plan when /api/plan/followup returns 500 on unclear intake', async () => {
+      const unclearIntake: IntakeFormData = { ...testIntake, styleCulture: 'tbd' };
       const mockGeneratedPlan: EventPlan = {
         ...SAVED_EXAMPLES.wedding,
         title: 'Generated Udaipur Royal Wedding',
@@ -229,7 +296,7 @@ describe('Non-blocking Follow-up and Typed Error Representation', () => {
       render(
         <AuthProvider>
           <PlanProvider>
-            <TestGenerationTrigger />
+            <TestGenerationTrigger intake={unclearIntake} />
           </PlanProvider>
         </AuthProvider>
       );
@@ -246,6 +313,7 @@ describe('Non-blocking Follow-up and Typed Error Representation', () => {
     });
 
     it('skips follow-up questions silently when /api/plan/followup fetch throws network error', async () => {
+      const unclearIntake: IntakeFormData = { ...testIntake, styleCulture: 'tbd' };
       const mockGeneratedPlan: EventPlan = {
         ...SAVED_EXAMPLES.wedding,
         title: 'Resilient Offline Wedding Plan',
@@ -268,7 +336,7 @@ describe('Non-blocking Follow-up and Typed Error Representation', () => {
       render(
         <AuthProvider>
           <PlanProvider>
-            <TestGenerationTrigger />
+            <TestGenerationTrigger intake={unclearIntake} />
           </PlanProvider>
         </AuthProvider>
       );

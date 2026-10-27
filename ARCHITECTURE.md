@@ -19,6 +19,8 @@ In celebration planning, AI models are creative synthesis engines, not authorita
 ```
 src/
 ├── app/                  # Next.js App Router (Routes & Server API Handlers)
+│   ├── page.tsx          # Professional Landing Page (GSAP ScrollTrigger + Lenis)
+│   ├── plan/             # Celebration Plan Creator (Intake form, presets, 12h ceremony picker)
 │   ├── about/            # About page with creator, architecture & contact links
 │   ├── api/health/       # Config & service health check endpoint
 │   ├── api/plan/         # Server-only API routes (/followup, /generate, /replan, /risks, /names, /ask)
@@ -29,6 +31,7 @@ src/
 │   ├── globals.css       # Design tokens & print stylesheet
 │   └── layout.tsx        # Shell root with font loading and providers
 ├── components/           # UI Components
+│   ├── landing/          # Landing Page components (Header, Hero, WordBand, HowItWorks, About, PrivacyTerms, CTA, Footer, ScrollEffects)
 │   ├── workspace/        # Workspace sub-views (Header, Tabs, Replan Modal)
 │   ├── ai-loader.tsx     # Reusable animated AI loader with cancellation
 │   ├── navigation.tsx    # Desktop Rail + Mobile Bottom Bar
@@ -168,3 +171,43 @@ When the event date shifts from $D_{\text{old}}$ to $D_{\text{new}}$:
   - Desktop ($\ge 768\text{px}$): Left-hand navigation rail with collapsed metadata and theme switch.
   - Mobile ($< 768\text{px}$): Fixed bottom navigation bar with safe-area padding and minimum 44px touch targets.
 - **Print Optimization**: Dedicated `@media print` rules strip navigation chrome and format ledgers for crisp paper export or PDF generation.
+
+---
+
+## 8. Motion, Micro-interactions & Smooth Scrolling Architecture (GSAP & Lenis)
+
+### 8.1. Isolated Client-Only Loading Strategy
+- **Shared Bundle Zero-Growth**: GSAP, `@gsap/react`, and Lenis are dynamically imported on the Landing Page (`src/components/landing/landing-scroll-effects.tsx`) and within isolated workspace client components (`workspace-header.tsx`, `tab-overview.tsx`, `tab-budget.tsx`, `workspace/page.tsx`). Lenis is also mounted on narrative content pages (`/about`, `/privacy`, `/terms`) via `<SmoothScroll />`.
+- **No Global Leakage**: Neither GSAP nor Lenis is imported into `layout.tsx`, `app-shell.tsx`, `navigation.tsx`, or the plan creator route (`/plan`). The shared entry chunk First Load JS remains protected and well below threshold boundaries.
+
+### 8.2. Landing Page GSAP ScrollTrigger + Lenis Orchestration
+The Landing Page (`/`) uses a unified animation architecture:
+1. **Unified Ticker Loop**: `lenis.on('scroll', ScrollTrigger.update)` synchronizes Lenis with GSAP ScrollTrigger, while `gsap.ticker.add((time) => lenis.raf(time * 1000))` and `gsap.ticker.lagSmoothing(0)` drive smooth scrolling through a single coordinated loop.
+2. **Hero Entrance & Parallax**: Header, title, tagline, and action panel reveal with staggered opacity and transforms on load, followed by subtle parallax drift on scroll.
+3. **Horizontal Scrubbing Word Band**: The marquee band (*Budgets*, *Timelines*, *Vendors*, *Ideas*, *Guests*, *Ceremony times*, *Reminders*) is scrubbed horizontally in sync with page scroll.
+4. **"How It Works" Sequence**: Pinned multi-step sequence on desktop screens ($\ge 768px$) transitioning smoothly through the 4 planning phases, with simple vertical reveals on mobile ($< 768px$).
+5. **Closing CTA Scale-In**: Closing banner scales smoothly into resting view as it enters the viewport.
+6. **Strict Guardrails**: Animations strictly operate on `transform` and `opacity`. Under `prefers-reduced-motion: reduce`, on touch devices, or during print, Lenis and GSAP scrubbing are disabled completely, rendering static content with `clearProps`. All triggers are killed and Lenis destroyed on component unmount.
+
+### 8.3. Workspace GSAP Micro-interactions
+Four purposeful micro-interactions enhance visual hierarchy without distracting from planning tasks:
+1. **Workspace Header Reveal**: Subtle downward slide and fade (`opacity: 0, y: -8` $\to$ `1, 0`) upon workspace mounting.
+2. **Overview Cards Staggered Rise**: Gentle staggered upward entrance (`opacity: 0, y: 12` $\to$ `1, 0`, 60ms stagger) across metric and cultural cards.
+3. **Stacked Budget Bar Fill**: Smooth scale-in along the X-axis (`scaleX: 0` $\to$ `1`, `transformOrigin: 'left center'`) on initial ledger load.
+4. **Soft Tab-Content Fade**: Gentle transition (`opacity: 0.7, y: 4` $\to$ `1, 0`, 250ms) across workspace tab switches.
+
+### 8.4. Strict Guardrails & Accessibility
+- **Transform & Opacity Only**: All tweens operate strictly on CSS `transform` and `opacity` properties to prevent layout reflows and guarantee 60fps GPU acceleration.
+- **prefers-reduced-motion**: Every animation is wrapped in `gsap.matchMedia('(prefers-reduced-motion: no-preference)')`. When reduced motion is preferred, animations are bypassed entirely, displaying content immediately in its natural resting state.
+- **Progressive Enhancement / No Flash**: Components render in natural CSS without `display: none` or `opacity: 0` stylesheets. If JavaScript is unavailable or errors out, all content remains completely visible and accessible.
+- **ARIA Live & Loader Exemption**: No animations target elements inside `[role="status"]`, `[role="alert"]`, `[aria-live]`, or the `AiLoader`.
+- **Automatic Lifecycle Cleanup**: Every `useGSAP` hook automatically scopes and tears down tweens on component unmount via context reversion (`mm.revert()`).
+
+### 8.5. Lenis Smooth Scrolling Architecture on Narrative Content Pages
+- **Content Pages Only**: Smooth scrolling is active exclusively on narrative documentation routes (`/about`, `/privacy`, `/terms`). It is strictly barred from the planner, workspace, saved plans, dialogs, and modals.
+- **Bypass Conditions**: Lenis initialization is skipped entirely if:
+  1. `prefers-reduced-motion: reduce` is active.
+  2. Touch device detected (`'ontouchstart' in window` or `navigator.maxTouchPoints > 0`).
+  3. Print media is detected (`window.matchMedia('print').matches` or `beforeprint` event).
+- **Single RAF Loop**: Lenis is driven strictly by a single `requestAnimationFrame` loop (never combined with GSAP ticker), which is cancelled and destroyed on unmount.
+- **Inner Scroll Containment**: Every nested scroll container (dialog backdrops, modal bodies, dropdowns, overflow tables) is tagged with `data-lenis-prevent` to prevent scroll hijacking.

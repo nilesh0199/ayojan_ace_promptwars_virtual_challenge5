@@ -56,6 +56,7 @@ body {
   min-height: 100dvh;
   margin: 0;
   padding: 0;
+  scroll-padding-top: 5rem;
   background-color: var(--color-paper);
   color: var(--color-ink);
   font-family: var(--font-dm-sans), system-ui, -apple-system, sans-serif;
@@ -67,6 +68,23 @@ body {
 :focus-visible {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
+}
+
+/* Specular highlight sweep for glossy landing typography */
+@keyframes glossy-sheen {
+  0% {
+    transform: translateX(-120%) skewX(-20deg);
+  }
+  25% {
+    transform: translateX(140%) skewX(-20deg);
+  }
+  100% {
+    transform: translateX(140%) skewX(-20deg);
+  }
+}
+
+.animate-specular-sweep {
+  animation: glossy-sheen 7s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
 }
 
 /* Reduced motion accessibility */

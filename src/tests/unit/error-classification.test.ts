@@ -1,14 +1,17 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import {
   mapGeminiError,
   getFriendlyAiError,
   isOverloadOrTransientError,
+  isDailyQuotaError,
   recordCombinationFailure,
   recordCombinationSuccess,
   isCombinationCircuitOpen,
+  isDailyQuotaCombination,
   resetAllCircuitBreakers,
   TIMEOUT_CONFIG,
   GeminiApiError,
+  DAILY_QUOTA_COOLDOWN_MS,
 } from '@/lib/gemini';
 
 describe('Error Classification, Visibility & Circuit Breaker Hardening', () => {
@@ -57,11 +60,36 @@ describe('Error Classification, Visibility & Circuit Breaker Hardening', () => {
       expect(mapped.statusCode).toBe(504);
     });
 
-    it('maps network connection drops to AI_NETWORK_ERROR', () => {
-      const err = new Error('fetch failed: connect ECONNREFUSED 142.250.190.42');
-      const mapped = mapGeminiError(err);
-      expect(mapped.code).toBe('AI_NETWORK_ERROR');
-      expect(mapped.statusCode).toBe(503);
+    it('maps network connection drops including browser Failed to fetch to AI_NETWORK_ERROR', () => {
+      const errNode = new Error('fetch failed: connect ECONNREFUSED 142.250.190.42');
+      const mappedNode = mapGeminiError(errNode);
+      expect(mappedNode.code).toBe('AI_NETWORK_ERROR');
+      expect(mappedNode.statusCode).toBe(503);
+
+      const errBrowser = new TypeError('Failed to fetch');
+      const mappedBrowser = mapGeminiError(errBrowser);
+      expect(mappedBrowser.code).toBe('AI_NETWORK_ERROR');
+      expect(mappedBrowser.statusCode).toBe(503);
+    });
+
+    it('maps HTTP status codes on raw SDK/API error objects to specific typed codes', () => {
+      const err404 = { status: 404, message: 'The model `llama-3.3-70b-versatile` does not exist or you do not have access to it.' };
+      expect(mapGeminiError(err404).code).toBe('AI_MODEL_NOT_FOUND');
+
+      const err429 = { status: 429, message: 'You exceeded your current quota' };
+      expect(mapGeminiError(err429).code).toBe('AI_BUSY');
+
+      const err503 = { status: 503, message: 'High demand spikes' };
+      expect(mapGeminiError(err503).code).toBe('AI_BUSY');
+
+      const err504 = { status: 504, message: 'Gateway timeout' };
+      expect(mapGeminiError(err504).code).toBe('AI_TIMEOUT');
+
+      const err401 = { status: 401, message: 'Unauthorized key' };
+      expect(mapGeminiError(err401).code).toBe('AI_INVALID_KEY');
+
+      const err502 = { status: 502, message: 'Bad Gateway' };
+      expect(mapGeminiError(err502).code).toBe('AI_VALIDATION_FAILED');
     });
 
     it('maps schema and malformed output to AI_VALIDATION_FAILED', () => {
@@ -81,6 +109,35 @@ describe('Error Classification, Visibility & Circuit Breaker Hardening', () => {
       const mappedOverload = mapGeminiError(errOverload);
       expect(mappedOverload.code).toBe('AI_BUSY');
       expect(mappedOverload.statusCode).toBe(429);
+    });
+
+    it('tells daily quota exhaustion apart from short rate limits', () => {
+      // Daily exhaustion phrases:
+      const dailyErr1 = new Error('429 RESOURCE_EXHAUSTED: Quota exceeded for quota metric GenerateContent requests per day');
+      expect(isDailyQuotaError(dailyErr1)).toBe(true);
+      const mapped1 = mapGeminiError(dailyErr1);
+      expect(mapped1.code).toBe('AI_QUOTA_EXHAUSTED');
+      expect(mapped1.statusCode).toBe(429);
+      expect(mapped1.isRetryable).toBe(false);
+
+      const dailyErr2 = { status: 429, message: 'Rate limit reached for requests per day. Limit: 1000' };
+      expect(isDailyQuotaError(dailyErr2)).toBe(true);
+      expect(mapGeminiError(dailyErr2).code).toBe('AI_QUOTA_EXHAUSTED');
+
+      const dailyErr3 = new Error('429: free_tier_requests exhausted for the day');
+      expect(isDailyQuotaError(dailyErr3)).toBe(true);
+      expect(mapGeminiError(dailyErr3).code).toBe('AI_QUOTA_EXHAUSTED');
+
+      // Short per-minute rate limits (should NOT be daily):
+      const minErr1 = new Error('429 Rate limit exceeded: requests per minute exceeded');
+      expect(isDailyQuotaError(minErr1)).toBe(false);
+      const mappedMin = mapGeminiError(minErr1);
+      expect(mappedMin.code).toBe('AI_BUSY');
+      expect(mappedMin.isRetryable).toBe(true);
+
+      const minErr2 = { status: 429, message: 'Too many requests, retry in 15 seconds' };
+      expect(isDailyQuotaError(minErr2)).toBe(false);
+      expect(mapGeminiError(minErr2).code).toBe('AI_BUSY');
     });
 
     it('defaults unclassified errors to AI_ERROR, never incorrectly to AI_BUSY', () => {
@@ -173,6 +230,33 @@ describe('Error Classification, Visibility & Circuit Breaker Hardening', () => {
       // Check after 65 seconds
       const future = now + 65 * 1000;
       expect(isCombinationCircuitOpen(keyType, model, future)).toBe(false);
+    });
+
+    it('disables provider combination for 30 minutes on daily quota exhaustion and expires after cooldown (fake timers)', () => {
+      vi.useFakeTimers();
+      const baseTime = new Date('2026-10-27T12:00:00Z').getTime();
+      vi.setSystemTime(baseTime);
+
+      expect(isCombinationCircuitOpen(keyType, model)).toBe(false);
+
+      // Record daily quota failure
+      recordCombinationFailure(keyType, model, false, baseTime, true);
+
+      // Combination is immediately open (disabled) for 30 minutes
+      expect(isCombinationCircuitOpen(keyType, model)).toBe(true);
+      expect(isDailyQuotaCombination(keyType, model)).toBe(true);
+
+      // At 29 minutes: still disabled
+      vi.advanceTimersByTime(29 * 60 * 1000);
+      expect(isCombinationCircuitOpen(keyType, model)).toBe(true);
+      expect(isDailyQuotaCombination(keyType, model)).toBe(true);
+
+      // At 30 minutes + 1 second: cooldown has expired, allows re-probing
+      vi.advanceTimersByTime(61 * 1000);
+      expect(isCombinationCircuitOpen(keyType, model)).toBe(false);
+      expect(isDailyQuotaCombination(keyType, model)).toBe(false);
+
+      vi.useRealTimers();
     });
 
     it('recordCombinationSuccess immediately resets the failure counter', () => {

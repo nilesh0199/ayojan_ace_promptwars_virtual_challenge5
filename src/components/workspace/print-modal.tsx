@@ -66,6 +66,7 @@ export function PrintModal({ isOpen, onClose, activeTabName }: PrintModalProps) 
   return (
     <div
       role="presentation"
+      data-lenis-prevent
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-xs transition-opacity"
       onClick={onClose}
     >
@@ -129,7 +130,7 @@ export function PrintModal({ isOpen, onClose, activeTabName }: PrintModalProps) 
                 <span className="text-sm font-semibold text-ink">Full Event Report (Recommended)</span>
               </div>
               <p className="text-xs text-ink-muted leading-relaxed">
-                Includes executive summary with auspicious muhurat timing, full budget ledger, complete timeline with guest milestones, vendor checklist, ideas, and risk register.
+                Includes executive summary with ceremony / muhurat timing (as advised by your priest, pandit, imam or pastor), full budget ledger, complete timeline with guest milestones, vendor checklist, ideas, and risk register.
               </p>
             </div>
           </label>

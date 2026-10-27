@@ -26,9 +26,9 @@ Aayojan Ace solves this by combining the creative synthesis of generative AI wit
 Every core requirement mandated by the challenge brief is delivered with dedicated screens, pure business logic, and automated tests:
 
 - **Weddings, Birthdays, and Community Events**:
-  - **Screen**: Plan Creator ([`src/app/page.tsx`](file:///src/app/page.tsx)) and Intake Form ([`src/components/intake-form.tsx`](file:///src/components/intake-form.tsx)).
-  - **Feature**: Native support for Indian Weddings, Birthdays, and Community Events, plus editable regional presets: *Indian Wedding*, *Griha Pravesh / Housewarming*, *Diwali Community Gathering*, and *College Annual Fest*.
-  - **Source Files**: [`src/lib/constants.ts`](file:///src/lib/constants.ts) (`EVENT_TYPES`, `EVENT_PRESETS`) and [`src/data/savedExamples.ts`](file:///src/data/savedExamples.ts).
+  - **Screen**: Landing Page ([`src/app/page.tsx`](file:///src/app/page.tsx)) and Plan Creator ([`src/app/plan/page.tsx`](file:///src/app/plan/page.tsx)) with Intake Form ([`src/components/intake-form.tsx`](file:///src/components/intake-form.tsx)).
+  - **Feature**: Professional landing page with GSAP ScrollTrigger and Lenis smooth scrolling. Dedicated Plan Creator with native support for Indian Weddings, Birthdays, and Community Events, plus six editable presets: *Indian Wedding* (Jaipur), *Nikah & Walima* (Hyderabad), *Church Wedding & Reception* (Kochi), *Griha Pravesh / Housewarming* (Bengaluru), *Diwali Community Gathering* (Mumbai), and *College Annual Fest* (Delhi). Submitting an unchanged preset or clicking an example plan triggers an honest 3-second preparation loader (1 second under reduced motion) that computes reflowed dates relative to today and opens a prepared, schema-valid plan with realistic benchmark budgets and populated risk registers without external AI calls. Modifying any detail immediately directs the request to Google Gemini (or backup AI) to synthesize a custom plan.
+  - **Source Files**: [`src/lib/constants.ts`](file:///src/lib/constants.ts) (`EVENT_TYPES`, `EVENT_PRESETS`), [`src/data/preparedPlans.ts`](file:///src/data/preparedPlans.ts), and [`src/data/savedExamples.ts`](file:///src/data/savedExamples.ts).
 
 - **Budgets**:
   - **Screen**: Workspace Budget Tab ([`src/components/workspace/tab-budget.tsx`](file:///src/components/workspace/tab-budget.tsx)).
@@ -58,7 +58,7 @@ Aayojan Ace treats Generative AI as an intelligent synthesis engine, using deter
 
 ### 1. Plan Generation
 - **What It Does**: Crafts a complete, cohesive celebration blueprint from intake parameters in a single structured call.
-- **Input Received**: Event type, city, date, guest count, total budget, currency, style or culture, non-negotiables, optional event name, and optional Muhurat time.
+- **Input Received**: Event type, city, date, guest count, total budget, currency, style or culture, non-negotiables, optional event name, and optional ceremony / muhurat time (as advised by your priest, pandit, imam or pastor).
 - **Structured Output Returned**: Schema-validated JSON containing budget categories (with min/target/max estimates and assumptions), phased timeline tasks (with timing offsets and owners), vendor checklist (with screening questions), and personalized cultural ideas.
 - **Guardrails**: Output is validated against `eventPlanSchema` via Zod. Estimates are passed to `validateAndFitBudget()` which enforces realistic Indian city tier benchmarks (Metro, Tier-2, Tier-3) and scales categories so total committed costs never exceed the user's budget ceiling.
 - **Source Files**: [`src/app/api/plan/generate/route.ts`](file:///src/app/api/plan/generate/route.ts), [`src/lib/prompts.ts`](file:///src/lib/prompts.ts) (`buildPlannerPrompt`), and [`src/lib/budget-benchmarks.ts`](file:///src/lib/budget-benchmarks.ts).
@@ -93,7 +93,7 @@ Aayojan Ace treats Generative AI as an intelligent synthesis engine, using deter
 
 ### 6. Ask AI (Celebration Doubts & Questions)
 - **What It Does**: Provides an in-workspace interactive advisory tab where users ask specific questions or explore options for their active celebration.
-- **Input Received**: Compact context of the active plan (city, date, guest count, budget, Muhurat timing, style) plus the user's specific inquiry.
+- **Input Received**: Compact context of the active plan (city, date, guest count, budget, ceremony / muhurat timing as advised by officiant, style) plus the user's specific inquiry.
 - **Structured Output Returned**: `AskAiResponse` containing a focused, practical answer formatted with safe Markdown bolding and bullet lists.
 - **Guardrails**: Character limit capped at 500 characters. Answers are parsed through a safe text renderer with zero raw HTML injection. Rate-limited to 15 requests per minute per IP.
 - **Source Files**: [`src/app/api/plan/ask/route.ts`](file:///src/app/api/plan/ask/route.ts) and [`src/components/workspace/tab-ask-ai.tsx`](file:///src/components/workspace/tab-ask-ai.tsx).
@@ -103,7 +103,7 @@ To ensure absolute reliability, mathematical accuracy, and user safety, generati
 - **Budget Math and Hard Ceiling Enforcement**: Summing category targets, computing contingency allowances, calculating statutory taxes, detecting over-budget states, and scaling allocations are handled entirely in pure TypeScript ([`src/lib/budget.ts`](file:///src/lib/budget.ts) and [`src/lib/budget-benchmarks.ts`](file:///src/lib/budget-benchmarks.ts)). AI models frequently make arithmetic errors; deterministic code never does.
 - **Timeline Date Reflow**: When an event date is rescheduled, shifting task due dates, recalculating days-before-event offsets, and reassigning milestone phases are computed in pure TypeScript ([`src/lib/timeline.ts`](file:///src/lib/timeline.ts)).
 - **Guest Invitation Milestones**: Critical guest outreach deadlines (Save-the-Date at 8 weeks, Invitations at 3 weeks, RSVP follow-ups at 10 days, Final headcount at 5 days) are deterministically injected by code to ensure timing accuracy.
-- **Muhurat Time (Auspicious Timing)**: Auspicious timing is entered strictly by the user or their family priest. Aayojan Ace never invents or guesses a Muhurat time, honoring cultural respect.
+- **Ceremony / Muhurat Time**: Auspicious or ceremony timing is entered strictly by the user as advised by their priest, pandit, imam or pastor. Aayojan Ace never invents or guesses a ceremony / muhurat time, honoring cultural and religious respect.
 - **Calendar & PDF Exports**: Google Calendar URL templates, standard RFC 5545 `.ics` file generation, and executive PDF reports are generated entirely via deterministic client-side routines.
 
 ### Guardrails & Safety Architecture
@@ -111,13 +111,15 @@ To ensure absolute reliability, mathematical accuracy, and user safety, generati
 - **Delimited Untrusted Inputs**: All user-provided strings are sanitized, JSON-encoded, and wrapped within explicit `<<<USER_INPUT_DATA>>>` boundary tags with instructions instructing the model to treat content as passive data.
 - **No Fabricated Vendor Entities**: Prompts explicitly forbid generating fake telephone numbers, fabricated company names, or guaranteed quotes. Vendors are listed by professional role with screening questions.
 - **Estimate Ranges with Stated Assumptions**: All financial figures present Minimum, Target, and Maximum ranges accompanied by transparent planning assumptions.
-- **Zero Raw Error Leakage**: Upstream API errors, model timeouts, and status codes are never displayed directly to users. The backend maps errors to typed error codes (`AI_BUSY`, `AI_TIMEOUT`, `AI_NOT_CONFIGURED`, `AI_BACKUP_KEY_EXPIRED`), and the UI displays friendly, reassuring messages with retry actions.
+- **Zero Raw Error Leakage & Quota Awareness**: Upstream API errors, model timeouts, and status codes are never displayed directly to users. The backend maps errors to typed error codes (`AI_BUSY`, `AI_QUOTA_EXHAUSTED`, `AI_TIMEOUT`, `AI_NOT_CONFIGURED`, `AI_INVALID_KEY`, `AI_MODEL_NOT_FOUND`, `AI_BACKUP_KEY_EXPIRED`). Daily quota exhaustion (429 with daily/per-day limits) is cleanly differentiated from short rate limits; daily exhaustion trips a 30-minute circuit breaker cooldown and displays a calm UI explanation with buttons for "Load a prepared plan" and "Retry later".
+- **Request Conservation**: Adaptive follow-ups (`/api/plan/followup`) are dispatched only when user intake is genuinely ambiguous or contradictory (evaluated via local heuristic `isIntakeUnclear`), guaranteeing plan generation operates as a single AI call whenever possible.
+- **Cache Optimization**: In-memory LRU cache uses deterministic canonical payload keys so identical generation requests reuse cached plans instantly with zero latency or token burn, while errors and template fallbacks are never cached.
 
 ### Multi-Provider Resilience Hierarchy
 Aayojan Ace incorporates a 4-tier provider cascade with per-model circuit breakers and a total execution time budget:
 1. **Google Gemini Primary Model**: Primary AI engine configured via `GEMINI_MODEL` with up to 2 retries using exponential backoff and randomized jitter.
 2. **Google Gemini Fallback Model**: Secondary Gemini model configured via `GEMINI_FALLBACK_MODEL`, automatically invoked if the primary model encounters capacity limits or server unavailability.
-3. **Groq Cloud Provider (`llama-3.3-70b-versatile`)**: Optional secondary AI provider using OpenAI-compatible chat completions with JSON mode. Enabled only when `GROQ_API_KEY` is configured. Hardened against key expiration (`GROQ_KEY_EXPIRES_ON`) and 401/403 rejection.
+3. **Groq Cloud Provider**: Optional secondary AI provider using OpenAI-compatible chat completions with JSON mode. Fully configurable through `GROQ_MODEL` with no hardcoded dependencies. If Groq reports model-not-found (404), it disables Groq for the session with `AI_MODEL_NOT_FOUND`. Hardened against key expiration (`GROQ_KEY_EXPIRES_ON`) and 401/403 rejection.
 4. **Built-in Deterministic Template Planner (`template-planner.ts`)**: Last-resort fallback that runs locally with zero external network dependency, generating a complete, realistic, schema-verified plan in under 1 millisecond.
 - **Visual Non-Primary Indicators**: When a plan is drafted by a backup AI provider or the built-in template planner, an accessible banner and badge appear with a single-click **"Try again with AI"** option.
 
@@ -140,23 +142,23 @@ Aayojan Ace incorporates a 4-tier provider cascade with per-model circuit breake
 
 ### 3. Efficiency
 - **Optimized Bundle Sizes (Next.js Production Build)**:
-  - Shared First Load JS: **87.2 kB**
-  - Plan Creator / Home Route: **274 kB** (Route size: **6.99 kB**)
-  - Saved Plans Route: **274 kB** (Route size: **6.69 kB**)
-  - About Route: **267 kB** (Route size: **204 B**)
-  - Privacy & Terms Routes: **267 kB** (Route size: **190 B**)
-  - Workspace Route: **299 kB** (Route size: **32.4 kB**)
+  - Shared First Load JS: **87.2 kB** (0.0 kB increase from baseline; GSAP and Lenis strictly localized)
+  - Plan Creator / Home Route: **286 kB** (Route size: **9.32 kB**)
+  - Saved Plans Route: **283 kB** (Route size: **6.7 kB**)
+  - About Route: **283 kB** (Route size: **817 B**)
+  - Privacy & Terms Routes: **283 kB** (Route size: **817 B**)
+  - Workspace Route: **339 kB** (Route size: **62.6 kB**)
 - **In-Memory LRU Cache**: Server-side cache in [`src/lib/cache.ts`](file:///src/lib/cache.ts) prevents redundant AI calls for identical celebration configurations.
 - **Focused Replanning Payloads**: Replanning transmits only modified fields, significantly reducing token consumption and round-trip latency.
 - **Fast Local Operations**: Date reflow, `.ics` file generation, budget calculations, and template planning run client-side in under 5 milliseconds.
 
 ### 4. Testing
-- **100% Test Pass Rate**: **264 tests passed across 38 test suites** in 46.55 seconds.
+- **100% Test Pass Rate**: **483 tests passed across 47 test suites**.
 - **High Code Coverage (v8)**:
-  - **Lines**: **95.56%** (Threshold: $\ge 85\%$)
-  - **Branches**: **81.08%** (Threshold: $\ge 80\%$)
-  - **Functions**: **97.5%**
-  - **Statements**: **95.56%**
+  - **Lines**: **92.94%** (Threshold: $\ge 85\%$)
+  - **Branches**: **82.34%** (Threshold: $\ge 80\%$)
+  - **Functions**: **97.01%**
+  - **Statements**: **92.94%**
 - **Comprehensive Test Spectrum**:
   - Unit tests for budget benchmarks, math, timeline reflow, calendar URLs, `.ics` generation, cache, rate limiting, and diff computation.
   - Component tests for IntakeForm, AiLoader, PrintModal, ReplanModal, SavePromptModal, TabAskAi, WorkspaceHeader, and ThemeToggle.
@@ -165,23 +167,25 @@ Aayojan Ace incorporates a 4-tier provider cascade with per-model circuit breake
 
 ### 5. Accessibility (a11y)
 - **WCAG 2.1 AA Compliance**: Verified with automated `jest-axe` tests across all pages and interactive modals in both Light and Dark themes.
+- **Motion Accessibility & GSAP Guardrails**: Every GSAP motion sequence is wrapped in `gsap.matchMedia()` targeting `(prefers-reduced-motion: no-preference)`. Under `prefers-reduced-motion: reduce`, all animations are skipped, rendering content instantly with standard CSS layout and visibility. Animations strictly modify only `transform` and `opacity`, never animate elements within `aria-live` or the `AiLoader`, and automatically clean up context and tweens on unmount.
+- **Lenis Smooth Scroll Safeguards**: Lenis is initialized exclusively on narrative content pages (`/about`, `/privacy`, `/terms`). It is completely disabled when `prefers-reduced-motion: reduce` is active, on touch devices (`ontouchstart` or `maxTouchPoints > 0`), and during print media. All interactive inner scroll containers carry `data-lenis-prevent`.
 - **Contrast Ratios**: Custom color palette in [`tailwind.config.ts`](file:///tailwind.config.ts) guarantees high contrast ($\ge 4.5:1$ for body text, $\ge 3:1$ for UI controls, $\ge 7:1$ for print). Verified by [`src/tests/unit/contrast.test.ts`](file:///src/tests/unit/contrast.test.ts).
 - **Accessible AI Loading State**: `AiLoader` uses `role="status"` and `aria-live="polite"`. Respects `prefers-reduced-motion` by displaying a static icon instead of CSS rotation.
 - **Keyboard Navigation**: Focus traps on all dialogs, Esc key to dismiss, Enter key to confirm, and visible `:focus-visible` outline rings throughout.
 - **Touch Accessibility**: Minimum 44px touch targets on all buttons, chips, and navigation links.
 
 ### 6. Problem Statement Alignment
-- **Tailored to Indian Celebrations**: Direct support for weddings, milestone birthdays, and community gatherings with regional presets (Indian Wedding, Griha Pravesh, Diwali Utsav, College Fest).
-- **Cultural Nuances**: Built-in support for Muhurat timing, regional rituals (Pheras, Sangeet, Haldi, Varmala, Satyanarayan Pooja), and dietary accommodations (dedicated Pure Jain counters, satvik catering, vegan options).
-- **Practical Planning Deliverables**: Complete budget ledgers, phased timelines, vendor screening questions, risk registers, `.ics` calendar sync, and printable executive reports.
+- **Tailored to Diverse Celebrations**: Direct support for weddings, milestone birthdays, and community gatherings with six comprehensive presets: *Indian Wedding* (Jaipur), *Nikah & Walima* (Hyderabad), *Church Wedding & Reception* (Kochi), *Griha Pravesh* (Bengaluru), *Diwali Utsav* (Mumbai), and *College Annual Fest* (Delhi).
+- **Cultural & Religious Inclusivity**: Built-in support for ceremony and auspicious timing (*Ceremony / muhurat time as advised by your priest, pandit, imam or pastor*), Muslim celebrations (Nikah solemnization, certified halal feast, optional separate seating partition, timing set by family & religious guidance), Christian celebrations (church and parish officiant coordination, wedding rehearsal, reception timing confirmed with church), Hindu regional rituals (Pheras, Sangeet, Haldi, Pooja), and dietary accommodations (dedicated Pure Jain counters, certified halal catering, satvik protocols, vegan options).
+- **Practical Planning Deliverables**: Complete budget ledgers, phased timelines, vendor screening questions with "Verify with the vendor" badges, risk registers, `.ics` calendar sync, and printable executive reports.
 
 ---
 
 ## Feature Tour
 
-- **Plan Creator & Idea Chips**: Intake form with quick-pick chips for popular Indian cities, guest count tiers, budget amounts, regional styles, and non-negotiables. Includes AI event name suggestions and optional Muhurat time selection.
+- **Plan Creator & Idea Chips**: Intake form with quick-pick chips for popular Indian cities, guest count tiers, budget amounts, regional styles, and non-negotiables. Includes AI event name suggestions and optional ceremony / muhurat time selection.
 - **8-Tab Celebration Workspace**:
-  - *Overview*: Executive summary fact sheet, Muhurat auspicious timing card with inline editor, budget allocation bar, milestone summary, and collapsible on-screen Master Plan report.
+  - *Overview*: Executive summary fact sheet, ceremony / muhurat timing card (as advised by your priest, pandit, imam or pastor) with inline editor, budget allocation bar, milestone summary, and collapsible on-screen Master Plan report.
   - *Budget*: Itemized category ledger with Min/Target/Max estimate ranges, stated assumptions, 5-10% contingency buffer, tax allowance, and over-budget visual warnings.
   - *Timeline*: Phased milestone track (*Now*, *Next 7 days*, *Next 30 days*, *Event week*, *Event day*), interactive completion checkboxes, and date reflow.
   - *Vendors*: Screening categories with contract status dropdowns (*Shortlisted*, *Contacted*, *Quoted*, *Booked*, *Contract received*), "Verify with the vendor" badges, and discovery interview questions.
@@ -257,7 +261,7 @@ Aayojan Ace incorporates a 4-tier provider cascade with per-model circuit breake
   - `ratelimit.ts`: Token bucket rate limiter.
   - `cache.ts`: Server-side in-memory LRU cache.
   - `firebase/`: Firebase configuration, auth helpers, Firestore CRUD, and data mappers.
-- `src/data/`: Curated offline plan presets (`savedExamples.ts`).
+- `src/data/`: Curated offline plan presets and prepared plans (`preparedPlans.ts`, `savedExamples.ts`).
 - `src/tests/`: Automated test suite containing 38 test files across unit, component, API, and accessibility specs.
 - `firestore.rules`: Production Cloud Firestore security rules with document ownership and schema validation.
 
@@ -270,6 +274,8 @@ For in-depth architectural patterns, see [`ARCHITECTURE.md`](file:///ARCHITECTUR
 - **Framework**: Next.js 14.2 (App Router, Server-side API handlers, Static Page Optimization)
 - **UI Library**: React 18 with TypeScript 5 (Strict Mode)
 - **Styling**: Tailwind CSS with custom editorial design tokens and print stylesheet
+- **Animation & Micro-interactions**: GSAP 3.15 with `@gsap/react` 2.1 (purposeful header reveal, card stagger, budget fill, and tab transition respecting `prefers-reduced-motion`)
+- **Smooth Scrolling**: Lenis 1.3 (content pages `/about`, `/privacy`, `/terms` only; strictly bypassed under reduced motion, on touch devices, and during printing)
 - **Icons**: Lucide React
 - **Primary AI Provider**: Google Gemini API (`@google/genai` SDK with models configured through server environment variables)
 - **Secondary Backup AI Provider**: Groq Cloud API (`llama-3.3-70b-versatile` with JSON mode)
@@ -357,6 +363,20 @@ Configure the following keys in your `.env.local` file:
 1. Import the repository into Vercel.
 2. In Project Settings &rarr; **Environment Variables**, add all server-side (`GEMINI_*`, `GROQ_*`) and client-side (`NEXT_PUBLIC_FIREBASE_*`) variables.
 3. Deploy. Because `NEXT_PUBLIC_*` values are baked into bundles during compilation, any future change to Firebase settings requires triggering a **Redeploy**.
+
+---
+
+## Landing Page & Motion Architecture
+
+Aayojan Ace features a bespoke, professional editorial landing page at `/` powered by **GSAP (ScrollTrigger, @gsap/react)** and **Lenis** smooth scrolling:
+
+- **Desktop 60/40 Grid**: Left 60% features large fluid typography (*Fraunces*) with smooth plum-to-crimson glossy gradient and looping specular sheen; right 40% hosts the vertically centered access panel with "Get started with Google" (popup with automatic redirect fallback), "Try as Guest", and session detection.
+- **Sticky Header**: Constant header with wordmark linking to `/`, fixed "Start plan" button opening `/plan`, Google Sign-in / Avatar, and theme toggle. Features `scroll-padding-top` to prevent content occlusion.
+- **Moving Word Band**: Horizontal scrolling marquee scrubbed by ScrollTrigger showcasing core planning facets: *Budgets*, *Timelines*, *Vendors*, *Ideas*, *Guests*, *Ceremony times*, *Reminders*.
+- **"How It Works" Sequence**: Pinned multi-step orchestration on desktop ($\ge 768px$) and graceful vertical reveals on mobile ($< 768px$).
+- **Shared About Content Module**: Both the landing page and `/about` share `src/data/aboutContent.ts` to ensure consistency without code duplication.
+- **Privacy & Terms Summaries**: Concise plain-language summaries taken directly from `/privacy` and `/terms`, ending with direct links.
+- **Reduced Motion & Accessibility**: Strictly skips Lenis smooth scrolling, parallax, and scrubbing under `prefers-reduced-motion: reduce`, on touch devices, and during print. Full keyboard navigation and anchor jumps are preserved. Contrast tokens in both light (cream `#FDFBF7`) and dark (aubergine `#140A13`) exceed WCAG AA 4.5:1.
 
 ---
 

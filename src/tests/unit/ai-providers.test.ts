@@ -457,6 +457,27 @@ describe('AI Provider Abstraction, Groq Integration & Failover Cascade', () => {
       });
     });
 
+    it('throws AI_BUSY when all candidate stages are skipped because circuit breakers are open', async () => {
+      // Trip circuits for both primary and fallback models
+      recordCombinationFailure('gemini' as any, 'gemini-3.8-flash', true);
+      recordCombinationFailure('gemini' as any, 'gemini-3.8-flash', true);
+      recordCombinationFailure('gemini' as any, 'gemini-3.8-flash', true);
+
+      recordCombinationFailure('gemini' as any, 'gemini-3.5-flash', true);
+      recordCombinationFailure('gemini' as any, 'gemini-3.5-flash', true);
+      recordCombinationFailure('gemini' as any, 'gemini-3.5-flash', true);
+
+      expect(isCombinationCircuitOpen('gemini' as any, 'gemini-3.8-flash')).toBe(true);
+      expect(isCombinationCircuitOpen('gemini' as any, 'gemini-3.5-flash')).toBe(true);
+
+      await expect(
+        executeAiCascade('Test', testSchema)
+      ).rejects.toMatchObject({
+        code: 'AI_BUSY',
+        statusCode: 503,
+      });
+    });
+
     it('enforces total budget and throws AI_TIMEOUT when remaining budget is under 500ms', async () => {
       await expect(
         executeAiCascade('Test', testSchema, {
@@ -543,6 +564,8 @@ describe('AI Provider Abstraction, Groq Integration & Failover Cascade', () => {
         statusCode: 404,
         code: 'AI_MODEL_NOT_FOUND',
       });
+
+      resetGroqDisabledStateForTesting();
 
       const mockFetch500 = vi.fn().mockResolvedValue({
         ok: false,

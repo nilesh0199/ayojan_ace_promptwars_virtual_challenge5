@@ -108,4 +108,64 @@ describe('WCAG 2.2 AA Contrast Token Pairs Verification', () => {
       expect(ratio).toBeGreaterThanOrEqual(4.5);
     });
   });
+
+  describe('Landing Page Editorial Palette Contrast (Light & Dark)', () => {
+    // Landing page palette tokens (editorial cream/plum/crimson & dark aubergine)
+    const landingLightTokens = {
+      bgCream: '#FDFBF7',
+      plumText: '#300D26',
+      crimsonAccent: '#7E1333',
+      crimsonLargeText: '#96193E',
+      mutedPlum: '#5C3852',
+    };
+
+    const landingDarkTokens = {
+      bgAubergine: '#140A13',
+      creamText: '#FAF6EE',
+      lightPlum: '#D6BDCE',
+      lightCrimson: '#F26D8E',
+      crimsonButtonBg: '#96193E',
+      crimsonButtonText: '#FAF6EE',
+    };
+
+    it('Light: deep plum text against cream background meets WCAG AA (>= 4.5:1)', () => {
+      const ratio = getContrastRatio(landingLightTokens.plumText, landingLightTokens.bgCream);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('Light: crimson accent against cream background meets WCAG AA (>= 4.5:1)', () => {
+      const ratio = getContrastRatio(landingLightTokens.crimsonAccent, landingLightTokens.bgCream);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('Light: crimson large display heading against cream background meets WCAG AA Large (>= 3.0:1)', () => {
+      const ratio = getContrastRatio(landingLightTokens.crimsonLargeText, landingLightTokens.bgCream);
+      expect(ratio).toBeGreaterThanOrEqual(3.0);
+    });
+
+    it('Light: muted plum body text against cream background meets WCAG AA (>= 4.5:1)', () => {
+      const ratio = getContrastRatio(landingLightTokens.mutedPlum, landingLightTokens.bgCream);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('Dark: light cream text against deep aubergine background meets WCAG AA (>= 4.5:1)', () => {
+      const ratio = getContrastRatio(landingDarkTokens.creamText, landingDarkTokens.bgAubergine);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('Dark: light plum text against deep aubergine background meets WCAG AA (>= 4.5:1)', () => {
+      const ratio = getContrastRatio(landingDarkTokens.lightPlum, landingDarkTokens.bgAubergine);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('Dark: light crimson accent against deep aubergine background meets WCAG AA (>= 4.5:1)', () => {
+      const ratio = getContrastRatio(landingDarkTokens.lightCrimson, landingDarkTokens.bgAubergine);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it('Dark: button text against crimson button background meets WCAG AA (>= 4.5:1)', () => {
+      const ratio = getContrastRatio(landingDarkTokens.crimsonButtonText, landingDarkTokens.crimsonButtonBg);
+      expect(ratio).toBeGreaterThanOrEqual(4.5);
+    });
+  });
 });

@@ -61,6 +61,7 @@ export interface FirestorePlanDoc {
   muhuratTime?: string;
   muhuratLabel?: string;
   generationSource?: 'primary' | 'backup' | 'template';
+  generationErrorCode?: string;
   providerNotice?: string;
 }
 
@@ -145,6 +146,7 @@ export function toFirestoreDoc(plan: EventPlan): FirestorePlanDoc {
   if (validPlan.muhuratTime) doc.muhuratTime = validPlan.muhuratTime;
   if (validPlan.muhuratLabel) doc.muhuratLabel = validPlan.muhuratLabel;
   if (validPlan.generationSource) doc.generationSource = validPlan.generationSource;
+  if (validPlan.generationErrorCode) doc.generationErrorCode = validPlan.generationErrorCode;
   if (validPlan.providerNotice) doc.providerNotice = validPlan.providerNotice;
 
   return doc;

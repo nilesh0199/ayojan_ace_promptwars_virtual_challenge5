@@ -1,6 +1,15 @@
 import { NextResponse } from 'next/server';
 import { checkRequestSafety } from '@/lib/api-helper';
-import { isGroqKeyExpired } from '@/lib/ai/groq-provider';
+import {
+  isGroqKeyExpired,
+  isGroqDisabled,
+  getGroqDisabledReason,
+  DEFAULT_GROQ_MODEL,
+} from '@/lib/ai/groq-provider';
+import {
+  isDailyQuotaCombination,
+  DEFAULT_PRIMARY_MODEL,
+} from '@/lib/gemini';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,19 +35,48 @@ export async function GET(request: Request): Promise<NextResponse> {
     (process.env.GEMINI_MODEL && process.env.GEMINI_MODEL.trim().length > 0) || true
   );
 
-  let groqStatus: 'configured' | 'missing' | 'expired' = 'missing';
-  if (groqKeyConfigured) {
-    groqStatus = isGroqKeyExpired() ? 'expired' : 'configured';
+  const primaryModel = process.env.GEMINI_MODEL || DEFAULT_PRIMARY_MODEL;
+  let geminiStatus: 'configured' | 'missing' | 'quota-exhausted' | 'model-not-found' = 'missing';
+  if (!geminiConfigured) {
+    geminiStatus = 'missing';
+  } else if (isDailyQuotaCombination('primary', primaryModel)) {
+    geminiStatus = 'quota-exhausted';
+  } else {
+    geminiStatus = 'configured';
   }
 
-  const isHealthy = geminiConfigured && modelConfigured;
+  let fallbackStatus: 'configured' | 'missing' | 'quota-exhausted' = 'missing';
+  if (fallbackKeyConfigured) {
+    if (isDailyQuotaCombination('fallback', primaryModel)) {
+      fallbackStatus = 'quota-exhausted';
+    } else {
+      fallbackStatus = 'configured';
+    }
+  }
+
+  const groqModel = process.env.GROQ_MODEL || DEFAULT_GROQ_MODEL;
+  let groqStatus: 'configured' | 'missing' | 'quota-exhausted' | 'model-not-found' | 'expired' = 'missing';
+  if (groqKeyConfigured) {
+    if (isGroqDisabled()) {
+      const reason = getGroqDisabledReason();
+      groqStatus = reason === 'model-not-found' ? 'model-not-found' : 'expired';
+    } else if (isGroqKeyExpired()) {
+      groqStatus = 'expired';
+    } else if (isDailyQuotaCombination('groq', groqModel)) {
+      groqStatus = 'quota-exhausted';
+    } else {
+      groqStatus = 'configured';
+    }
+  }
+
+  const isHealthy = geminiConfigured && modelConfigured && geminiStatus !== 'quota-exhausted';
 
   return NextResponse.json(
     {
       status: isHealthy ? 'ok' : 'degraded',
-      gemini: geminiConfigured ? 'configured' : 'missing',
+      gemini: geminiStatus,
       groq: groqStatus,
-      fallbackKey: fallbackKeyConfigured ? 'configured' : 'missing',
+      fallbackKey: fallbackStatus,
       model: modelConfigured ? 'configured' : 'missing',
     },
     {

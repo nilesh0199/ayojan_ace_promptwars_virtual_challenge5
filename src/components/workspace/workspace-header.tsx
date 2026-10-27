@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { usePlan } from '../plan-context';
 import { useAuth } from '../auth-context';
 import { formatCurrency } from '@/lib/budget';
@@ -71,6 +73,23 @@ export function WorkspaceHeader({ onOpenReplan, activeTabName = 'Overview' }: Wo
   const [isSuggestModalOpen, setIsSuggestModalOpen] = useState(false);
   const [suggestedNames, setSuggestedNames] = useState<string[]>([]);
   const [isFetchingNames, setIsFetchingNames] = useState(false);
+
+  // Subtle Header Reveal Animation with GSAP
+  const headerContainerRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    if (!headerContainerRef.current) return;
+    const mm = gsap.matchMedia();
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.from(headerContainerRef.current, {
+        opacity: 0,
+        y: -8,
+        duration: 0.4,
+        ease: 'power2.out',
+      });
+    });
+    return () => mm.revert();
+  }, { scope: headerContainerRef });
 
   // Delete Confirmation Dialog
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -217,7 +236,7 @@ export function WorkspaceHeader({ onOpenReplan, activeTabName = 'Overview' }: Wo
           return;
         }
       }
-      router.push('/');
+      router.push('/plan');
     } finally {
       setIsDeleting(false);
       setIsDeleteDialogOpen(false);
@@ -236,7 +255,7 @@ export function WorkspaceHeader({ onOpenReplan, activeTabName = 'Overview' }: Wo
   const displayName = activePlan.eventName || activePlan.title;
 
   return (
-    <div className="border-b border-rule bg-paper-card p-6 sm:p-8 rounded-2xl shadow-xs mb-8">
+    <div ref={headerContainerRef} className="border-b border-rule bg-paper-card p-6 sm:p-8 rounded-2xl shadow-xs mb-8">
       {/* Top Meta Row */}
       <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-rule/60">
         <div className="flex flex-wrap items-center gap-2">
@@ -607,7 +626,7 @@ export function WorkspaceHeader({ onOpenReplan, activeTabName = 'Overview' }: Wo
                 <p className="text-xs text-ink-muted">Generating tailored celebration names...</p>
               </div>
             ) : (
-              <div className="space-y-2 max-h-60 overflow-y-auto">
+              <div className="space-y-2 max-h-60 overflow-y-auto" data-lenis-prevent>
                 {suggestedNames.map((suggestion, idx) => (
                   <button
                     key={idx}

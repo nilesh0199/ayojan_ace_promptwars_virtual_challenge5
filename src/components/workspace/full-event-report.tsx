@@ -81,7 +81,7 @@ export function FullEventReport({ plan, risks }: FullEventReportProps) {
           <div className="mt-3 p-2.5 rounded-lg border border-amber-300 bg-amber-50 text-xs text-neutral-900 flex items-center justify-between">
             <div>
               <span className="font-bold text-amber-900 block uppercase tracking-wider text-[10px]">
-                Auspicious Muhurat / Ritual Time
+                Ceremony / Muhurat Time (as advised by your priest, pandit, imam or pastor)
               </span>
               <span className="font-bold text-black text-sm">
                 {formatTime12h(plan.muhuratTime)}
@@ -230,7 +230,7 @@ export function FullEventReport({ plan, risks }: FullEventReportProps) {
                   <div className="font-semibold text-black">{task.title}</div>
                   {task.phase === 'Event day' && plan.muhuratTime && (
                     <div className="text-[11px] font-bold text-amber-900 mt-0.5">
-                      ★ Auspicious Muhurat Time: {formatTime12h(plan.muhuratTime)}
+                      ★ Ceremony / Muhurat Time (as advised by your priest, pandit, imam or pastor): {formatTime12h(plan.muhuratTime)}
                       {plan.muhuratLabel ? ` (${plan.muhuratLabel})` : ''}
                     </div>
                   )}

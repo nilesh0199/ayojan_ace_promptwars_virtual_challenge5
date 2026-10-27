@@ -1,6 +1,8 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { usePlan } from '../plan-context';
 import { calculateBudgetSummary, formatCurrency } from '@/lib/budget';
 import {
@@ -29,6 +31,22 @@ const BAR_COLORS = [
 
 export function TabBudget({ onOpenReplan }: TabBudgetProps) {
   const { activePlan } = usePlan();
+
+  const budgetBarRef = useRef<HTMLDivElement>(null);
+
+  useGSAP(() => {
+    if (!budgetBarRef.current) return;
+    const mm = gsap.matchMedia();
+    mm.add('(prefers-reduced-motion: no-preference)', () => {
+      gsap.from(budgetBarRef.current, {
+        scaleX: 0,
+        transformOrigin: 'left center',
+        duration: 0.6,
+        ease: 'power2.out',
+      });
+    });
+    return () => mm.revert();
+  }, { scope: budgetBarRef });
 
   // Pure deterministic budget math performed strictly in code (memoized)
   const summary = useMemo(() => {
@@ -133,6 +151,7 @@ export function TabBudget({ onOpenReplan }: TabBudgetProps) {
 
         {/* Stacked Bar */}
         <div
+          ref={budgetBarRef}
           role="progressbar"
           aria-label="Category allocation distribution bar"
           aria-valuenow={Math.round((summary.totalCommitted / summary.totalBudget) * 100)}
@@ -215,7 +234,7 @@ export function TabBudget({ onOpenReplan }: TabBudgetProps) {
         </div>
 
         {/* Responsive Table / Stacked Card Container */}
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" data-lenis-prevent>
           <table className="w-full text-left text-xs sm:text-sm">
             <thead className="bg-paper-subtle/70 text-ink-muted uppercase font-mono text-[11px] border-b border-rule">
               <tr>

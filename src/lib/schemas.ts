@@ -81,6 +81,70 @@ export const intakeFormSchema = z.object({
 export type IntakeFormData = z.infer<typeof intakeFormSchema>;
 
 /**
+ * Local heuristic rule to determine if intake details are genuinely unclear,
+ * requiring an adaptive follow-up clarification before generation.
+ * Saves requests and ensures plan generation is a single AI call whenever possible.
+ */
+export function isIntakeUnclear(intake: IntakeFormData): boolean {
+  if (!intake) return true;
+
+  // 1. Missing or overly vague style / culture details
+  const style = (intake.styleCulture || '').trim().toLowerCase();
+  const vagueStyleKeywords = [
+    'tbd',
+    'none',
+    'any',
+    'standard',
+    'normal',
+    'na',
+    'n/a',
+    'general',
+    'basic',
+    'etc',
+    'dont know',
+    "don't know",
+    'not sure',
+  ];
+  if (style.length < 5 || vagueStyleKeywords.includes(style)) {
+    return true;
+  }
+
+  // 2. Contradictory or extreme budget-to-guest ratio
+  const guests = Number(intake.guestCount) || 0;
+  const budget = Number(intake.totalBudget) || 0;
+  if (guests <= 0 || budget <= 0) {
+    return true;
+  }
+
+  const costPerGuest = budget / guests;
+  const currency = intake.currency || 'INR';
+
+  if (currency === 'INR') {
+    // Under 150 INR per guest for weddings or under 50 INR for others is contradictory in India
+    if (intake.eventType === 'Wedding' && costPerGuest < 150) {
+      return true;
+    }
+    if (costPerGuest < 50) {
+      return true;
+    }
+    // High guest volume with tiny overall budget
+    if (guests >= 300 && budget < 50000) {
+      return true;
+    }
+  } else {
+    // Major foreign currencies (USD, EUR, GBP, AUD, CAD, AED)
+    if (intake.eventType === 'Wedding' && costPerGuest < 10) {
+      return true;
+    }
+    if (costPerGuest < 3) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Follow-up question schema
  */
 export const followUpResponseSchema = z.object({

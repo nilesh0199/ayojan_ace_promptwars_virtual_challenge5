@@ -159,7 +159,7 @@ export function buildGoogleCalendarTemplateUrl(options: {
   const details = [
     `Milestone: ${taskTitle}`,
     `Plan: ${planTitle}`,
-    startTime ? `Scheduled Auspicious Time: ${formatTime12h(startTime)}` : '',
+    startTime ? `Scheduled Ceremony / Muhurat Time: ${formatTime12h(startTime)}` : '',
     `View in Aayojan Ace: ${appOrigin}/workspace`,
   ]
     .filter(Boolean)

@@ -216,6 +216,7 @@ describe('Task B: Plan Generation Failure & Navigation Rules', () => {
   describe('Typed Error Messages and Retry Button Styling', () => {
     const errorCodes: GeminiErrorCode[] = [
       'AI_BUSY',
+      'AI_QUOTA_EXHAUSTED',
       'AI_TIMEOUT',
       'AI_INVALID_KEY',
       'AI_MODEL_NOT_FOUND',
@@ -299,6 +300,44 @@ describe('Task B: Plan Generation Failure & Navigation Rules', () => {
         expect(retryBtn.className).not.toContain('text-accent-contrast');
       });
     });
+
+    it('renders calm message and distinct buttons for AI_QUOTA_EXHAUSTED with Reference line and passes jest-axe', async () => {
+      global.fetch = vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/api/plan/followup')) {
+          return Promise.resolve({ ok: false, status: 500, json: async () => ({}) });
+        }
+        if (url.includes('/api/plan/generate')) {
+          return Promise.resolve({
+            ok: false,
+            status: 429,
+            json: async () => ({
+              code: 'AI_QUOTA_EXHAUSTED',
+              error: "Today's AI capacity for this demo has been used. Prepared plans still work, or try again later.",
+              message: "Today's AI capacity for this demo has been used. Prepared plans still work, or try again later.",
+            }),
+          });
+        }
+        return Promise.reject(new Error('Unknown'));
+      });
+
+      const { container } = renderIntake();
+
+      const submitBtn = screen.getByRole('button', { name: /Generate Celebration Plan/i });
+      fireEvent.click(submitBtn);
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(
+          screen.getByText("Today's AI capacity for this demo has been used. Prepared plans still work, or try again later.")
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Load a prepared plan/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /Retry later/i })).toBeInTheDocument();
+        expect(screen.getByTestId('error-reference')).toHaveTextContent('Reference: AI_QUOTA_EXHAUSTED');
+      });
+
+      const results = await axe(container);
+      expect(results).toHaveNoViolations();
+    });
   });
 
   describe('Workspace Empty State', () => {
@@ -317,7 +356,7 @@ describe('Task B: Plan Generation Failure & Navigation Rules', () => {
 
       const createLink = screen.getByRole('link', { name: /Create a plan/i });
       expect(createLink).toBeInTheDocument();
-      expect(createLink).toHaveAttribute('href', '/');
+      expect(createLink).toHaveAttribute('href', '/plan');
 
       const savedLink = screen.getByRole('link', { name: /Open Saved Plans/i });
       expect(savedLink).toBeInTheDocument();

@@ -447,7 +447,7 @@ export function TabTimeline() {
                   </span>
                 </div>
 
-                <div className="max-h-52 overflow-y-auto rounded-xl border border-rule bg-paper p-2.5 divide-y divide-rule/60 text-xs">
+                <div data-lenis-prevent className="max-h-52 overflow-y-auto rounded-xl border border-rule bg-paper p-2.5 divide-y divide-rule/60 text-xs">
                   {activePlan.timeline.map((task) => {
                     const isSelected = selectedTaskIds.includes(task.id);
                     const isScheduled = Boolean(task.googleCalendarEventId);

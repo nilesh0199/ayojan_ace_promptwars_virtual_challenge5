@@ -195,7 +195,8 @@ export function reflowTimelineDates(
   tasks: TimelineTask[],
   oldEventDate: string,
   newEventDate: string,
-  referenceDate: string = formatDateISO(new Date())
+  referenceDate: string = formatDateISO(new Date()),
+  options?: { clampPastDates?: boolean }
 ): DateReflowResult {
   const oldDate = parseDateISO(oldEventDate);
   const newDate = parseDateISO(newEventDate);
@@ -220,10 +221,21 @@ export function reflowTimelineDates(
     const updatedDueDate = new Date(updatedDueTime);
     const updatedDueDateStr = formatDateISO(updatedDueDate);
 
-    const daysUntilTask = Math.round((updatedDueDate.getTime() - refDate.getTime()) / msPerDay);
+    let daysUntilTask = Math.round((updatedDueDate.getTime() - refDate.getTime()) / msPerDay);
+    let finalDueDateStr = updatedDueDateStr;
 
     if (daysUntilTask < 0 && !task.completed) {
       overdueCount++;
+    }
+
+    let isTimeSensitive = Boolean(
+      task.isTimeSensitive || (task.isGuestMilestone && daysUntilTask <= 2 && daysBeforeEvent > 0)
+    );
+
+    if (options?.clampPastDates && daysUntilTask < 0) {
+      isTimeSensitive = true;
+      finalDueDateStr = referenceDate;
+      daysUntilTask = 0;
     }
 
     if (daysDelta < 0) {
@@ -234,13 +246,9 @@ export function reflowTimelineDates(
 
     const newPhase = assignPhaseForDueDate(daysUntilTask, daysBeforeEvent);
 
-    const isTimeSensitive = Boolean(
-      task.isTimeSensitive || (task.isGuestMilestone && daysUntilTask <= 2 && daysBeforeEvent > 0)
-    );
-
     return {
       ...task,
-      dueDate: updatedDueDateStr,
+      dueDate: finalDueDateStr,
       phase: newPhase,
       daysBeforeEvent,
       isTimeSensitive,

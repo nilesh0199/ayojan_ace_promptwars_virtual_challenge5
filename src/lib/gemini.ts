@@ -9,9 +9,11 @@ export const PRIMARY_MAX_RETRIES = 2;
 export const FALLBACK_MAX_RETRIES = 1;
 export const CIRCUIT_BREAKER_FAIL_THRESHOLD = 3;
 export const CIRCUIT_BREAKER_COOLDOWN_MS = 60 * 1000; // 60 seconds
+export const DAILY_QUOTA_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 
 export type GeminiErrorCode =
   | 'AI_BUSY'
+  | 'AI_QUOTA_EXHAUSTED'
   | 'AI_TIMEOUT'
   | 'AI_NOT_CONFIGURED'
   | 'AI_INVALID_KEY'
@@ -96,16 +98,17 @@ export class GeminiApiError extends Error {
 export interface CircuitBreakerState {
   consecutiveFailures: number;
   trippedUntil: number;
+  isDailyQuota?: boolean;
 }
 
 const combinationCircuits = new Map<string, CircuitBreakerState>();
 
-export function getCircuitKey(keyType: GeminiKeyType, model: string): string {
+export function getCircuitKey(keyType: GeminiKeyType | string, model: string): string {
   return `${keyType}:${model}`;
 }
 
 export function isCombinationCircuitOpen(
-  keyType: GeminiKeyType,
+  keyType: GeminiKeyType | string,
   model: string,
   nowMs = Date.now()
 ): boolean {
@@ -120,19 +123,41 @@ export function isCombinationCircuitOpen(
   return true;
 }
 
+export function isDailyQuotaCombination(
+  keyType: GeminiKeyType | string,
+  model: string,
+  nowMs = Date.now()
+): boolean {
+  const key = getCircuitKey(keyType, model);
+  const state = combinationCircuits.get(key);
+  if (!state || state.trippedUntil <= 0) return false;
+  if (nowMs >= state.trippedUntil) return false;
+  return Boolean(state.isDailyQuota);
+}
+
 export function recordCombinationFailure(
-  keyType: GeminiKeyType,
+  keyType: GeminiKeyType | string,
   model: string,
   isOverload: boolean,
-  nowMs = Date.now()
+  nowMs = Date.now(),
+  isDailyQuota = false
 ): void {
   // STRICT: ONLY overload/quota errors trip the circuit breaker.
   // Validation failures (AI_VALIDATION_FAILED), model not found, invalid key, etc. NEVER trip the breaker!
-  if (!isOverload) return;
+  if (!isOverload && !isDailyQuota) return;
   const key = getCircuitKey(keyType, model);
   const state = combinationCircuits.get(key) || { consecutiveFailures: 0, trippedUntil: 0 };
   state.consecutiveFailures += 1;
-  if (state.consecutiveFailures >= CIRCUIT_BREAKER_FAIL_THRESHOLD) {
+
+  if (isDailyQuota) {
+    state.isDailyQuota = true;
+    state.trippedUntil = nowMs + DAILY_QUOTA_COOLDOWN_MS;
+    if (process.env.NODE_ENV !== 'test') {
+      console.warn(
+        `[Circuit Breaker] Daily quota exhausted for (${keyType} key, model ${model}). Disabling combination for 30 minutes.`
+      );
+    }
+  } else if (state.consecutiveFailures >= CIRCUIT_BREAKER_FAIL_THRESHOLD) {
     state.trippedUntil = nowMs + CIRCUIT_BREAKER_COOLDOWN_MS;
     if (process.env.NODE_ENV !== 'test') {
       console.warn(
@@ -143,7 +168,7 @@ export function recordCombinationFailure(
   combinationCircuits.set(key, state);
 }
 
-export function recordCombinationSuccess(keyType: GeminiKeyType, model: string): void {
+export function recordCombinationSuccess(keyType: GeminiKeyType | string, model: string): void {
   const key = getCircuitKey(keyType, model);
   combinationCircuits.set(key, { consecutiveFailures: 0, trippedUntil: 0 });
 }
@@ -215,12 +240,24 @@ export function isOverloadOrTransientError(err: unknown): boolean {
       err.statusCode === 504
     );
   }
+  const errObj = typeof err === 'object' && err !== null ? (err as Record<string, unknown>) : null;
+  const rawStatus =
+    errObj?.status ??
+    errObj?.statusCode ??
+    (errObj?.response as Record<string, unknown> | undefined)?.status;
+  const statusNum = typeof rawStatus === 'number' ? rawStatus : Number(rawStatus || 0);
+
   const msg = err instanceof Error ? err.message : String(err || '');
   const lower = msg.toLowerCase();
   if (
+    statusNum === 401 ||
+    statusNum === 403 ||
+    statusNum === 404 ||
+    statusNum === 400 ||
     lower.includes('validation') ||
     lower.includes('schema') ||
     lower.includes('not found') ||
+    lower.includes('does not exist') ||
     lower.includes('models/') ||
     lower.includes('api_key_invalid') ||
     lower.includes('invalid api key') ||
@@ -229,6 +266,9 @@ export function isOverloadOrTransientError(err: unknown): boolean {
     return false;
   }
   return (
+    statusNum === 429 ||
+    statusNum === 503 ||
+    statusNum === 504 ||
     lower.includes('503') ||
     lower.includes('429') ||
     lower.includes('unavailable') ||
@@ -258,6 +298,13 @@ export function getFriendlyAiError(
   code: GeminiErrorCode | string | null | undefined
 ): FriendlyAiErrorInfo {
   switch (code) {
+    case 'AI_QUOTA_EXHAUSTED':
+      return {
+        title: 'Daily AI Limit Reached',
+        message:
+          "Today's AI capacity for this demo has been used. Prepared plans still work, or try again later.",
+        actionHint: 'Prepared plans still work offline, or try again tomorrow.',
+      };
     case 'AI_BUSY':
       return {
         title: 'High Demand on AI Services',
@@ -344,6 +391,12 @@ export function getTemplatePlanReason(
   code?: GeminiErrorCode | string | null
 ): TemplatePlanReasonInfo {
   switch (code) {
+    case 'AI_QUOTA_EXHAUSTED':
+      return {
+        title: 'Built-in template plan (Daily AI quota reached)',
+        description:
+          "Today's AI capacity has been used. This complete celebration plan was crafted from our verified regional templates.",
+      };
     case 'AI_INVALID_KEY':
       return {
         title: 'Built-in template plan (AI key needs update)',
@@ -420,6 +473,14 @@ export function extractJsonFromResponse(rawText: string): string {
  */
 function toErrorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
+  if (typeof err === 'object' && err !== null) {
+    const obj = err as Record<string, unknown>;
+    if (typeof obj.message === 'string') return obj.message;
+    if (typeof obj.error === 'string') return obj.error;
+    if (typeof (obj.error as Record<string, unknown> | undefined)?.message === 'string') {
+      return (obj.error as Record<string, unknown>).message as string;
+    }
+  }
   return String(err || 'Unknown error');
 }
 
@@ -471,13 +532,50 @@ export function mapGeminiError(err: unknown): GeminiApiError {
   const msg = toErrorMessage(err);
   const lower = msg.toLowerCase();
 
+  const errObj = typeof err === 'object' && err !== null ? (err as Record<string, unknown>) : null;
+  const rawStatus =
+    errObj?.status ??
+    errObj?.statusCode ??
+    (errObj?.response as Record<string, unknown> | undefined)?.status;
+  const statusNum = typeof rawStatus === 'number' ? rawStatus : Number(rawStatus || 0);
+
+  const rawCode = String(errObj?.code || '').toUpperCase();
+  const errName = String(errObj?.name || '');
+  const causeMsg = errObj?.cause ? toErrorMessage(errObj.cause).toLowerCase() : '';
+  const fullText = `${lower} ${causeMsg}`;
+
   if (
-    lower.includes('api_key_invalid') ||
-    lower.includes('invalid api key') ||
-    lower.includes('api key not valid') ||
-    lower.includes('unauthorized') ||
-    lower.includes('401') ||
-    (lower.includes('400') && lower.includes('key'))
+    rawCode === 'ECONNREFUSED' ||
+    rawCode === 'ENOTFOUND' ||
+    rawCode === 'ECONNRESET' ||
+    rawCode === 'ETIMEDOUT' ||
+    rawCode.includes('UND_ERR') ||
+    fullText.includes('failed to fetch') ||
+    fullText.includes('fetch failed') ||
+    fullText.includes('econnrefused') ||
+    fullText.includes('enotfound') ||
+    fullText.includes('network')
+  ) {
+    logGeminiServerAlert({ type: 'Network', code: 'AI_NETWORK_ERROR', status: 503 });
+    return new GeminiApiError(
+      'A network error occurred while connecting to the AI provider. Please retry in a moment.',
+      503,
+      true,
+      'AI_NETWORK_ERROR'
+    );
+  }
+
+  if (
+    statusNum === 401 ||
+    statusNum === 403 ||
+    errName === 'AuthenticationError' ||
+    errName === 'PermissionDeniedError' ||
+    fullText.includes('api_key_invalid') ||
+    fullText.includes('invalid api key') ||
+    fullText.includes('api key not valid') ||
+    fullText.includes('unauthorized') ||
+    fullText.includes('forbidden') ||
+    (fullText.includes('400') && fullText.includes('key'))
   ) {
     logGeminiServerAlert({ type: 'Auth/Key', code: 'AI_INVALID_KEY', status: 401 });
     return new GeminiApiError(
@@ -488,7 +586,16 @@ export function mapGeminiError(err: unknown): GeminiApiError {
     );
   }
 
-  if (lower.includes('not found') || lower.includes('models/')) {
+  if (
+    statusNum === 404 ||
+    errName === 'NotFoundError' ||
+    fullText.includes('not found') ||
+    fullText.includes('does not exist') ||
+    fullText.includes('not exist') ||
+    fullText.includes('unknown model') ||
+    fullText.includes('unsupported model') ||
+    fullText.includes('models/')
+  ) {
     logGeminiServerAlert({ type: 'ModelNotFound', code: 'AI_MODEL_NOT_FOUND', status: 404 });
     return new GeminiApiError(
       'Requested Gemini AI model was not found or is unsupported. Please check the configured model name or explore a saved example plan.',
@@ -498,7 +605,7 @@ export function mapGeminiError(err: unknown): GeminiApiError {
     );
   }
 
-  if (lower.includes('hosting_timeout') || lower.includes('function_invocation_timeout')) {
+  if (fullText.includes('hosting_timeout') || fullText.includes('function_invocation_timeout')) {
     logGeminiServerAlert({ type: 'HostingTimeout', code: 'HOSTING_TIMEOUT', status: 504 });
     return new GeminiApiError(
       'Hosting execution window exceeded during generation. Please retry with concise requirements or load a saved example plan.',
@@ -509,10 +616,13 @@ export function mapGeminiError(err: unknown): GeminiApiError {
   }
 
   if (
-    lower.includes('timed out') ||
-    lower.includes('timeout') ||
-    lower.includes('504') ||
-    lower.includes('deadline exceeded')
+    statusNum === 504 ||
+    statusNum === 408 ||
+    errName === 'TimeoutError' ||
+    errName === 'AbortError' ||
+    fullText.includes('timed out') ||
+    fullText.includes('timeout') ||
+    fullText.includes('deadline exceeded')
   ) {
     logGeminiServerAlert({ type: 'Timeout', code: 'AI_TIMEOUT', status: 504 });
     return new GeminiApiError(
@@ -524,21 +634,14 @@ export function mapGeminiError(err: unknown): GeminiApiError {
   }
 
   if (
-    lower.includes('econnrefused') ||
-    lower.includes('enotfound') ||
-    lower.includes('fetch failed') ||
-    lower.includes('network')
+    statusNum === 502 ||
+    statusNum === 422 ||
+    (statusNum === 400 && !fullText.includes('key')) ||
+    fullText.includes('schema validation failed') ||
+    fullText.includes('malformed json') ||
+    fullText.includes('json parse') ||
+    fullText.includes('syntaxerror')
   ) {
-    logGeminiServerAlert({ type: 'Network', code: 'AI_NETWORK_ERROR', status: 503 });
-    return new GeminiApiError(
-      'A network error occurred while connecting to the AI provider. Please retry in a moment.',
-      503,
-      true,
-      'AI_NETWORK_ERROR'
-    );
-  }
-
-  if (lower.includes('schema validation failed') || lower.includes('malformed json')) {
     logGeminiServerAlert({ type: 'Validation', code: 'AI_VALIDATION_FAILED', status: 502 });
     return new GeminiApiError(
       'Gemini response format requires refinement. Please retry or explore a saved example plan.',
@@ -548,14 +651,29 @@ export function mapGeminiError(err: unknown): GeminiApiError {
     );
   }
 
+  if (isDailyQuotaError(err)) {
+    logGeminiServerAlert({ type: 'DailyQuota', code: 'AI_QUOTA_EXHAUSTED', status: 429 });
+    return new GeminiApiError(
+      "Today's AI capacity for this demo has been used. Prepared plans still work, or try again later.",
+      429,
+      false,
+      'AI_QUOTA_EXHAUSTED'
+    );
+  }
+
   if (
-    lower.includes('429') ||
-    lower.includes('quota') ||
-    lower.includes('resource_exhausted') ||
-    lower.includes('overloaded') ||
-    lower.includes('503') ||
-    lower.includes('unavailable') ||
-    lower.includes('high demand')
+    statusNum === 429 ||
+    statusNum === 503 ||
+    errName === 'RateLimitError' ||
+    fullText.includes('429') ||
+    fullText.includes('quota') ||
+    fullText.includes('resource_exhausted') ||
+    fullText.includes('overloaded') ||
+    fullText.includes('503') ||
+    fullText.includes('unavailable') ||
+    fullText.includes('high demand') ||
+    fullText.includes('rate limit') ||
+    fullText.includes('spikes in demand')
   ) {
     logGeminiServerAlert({ type: 'Overload/Quota', code: 'AI_BUSY', status: 429 });
     return new GeminiApiError(
@@ -576,6 +694,54 @@ export function mapGeminiError(err: unknown): GeminiApiError {
 }
 
 /**
+ * Differentiates daily quota exhaustion from short-term rate limits.
+ * Daily quota exhaustion occurs on 429 / quota errors where the error details
+ * specifically mention a per-day / daily limit rather than a per-minute rate spike.
+ */
+export function isDailyQuotaError(err: unknown): boolean {
+  if (err instanceof GeminiApiError && err.code === 'AI_QUOTA_EXHAUSTED') {
+    return true;
+  }
+  const msg = toErrorMessage(err);
+  const lower = msg.toLowerCase();
+  const errObj = typeof err === 'object' && err !== null ? (err as Record<string, unknown>) : null;
+  const rawStatus =
+    errObj?.status ??
+    errObj?.statusCode ??
+    (errObj?.response as Record<string, unknown> | undefined)?.status;
+  const statusNum = typeof rawStatus === 'number' ? rawStatus : Number(rawStatus || 0);
+
+  const isRateOrQuota =
+    statusNum === 429 ||
+    lower.includes('429') ||
+    lower.includes('quota') ||
+    lower.includes('resource_exhausted') ||
+    lower.includes('rate limit');
+
+  if (!isRateOrQuota) {
+    return false;
+  }
+
+  // Daily exhaustion phrases vs short per-minute spikes
+  const dailyPhrases = [
+    'per day',
+    'per-day',
+    'daily',
+    'free_tier_requests',
+    'requests per day',
+    'requests_per_day',
+    'day limit',
+    'daily limit',
+    'day_limit',
+  ];
+
+  const hasDaily = dailyPhrases.some((phrase) => lower.includes(phrase));
+  const hasHoursRetry = /retry in \d+h/i.test(lower) || /reset in \d+h/i.test(lower);
+
+  return hasDaily || hasHoursRetry;
+}
+
+/**
  * Checks whether an error is specifically quota or resource exhaustion (429 / RESOURCE_EXHAUSTED).
  */
 export function isQuotaError(err: unknown): boolean {
@@ -584,9 +750,16 @@ export function isQuotaError(err: unknown): boolean {
     const msg = err.message.toLowerCase();
     return msg.includes('429') || msg.includes('quota') || msg.includes('resource_exhausted');
   }
+  const errObj = typeof err === 'object' && err !== null ? (err as Record<string, unknown>) : null;
+  const rawStatus =
+    errObj?.status ??
+    errObj?.statusCode ??
+    (errObj?.response as Record<string, unknown> | undefined)?.status;
+  const statusNum = typeof rawStatus === 'number' ? rawStatus : Number(rawStatus || 0);
   const msg = err instanceof Error ? err.message : String(err || '');
   const lower = msg.toLowerCase();
   return (
+    statusNum === 429 ||
     lower.includes('429') ||
     lower.includes('quota') ||
     lower.includes('resource_exhausted')

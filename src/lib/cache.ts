@@ -60,16 +60,26 @@ export class SimpleLruCache<T> {
   }
 }
 
+function canonicalize(val: unknown): unknown {
+  if (val === null || typeof val !== 'object') {
+    return val;
+  }
+  if (Array.isArray(val)) {
+    return val.map(canonicalize);
+  }
+  const sortedObj: Record<string, unknown> = {};
+  for (const key of Object.keys(val as Record<string, unknown>).sort()) {
+    sortedObj[key] = canonicalize((val as Record<string, unknown>)[key]);
+  }
+  return sortedObj;
+}
+
 /**
  * Creates a deterministic cache key from an object payload.
  */
 export function createPayloadKey(prefix: string, payload: unknown): string {
   try {
-    if (payload !== null && typeof payload === 'object') {
-      const serialized = JSON.stringify(payload, Object.keys(payload).sort());
-      return `${prefix}:${serialized}`;
-    }
-    return `${prefix}:${JSON.stringify(payload)}`;
+    return `${prefix}:${JSON.stringify(canonicalize(payload))}`;
   } catch {
     return `${prefix}:${String(payload)}`;
   }

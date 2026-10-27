@@ -9,6 +9,7 @@ export interface AiLoaderProps {
   onCancel?: () => void;
   className?: string;
   cancelLabel?: string;
+  messageIntervalMs?: number;
 }
 
 const DEFAULT_MESSAGES = [
@@ -25,21 +26,22 @@ export function AiLoader({
   onCancel,
   className = '',
   cancelLabel = 'Cancel generation',
+  messageIntervalMs = 2500,
 }: AiLoaderProps) {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [showPatienceNotice, setShowPatienceNotice] = useState(false);
 
-  // Cycle messages every 2.5 seconds
+  // Cycle messages
   const messagesKey = messages.join('||');
   useEffect(() => {
     if (!messages || messages.length <= 1) return;
     const interval = setInterval(() => {
       setCurrentIdx((prev) => (prev + 1) % messages.length);
-    }, 2500);
+    }, messageIntervalMs);
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messagesKey, messages.length]);
+  }, [messagesKey, messages.length, messageIntervalMs]);
 
   // Show extended notice after 10 seconds of processing
   useEffect(() => {

@@ -29,6 +29,14 @@ describe('TimePicker12h Component', () => {
       expect(screen.getByRole('button', { name: /PM/i })).toBeInTheDocument();
     });
 
+    it('renders default legend with new inclusive label', () => {
+      renderPicker();
+
+      expect(
+        screen.getByText('Ceremony / muhurat time (as advised by your priest, pandit, imam or pastor)')
+      ).toBeInTheDocument();
+    });
+
     it('shows "No ritual time selected" preview when empty', () => {
       renderPicker();
 

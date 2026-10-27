@@ -20,7 +20,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <DesktopNavRail />
 
       {/* Main Column */}
-      <div className="flex-1 flex flex-col min-w-0 w-full md:h-full md:overflow-y-auto">
+      <div id="app-main-scroll" className="flex-1 flex flex-col min-w-0 w-full md:h-full md:overflow-y-auto">
         {/* Startup Alert: Missing Firebase Config Banner */}
         {missingConfigVars.length > 0 && (
           <div

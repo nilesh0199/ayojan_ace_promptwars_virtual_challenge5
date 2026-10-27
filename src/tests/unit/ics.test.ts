@@ -56,7 +56,7 @@ describe('ICS Calendar Export', () => {
 
     expect(ics).toContain('DTSTART:20261120T113000');
     expect(ics).toContain('DTEND:20261120T123000');
-    expect(ics).toContain('Auspicious Muhurat Timing: 11:30 AM (Pheras)');
+    expect(ics).toContain('Ceremony / Muhurat Timing (as advised by your priest\\, pandit\\, imam or pastor): 11:30 AM (Pheras)');
   });
 
   it('triggers browser download link safely', () => {

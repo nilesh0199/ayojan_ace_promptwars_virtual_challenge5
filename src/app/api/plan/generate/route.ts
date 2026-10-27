@@ -59,10 +59,12 @@ export async function POST(request: Request) {
     const json = await request.json();
     const { intake, followUpAnswers } = requestPayloadSchema.parse(json);
 
-    // Check LRU cache
+    const disableTemplateFallback = request.headers.get('x-disable-template-fallback') === 'true';
+
+    // Check LRU cache (skip cache if fallback is disabled and cached plan was a template fallback)
     const cacheKey = createPayloadKey('plan-gen', { intake, followUpAnswers });
     const cachedPlan = planGenerationCache.get(cacheKey);
-    if (cachedPlan) {
+    if (cachedPlan && (!disableTemplateFallback || cachedPlan.generationSource !== 'template')) {
       return NextResponse.json(cachedPlan, {
         headers: { 'X-Cache': 'HIT' },
       });
@@ -70,7 +72,6 @@ export async function POST(request: Request) {
 
     const prompt = buildPlanGenerationPrompt(intake, followUpAnswers);
     let fullPlan: EventPlan;
-    const disableTemplateFallback = request.headers.get('x-disable-template-fallback') === 'true';
 
     try {
       let aiOutput: z.infer<typeof rawGeminiPlanSchema>;
@@ -172,8 +173,10 @@ export async function POST(request: Request) {
     // Validate complete output against master schema
     const verifiedPlan = eventPlanSchema.parse(fullPlan);
 
-    // Save to server cache
-    planGenerationCache.set(cacheKey, verifiedPlan);
+    // Save to server cache only for successful AI-generated plans (never cache fallback template plans)
+    if (verifiedPlan.generationSource !== 'template') {
+      planGenerationCache.set(cacheKey, verifiedPlan);
+    }
 
     return NextResponse.json(verifiedPlan, {
       headers: { 'X-Cache': 'MISS' },

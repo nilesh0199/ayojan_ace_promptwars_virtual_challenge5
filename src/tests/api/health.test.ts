@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { GET } from '@/app/api/health/route';
 import { disableGroqProvider, resetGroqDisabledStateForTesting } from '@/lib/ai/groq-provider';
+import { recordCombinationFailure, resetAllCircuitBreakers } from '@/lib/gemini';
 
 describe('/api/health endpoint', () => {
   const originalEnv = process.env;
@@ -8,11 +9,13 @@ describe('/api/health endpoint', () => {
   beforeEach(() => {
     process.env = { ...originalEnv };
     resetGroqDisabledStateForTesting();
+    resetAllCircuitBreakers();
   });
 
   afterEach(() => {
     process.env = originalEnv;
     resetGroqDisabledStateForTesting();
+    resetAllCircuitBreakers();
   });
 
   it('returns status 200 with ok status and configured services when GEMINI_API_KEY is present', async () => {
@@ -100,6 +103,45 @@ describe('/api/health endpoint', () => {
     expect(body.groq).toBe('expired');
 
     resetGroqDisabledStateForTesting();
+  });
+
+  it('reports groq as model-not-found when Groq provider was disabled due to 404', async () => {
+    process.env.GEMINI_API_KEY = 'primary-key-abc';
+    process.env.GROQ_API_KEY = 'gsk_secretGroqKey987654';
+
+    disableGroqProvider(365 * 24 * 3600 * 1000, 'model-not-found');
+
+    const req = new Request('http://localhost:3000/api/health', {
+      headers: { 'x-forwarded-for': '192.168.1.88' },
+    });
+
+    const res = await GET(req);
+    expect(res.status).toBe(200);
+
+    const body = await res.json();
+    expect(body.groq).toBe('model-not-found');
+
+    resetGroqDisabledStateForTesting();
+  });
+
+  it('reports gemini as quota-exhausted when daily quota circuit is open', async () => {
+    process.env.GEMINI_API_KEY = 'primary-key-abc';
+    process.env.GEMINI_MODEL = 'gemini-3.8-flash';
+
+    recordCombinationFailure('primary', 'gemini-3.8-flash', false, Date.now(), true);
+
+    const req = new Request('http://localhost:3000/api/health', {
+      headers: { 'x-forwarded-for': '192.168.1.89' },
+    });
+
+    const res = await GET(req);
+    expect(res.status).toBe(503);
+
+    const body = await res.json();
+    expect(body.status).toBe('degraded');
+    expect(body.gemini).toBe('quota-exhausted');
+
+    resetAllCircuitBreakers();
   });
 
   it('reports fallbackKey as configured when GEMINI_API_KEY_FALLBACK is provided without leaking value', async () => {

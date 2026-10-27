@@ -5,7 +5,7 @@ import { SAVED_EXAMPLES } from '@/data/savedExamples';
 import { toFirestoreDoc } from '@/lib/firebase/mappers';
 import { getFriendlyFirestoreErrorMessage } from '@/lib/firebase/firestore';
 import { injectGuestMilestones, reflowTimelineDates } from '@/lib/timeline';
-import { EventPlan } from '@/lib/schemas';
+import { EventPlan, eventPlanSchema } from '@/lib/schemas';
 
 /**
  * Pure TypeScript replica of the exact validation expressions in firestore.rules
@@ -35,6 +35,7 @@ function simulateIsValidPlanData(data: Record<string, unknown>, planId: string):
     'muhuratTime',
     'muhuratLabel',
     'generationSource',
+    'generationErrorCode',
     'providerNotice',
   ];
 
@@ -84,7 +85,7 @@ function simulateIsValidPlanData(data: Record<string, unknown>, planId: string):
     return false;
   if (!['INR', 'USD', 'EUR', 'GBP', 'AED', 'CAD', 'AUD'].includes(data.currency as string))
     return false;
-  if (typeof data.styleCulture !== 'string' || data.styleCulture.length > 200) return false;
+  if (typeof data.styleCulture !== 'string' || data.styleCulture.length > 300) return false;
   if (typeof data.nonNegotiables !== 'string' || data.nonNegotiables.length > 500) return false;
 
   // Budget checks
@@ -147,6 +148,7 @@ function simulateIsValidPlanData(data: Record<string, unknown>, planId: string):
   if ('muhuratTime' in data && (typeof data.muhuratTime !== 'string' || data.muhuratTime.length > 10)) return false;
   if ('muhuratLabel' in data && (typeof data.muhuratLabel !== 'string' || data.muhuratLabel.length > 40)) return false;
   if ('generationSource' in data && !['primary', 'backup', 'template'].includes(data.generationSource as string)) return false;
+  if ('generationErrorCode' in data && (typeof data.generationErrorCode !== 'string' || data.generationErrorCode.length > 40)) return false;
   if ('providerNotice' in data && (typeof data.providerNotice !== 'string' || data.providerNotice.length > 500)) return false;
 
   return true;
@@ -268,6 +270,49 @@ describe('Firestore Rules Schema & Shape Compatibility', () => {
         newPlanId
       );
       expect(passed).toBe(true);
+    });
+
+    it('accepts template plan with generationErrorCode and providerNotice', () => {
+      const templatePlan: EventPlan = {
+        ...SAVED_EXAMPLES.wedding,
+        generationSource: 'template',
+        generationErrorCode: 'AI_QUOTA_EXHAUSTED',
+        providerNotice: 'Capacity notice',
+      };
+      const docData = toFirestoreDoc(templatePlan);
+      expect(simulateIsValidPlanData(docData as unknown as Record<string, unknown>, templatePlan.id)).toBe(true);
+    });
+
+    it('fails if any field defined in eventPlanSchema is missing from firestore.rules hasOnly clause', () => {
+      const rulesPath = path.resolve(process.cwd(), 'firestore.rules');
+      const rulesContent = fs.readFileSync(rulesPath, 'utf8');
+
+      // Extract keys inside hasOnly([...]) within isValidPlanData
+      const hasOnlyMatch = rulesContent.match(/hasOnly\(\[\s*([\s\S]*?)\s*\]\)/);
+      expect(hasOnlyMatch).not.toBeNull();
+
+      const rawKeys = hasOnlyMatch![1];
+      const rulesAllowedKeys = rawKeys
+        .split(',')
+        .map((k) => k.replace(/['"\s]/g, ''))
+        .filter(Boolean);
+
+      const schemaKeys = Object.keys(eventPlanSchema.shape);
+
+      // Verify every field in eventPlanSchema is present in firestore.rules hasOnly
+      const missingKeys = schemaKeys.filter((k) => !rulesAllowedKeys.includes(k));
+      expect(missingKeys).toEqual([]);
+
+      // Verify every field in toFirestoreDoc output is allowed
+      const samplePlan: EventPlan = {
+        ...SAVED_EXAMPLES.wedding,
+        generationSource: 'template',
+        generationErrorCode: 'AI_BUSY',
+        providerNotice: 'Notice text',
+      };
+      const doc = toFirestoreDoc(samplePlan);
+      const unhandledDocKeys = Object.keys(doc).filter((k) => !rulesAllowedKeys.includes(k));
+      expect(unhandledDocKeys).toEqual([]);
     });
 
     it('accepts valid version history snapshot documents', () => {
