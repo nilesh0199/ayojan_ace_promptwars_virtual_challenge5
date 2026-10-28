@@ -113,7 +113,7 @@ When the user edits total budget, guest count, event date, or a single category:
 1. Client packages `currentPlan` + `changes` payload.
 2. Server executes `buildReplanningPrompt()` and requests Gemini to rebalance **only the affected items**.
 3. Response is validated with `replanDiffResponseSchema`.
-4. Client runs `computePlanDiff()` in [`diff.ts`](file:///src/lib/diff.ts) to calculate item-level deltas.
+4. Client runs `computePlanDiff()` in [`diff.ts`](./src/lib/diff.ts) to calculate item-level deltas.
 5. User reviews the diff modal showing what changed, why, and trade-off options.
 6. On **Accept**: The existing plan is pushed to the `planHistory` undo stack, the diff is applied creating Version $N+1$, and active state is updated.
 7. On **Reject**: Proposed diff is discarded with zero mutation to active plan.
@@ -131,7 +131,7 @@ const totalCommitted = subtotalTarget + contingencyAmount + taxServiceChargeAmou
 const remainingBudget = totalBudget - totalCommitted;
 const isOverBudget = remainingBudget < 0;
 ```
-All percentages and remaining funds are computed in native code with zero LLM arithmetic hallucinations. Additionally, `validateAndFitBudget()` in [`budget-benchmarks.ts`](file:///src/lib/budget-benchmarks.ts) validates AI outputs against regional Indian benchmarks (Metro, Tier-2, Tier-3) and enforces that total committed funds never exceed `totalBudget` as a strict hard ceiling, scaling non-core allocations first while protecting essential categories (venue, catering, photography).
+All percentages and remaining funds are computed in native code with zero LLM arithmetic hallucinations. Additionally, `validateAndFitBudget()` in [`budget-benchmarks.ts`](./src/lib/budget-benchmarks.ts) validates AI outputs against regional Indian benchmarks (Metro, Tier-2, Tier-3) and enforces that total committed funds never exceed `totalBudget` as a strict hard ceiling, scaling non-core allocations first while protecting essential categories (venue, catering, photography).
 
 ### 4.2. Local Timeline Date Reflow (`timeline.ts`)
 Each task stores `daysBeforeEvent = (EventDate - DueDate)`.
@@ -182,7 +182,7 @@ When the event date shifts from $D_{\text{old}}$ to $D_{\text{new}}$:
 
 ### 6.4. Multi-Scope Print & PDF Export Architecture
 - **Print Scope Control**: Users choose between "Full event report" (default) or "Current tab only".
-- **Dedicated Report Component**: `<FullEventReport />` renders an executive summary fact sheet, comprehensive budget ledger with assumptions, complete timeline with guest milestones, vendor interview questions, creative cultural ideas, operational risk register, and planning disclaimer.
+- **Dedicated Report Component**: `<FullEventReport />` renders an executive summary fact sheet, comprehensive budget ledger with assumptions, complete timeline with guest milestones and dedicated task assignees ("Who is handling this?"), vendor interview questions, creative cultural ideas, operational risk register, and planning disclaimer.
 - **Print Stylesheet**: `@media print` forces a light paper theme (`#111111` on white) regardless of active dark mode, readable borders, repeating table headers (`thead`), and page-break avoidance.
 
 ---

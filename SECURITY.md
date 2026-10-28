@@ -20,7 +20,7 @@ This document outlines the threat model, mitigation strategies, defense-in-depth
 
 ## 2. Prompt Injection Defense Architecture
 
-All generative prompts constructed in [`src/lib/prompts.ts`](file:///src/lib/prompts.ts) apply a multi-tier defense:
+All generative prompts constructed in [`src/lib/prompts.ts`](./src/lib/prompts.ts) apply a multi-tier defense:
 
 1. **Explicit Data Delimitation**:
    User input is JSON-serialized and wrapped in unambiguous delimiters:
@@ -39,7 +39,7 @@ All generative prompts constructed in [`src/lib/prompts.ts`](file:///src/lib/pro
 
 ## 3. Rate Limiting & Denial of Service Protection
 
-The token bucket implementation in [`src/lib/ratelimit.ts`](file:///src/lib/ratelimit.ts) provides:
+The token bucket implementation in [`src/lib/ratelimit.ts`](./src/lib/ratelimit.ts) provides:
 - Maximum 12 tokens per client IP bucket with refill rate of 0.5 tokens/sec.
 - Automatic eviction of stale IP records inactive for $>15$ minutes.
 - Returns standard HTTP 429 status with `Retry-After` header.
@@ -49,7 +49,7 @@ The token bucket implementation in [`src/lib/ratelimit.ts`](file:///src/lib/rate
 
 ## 4. HTTP Security Headers & Content Security Policy (CSP)
 
-Configured in [`next.config.mjs`](file:///next.config.mjs):
+Configured in [`next.config.mjs`](./next.config.mjs):
 ```http
 Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.googleusercontent.com https://lh3.googleusercontent.com; font-src 'self' data:; connect-src 'self' https://*.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://accounts.google.com https://*.google.com; frame-src 'self' https://*.firebaseapp.com https://accounts.google.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none';
 Cross-Origin-Opener-Policy: same-origin-allow-popups
@@ -66,7 +66,7 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 ## 5. Overload Resilience, Zero Error Leakage & Circuit Breaker Architecture
 
 1. **Zero Upstream Error Leakage**:
-   - `handleApiError` ([`src/lib/api-helper.ts`](file:///src/lib/api-helper.ts)) and `mapGeminiError` ([`src/lib/gemini.ts`](file:///src/lib/gemini.ts)) guarantee that raw upstream JSON dumps, internal IP addresses, stack traces, and API keys are strictly never returned to the client or rendered in the UI.
+   - `handleApiError` ([`src/lib/api-helper.ts`](./src/lib/api-helper.ts)) and `mapGeminiError` ([`src/lib/gemini.ts`](./src/lib/gemini.ts)) guarantee that raw upstream JSON dumps, internal IP addresses, stack traces, and API keys are strictly never returned to the client or rendered in the UI.
    - All server failures map to a typed `GeminiErrorCode` union (`'AI_BUSY' | 'AI_QUOTA_EXHAUSTED' | 'AI_TIMEOUT' | 'AI_NOT_CONFIGURED' | 'AI_INVALID_KEY' | 'AI_BACKUP_KEY_EXPIRED' | 'AI_MODEL_NOT_FOUND' | 'AI_VALIDATION_FAILED' | 'AI_NETWORK_ERROR' | 'HOSTING_TIMEOUT' | 'AI_ERROR'`) with positive, reassuring copy.
 2. **Safe Server-Only Operational Logging & Data Protection**:
    - Server-side operational alerts log high-level diagnostic metadata only (`[AI Attempt] provider=gemini model=<model> status=200 category=success attempt=1 duration=1200ms`).
@@ -100,7 +100,7 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 
 1. **Client-Side Build-Time Inlining & Startup Check (`getMissingFirebaseConfigVars`)**:
    - Next.js strictly inlines `NEXT_PUBLIC_*` environment variables during build time **only** when referenced through literal property accesses (e.g. `process.env.NEXT_PUBLIC_FIREBASE_API_KEY`). Dynamic lookups such as `process.env[name]` return `undefined` in browser runtimes.
-   - All client-side Firebase configurations in [`src/lib/firebase/config.ts`](file:///src/lib/firebase/config.ts) use static literal property accesses (`clientFirebaseEnv`).
+   - All client-side Firebase configurations in [`src/lib/firebase/config.ts`](./src/lib/firebase/config.ts) use static literal property accesses (`clientFirebaseEnv`).
    - `getMissingFirebaseConfigVars()` validates the config on mount and detects missing, empty, whitespace-only, or obvious placeholder templates (values starting with `<`, `your_`, `mock-`, etc.) without ever disclosing or logging actual credentials.
    - **Important Operations Note**: Because `NEXT_PUBLIC_*` values are baked into client JS bundles at build time, any changes to Firebase environment variables in Vercel require triggering a **Redeploy**. For local development, set values in `.env.local` and **restart the Next.js dev server** (`npm run dev`).
 2. **Server Health Check (`/api/health`)**:
@@ -110,7 +110,7 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 
 ## 7. Firestore Database Security Rules & Storage Boundaries
 
-Published in [`firestore.rules`](file:///firestore.rules):
+Published in [`firestore.rules`](./firestore.rules):
 
 ### Honest Storage Boundary Explanation
 In Cloud Firestore Security Rules, calling `.size()` on a map (such as `request.resource.data`) counts the **number of keys/fields**, not raw byte size. To enforce authentic document safety without relying on deceptive claims:
@@ -145,7 +145,7 @@ In Cloud Firestore Security Rules, calling `.size()` on a map (such as `request.
 - Running `npm audit` reports transitive dependency advisories associated with Next.js 14, Firebase Web SDK 10, Vitest 2, and Zod 3 upstream trees. The proposed remediation commands (`npm audit fix --force`) would introduce major breaking changes (e.g. upgrading to Next.js 16/React 19 release candidates or downgrading Firebase).
 - **Compensatory Controls & Mitigations**:
   - *Next.js Server Component / Image Optimization Advisories*: Aayojan Ace does not use the Next.js Image Optimization service for user-submitted media. All images are either static SVGs or hosted securely on Google user content domains allowed in the CSP (`lh3.googleusercontent.com`).
-  - *Zod Memory Consumption on Oversized Input (GHSA-mrhx-c7xc-m3w5)*: Aayojan Ace enforces a strict global 300KB request body ceiling (`MAX_BODY_BYTES`) in [`src/lib/ratelimit.ts`](file:///src/lib/ratelimit.ts) and caps all collection lengths (categories $\le 30$, timeline tasks $\le 100$, vendors $\le 50$) before or during parsing, preventing unbounded memory consumption.
+  - *Zod Memory Consumption on Oversized Input (GHSA-mrhx-c7xc-m3w5)*: Aayojan Ace enforces a strict global 300KB request body ceiling (`MAX_BODY_BYTES`) in [`src/lib/ratelimit.ts`](./src/lib/ratelimit.ts) and caps all collection lengths (categories $\le 30$, timeline tasks $\le 100$, vendors $\le 50$) before or during parsing, preventing unbounded memory consumption.
   - *Undici / gRPC-js Transitive Dependencies*: In Aayojan Ace, Firebase Auth and Firestore calls execute within isolated client browser sandboxes or stateless server route handlers with strict timeouts (8-second attempt limit, 25-second total budget).
   - *Dev/Test Tooling Advisories (Vitest / esbuild / glob)*: Dev-only dependencies run exclusively in local developer test suites and automated CI environments; they are never bundled into production serverless functions or client JavaScript.
 
@@ -153,5 +153,5 @@ In Cloud Firestore Security Rules, calling `.size()` on a map (such as `request.
 
 ## 9. Architecture Decision Records & Continuous Verification
 
-- **Architecture Decision Records**: Detailed rationale for security boundaries (ephemeral session persistence, in-memory rate limiting, deterministic budget math, provider failovers) are documented in [`docs/DECISIONS.md`](file:///docs/DECISIONS.md).
-- **Automated Architecture Conformance Testing**: Structural security invariants (secret isolation, layered dependency direction, XSS prevention, serverless execution limits, literal build-time environment variable accesses) are verified by automated tests in [`src/tests/architecture/conventions.test.ts`](file:///src/tests/architecture/conventions.test.ts).
+- **Architecture Decision Records**: Detailed rationale for security boundaries (ephemeral session persistence, in-memory rate limiting, deterministic budget math, provider failovers) are documented in [`docs/DECISIONS.md`](./docs/DECISIONS.md).
+- **Automated Architecture Conformance Testing**: Structural security invariants (secret isolation, layered dependency direction, XSS prevention, serverless execution limits, literal build-time environment variable accesses) are verified by automated tests in [`src/tests/architecture/conventions.test.ts`](./src/tests/architecture/conventions.test.ts).

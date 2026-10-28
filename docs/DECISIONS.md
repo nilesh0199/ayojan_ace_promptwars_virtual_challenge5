@@ -12,7 +12,7 @@ Milestone celebration planning requires absolute financial accuracy. A planning 
 ### Decision
 Generative AI is **strictly forbidden** from computing final budget totals, category sums, contingency allowances, or tax allocations.
 1. The AI provider is asked only for rough proportional category allocations.
-2. A pure TypeScript algorithm ([`validateAndFitBudget()`](file:///src/lib/budget-benchmarks.ts)) deterministically computes the multiplier for contingency and statutory tax allowances.
+2. A pure TypeScript algorithm ([`validateAndFitBudget()`](../src/lib/budget-benchmarks.ts)) deterministically computes the multiplier for contingency and statutory tax allowances.
 3. If the sum of category targets exceeds the allowable subtotal, code proportionally rescales allocations down to fit strictly within the ceiling, with the final category absorbing integer rounding remainders.
 4. If a user's budget is lean for their guest count and city tier, code automatically prepends honest market benchmark notices and trade-off options into stated assumptions.
 
@@ -29,11 +29,11 @@ Generative AI is **strictly forbidden** from computing final budget totals, cate
 Public generative AI APIs experience regional traffic spikes, quota exhaustion (429), server overload (503), gateway timeouts (504), and credential expiration. Relying on a single AI endpoint or API key creates a single point of failure that breaks user workflows during live demonstrations or peak planning hours.
 
 ### Decision
-Implement a 4-tier resilient execution cascade ([`executeAiCascade()`](file:///src/lib/ai/orchestrator.ts)) coupled with independent per-combination circuit breakers ([`src/lib/gemini.ts`](file:///src/lib/gemini.ts)):
+Implement a 4-tier resilient execution cascade ([`executeAiCascade()`](../src/lib/ai/orchestrator.ts)) coupled with independent per-combination circuit breakers ([`src/lib/gemini.ts`](../src/lib/gemini.ts)):
 1. **Gemini Primary Model** (`GEMINI_MODEL`, default `gemini-flash-lite-latest`) with exponential backoff and randomized jitter.
 2. **Gemini Fallback Model** (`GEMINI_FALLBACK_MODEL`, default `gemini-3.5-flash-lite`) if the primary model is busy or overloaded.
 3. **Groq Cloud Provider** (OpenAI-compatible completions with JSON mode) if configured and secondary key is active.
-4. **Built-in Deterministic Template Planner** ([`src/lib/template-planner.ts`](file:///src/lib/template-planner.ts)) as a zero-network local fallback generating a complete, realistic, schema-verified plan in $<1\text{ms}$.
+4. **Built-in Deterministic Template Planner** ([`src/lib/template-planner.ts`](../src/lib/template-planner.ts)) as a zero-network local fallback generating a complete, realistic, schema-verified plan in $<1\text{ms}$.
 
 Independent circuit breakers track failure counts per `(keyType, model)` pair. Overload and quota failures trip a cooldown (60 seconds for transient overload, 30 minutes for daily exhaustion), preventing wasted retries on failing endpoints while keeping healthy models accessible. Schema validation errors never trip circuit breakers.
 
@@ -50,9 +50,9 @@ Independent circuit breakers track failure counts per `(keyType, model)` pair. O
 Many hosts exploring celebration planners want to review realistic, comprehensive examples (such as a 300-guest Jaipur heritage wedding, a Hyderabad Nikah, or a Kochi church wedding) before entering their own private event parameters. Generating full plans via live LLM calls for every preset selection incurs latency, burns API quota, and risks transient provider failures during initial onboarding.
 
 ### Decision
-Curate six authentic regional Indian celebration presets ([`src/data/preparedPlans.ts`](file:///src/data/preparedPlans.ts), [`src/data/savedExamples.ts`](file:///src/data/savedExamples.ts)):
+Curate six authentic regional Indian celebration presets ([`src/data/preparedPlans.ts`](../src/data/preparedPlans.ts), [`src/data/savedExamples.ts`](../src/data/savedExamples.ts)):
 1. When a user selects an unchanged preset or clicks a saved example, the application resolves the plan entirely from local memory without making external AI calls.
-2. Timelines are dynamically reflowed relative to today's date using pure calendar math ([`reflowTimelineDates()`](file:///src/lib/timeline.ts)).
+2. Timelines are dynamically reflowed relative to today's date using pure calendar math ([`reflowTimelineDates()`](../src/lib/timeline.ts)).
 3. An honest 3-second preparation loader (1 second under `prefers-reduced-motion`) provides realistic pacing, reassuring hosts while preventing UI disorientation.
 4. If a user modifies *any* field (budget, guest count, city, non-negotiables), the request is immediately routed to the live AI cascade for bespoke generation.
 
@@ -88,7 +88,7 @@ Implement a dual-tier storage and authentication model:
 Public API routes (`/api/plan/generate`, `/api/plan/replan`, `/api/plan/ask`) must be defended against automated Denial-of-Service (DoS) and brute-force token exhaustion. Deploying external distributed rate limiters (e.g. Redis / Upstash) introduces external network latency, cloud costs, and third-party operational dependencies.
 
 ### Decision
-Deploy an in-memory Token Bucket rate limiter ([`TokenBucketLimiter`](file:///src/lib/ratelimit.ts)):
+Deploy an in-memory Token Bucket rate limiter ([`TokenBucketLimiter`](../src/lib/ratelimit.ts)):
 1. Configured with a burst capacity of 10-12 tokens and a refill rate of 0.5 tokens/sec (1 token every 2 seconds) per client IP address.
 2. A strict request body ceiling of 300KB (`MAX_BODY_BYTES`) prevents memory exhaustion attacks.
 3. Automated stale key eviction removes IP buckets inactive for $>15$ minutes, bounding memory consumption in long-running Node.js processes.
@@ -108,7 +108,7 @@ Celebration costs vary widely based on vendor availability, seasonality, regiona
 
 ### Decision
 All financial figures across the application present Minimum, Target, and Maximum estimate ranges accompanied by explicit planning assumptions:
-1. Every category line item specifies `minEstimate`, `targetEstimate`, and `maxEstimate` ([`budgetCategorySchema`](file:///src/lib/schemas.ts)).
+1. Every category line item specifies `minEstimate`, `targetEstimate`, and `maxEstimate` ([`budgetCategorySchema`](../src/lib/schemas.ts)).
 2. The user interface prominently labels estimates as "Planning benchmark estimates, not guaranteed vendor quotes."
 3. Stated planning assumptions are itemized alongside the budget (e.g. "Peak wedding season rate card in Jaipur", "Mid-range banquet hospitality").
 4. Vendor checklists explicitly display a **"Verify with the vendor"** badge and provide discovery interview questions rather than fictitious contact details.
