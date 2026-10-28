@@ -1,5 +1,7 @@
 import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
+import { zodToGeminiSchema } from './ai/schema-converter';
+import { logSafeAiValidationFailure } from './ai/safe-logger';
 
 export const DEFAULT_PRIMARY_MODEL = 'gemini-flash-lite-latest';
 export const DEFAULT_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
@@ -69,24 +71,31 @@ export interface GeminiCallOptions {
   customFallbackClient?: GoogleGenAI;
   clientProvider?: (keyType: GeminiKeyType) => GoogleGenAI;
   jitterFn?: () => number;
+  normalizer?: (raw: unknown) => unknown;
 }
 
 export class GeminiApiError extends Error {
   public statusCode: number;
   public isRetryable: boolean;
   public code: GeminiErrorCode;
+  public failingFieldCount?: number;
+  public failingFieldPaths?: string[];
 
   constructor(
     message: string,
     statusCode = 500,
     isRetryable = false,
-    code: GeminiErrorCode = 'AI_ERROR'
+    code: GeminiErrorCode = 'AI_ERROR',
+    failingFieldCount?: number,
+    failingFieldPaths?: string[]
   ) {
     super(message);
     this.name = 'GeminiApiError';
     this.statusCode = statusCode;
     this.isRetryable = isRetryable;
     this.code = code;
+    this.failingFieldCount = failingFieldCount;
+    this.failingFieldPaths = failingFieldPaths;
   }
 }
 
@@ -103,10 +112,29 @@ export interface CircuitBreakerState {
 
 const combinationCircuits = new Map<string, CircuitBreakerState>();
 
+/**
+ * Generates an isolated circuit key for a specific API key type and model pair.
+ *
+ * @param keyType - 'primary', 'fallback', or custom provider identifier.
+ * @param model - AI model name string (e.g. 'gemini-flash-lite-latest').
+ * @returns Combined identifier string formatted as `${keyType}:${model}`.
+ */
 export function getCircuitKey(keyType: GeminiKeyType | string, model: string): string {
   return `${keyType}:${model}`;
 }
 
+/**
+ * Checks whether the circuit breaker for a specific (key, model) pair is currently tripped.
+ *
+ * Why: Independent combination circuits ensure that if one model encounters transient 503
+ * overloads or quota limits, requests route immediately to the next available combination
+ * without waiting for timeouts on a known-unhealthy upstream endpoint.
+ *
+ * @param keyType - Key tier being probed ('primary' | 'fallback').
+ * @param model - Model identifier being probed.
+ * @param nowMs - Current Unix epoch timestamp in milliseconds (defaults to Date.now()).
+ * @returns True if the circuit is open and requests should route away.
+ */
 export function isCombinationCircuitOpen(
   keyType: GeminiKeyType | string,
   model: string,
@@ -123,6 +151,14 @@ export function isCombinationCircuitOpen(
   return true;
 }
 
+/**
+ * Checks whether a tripped circuit is specifically due to a daily quota exhaustion.
+ *
+ * @param keyType - Key tier ('primary' | 'fallback').
+ * @param model - Model identifier string.
+ * @param nowMs - Current epoch millisecond timestamp.
+ * @returns True if the combination was tripped by daily quota limits.
+ */
 export function isDailyQuotaCombination(
   keyType: GeminiKeyType | string,
   model: string,
@@ -135,6 +171,19 @@ export function isDailyQuotaCombination(
   return Boolean(state.isDailyQuota);
 }
 
+/**
+ * Records an execution failure for a (key, model) pair and trips breaker if thresholds are reached.
+ *
+ * Why: Strictly ONLY overload/quota errors trip circuit breakers. Schema validation errors,
+ * formatting issues, or malformed JSON reflect prompt or sampling variations and must never
+ * take down an entire upstream provider model.
+ *
+ * @param keyType - Key identifier used for the failed attempt.
+ * @param model - Model identifier string.
+ * @param isOverload - Flag indicating whether the error was a transient 503/429/504 upstream error.
+ * @param nowMs - Current timestamp in milliseconds.
+ * @param isDailyQuota - Flag indicating whether the error was a non-retryable 24-hour daily quota exhaustion.
+ */
 export function recordCombinationFailure(
   keyType: GeminiKeyType | string,
   model: string,
@@ -390,7 +439,8 @@ export interface TemplatePlanReasonInfo {
 export function getTemplatePlanReason(
   code?: GeminiErrorCode | string | null
 ): TemplatePlanReasonInfo {
-  switch (code) {
+  const normalizedCode = (code || '').trim().split(' ')[0];
+  switch (normalizedCode) {
     case 'AI_QUOTA_EXHAUSTED':
       return {
         title: 'Built-in template plan (Daily AI quota reached)',
@@ -944,6 +994,7 @@ export async function callGeminiStructured<T>(
           contents: prompt,
           config: {
             responseMimeType: 'application/json',
+            responseSchema: zodToGeminiSchema(schema),
             temperature: options.temperature ?? 0.4,
           },
         });
@@ -974,13 +1025,26 @@ export async function callGeminiStructured<T>(
           );
         }
 
-        const validatedResult = schema.safeParse(parsedData);
+        const normalized = options.normalizer ? options.normalizer(parsedData) : parsedData;
+        const validatedResult = schema.safeParse(normalized);
         if (!validatedResult.success) {
+          const failingPaths = validatedResult.error.issues.map((i) => i.path.join('.') || '<root>');
+          logSafeAiValidationFailure({
+            provider: 'gemini',
+            model: stage.model,
+            receivedKeys:
+              typeof parsedData === 'object' && parsedData !== null && !Array.isArray(parsedData)
+                ? Object.keys(parsedData)
+                : [],
+            failingPaths,
+          });
           throw new GeminiApiError(
-            'Gemini response schema validation failed',
+            `Gemini response schema validation failed on ${failingPaths.length} field(s)`,
             502,
             false,
-            'AI_VALIDATION_FAILED'
+            'AI_VALIDATION_FAILED',
+            failingPaths.length,
+            failingPaths
           );
         }
 

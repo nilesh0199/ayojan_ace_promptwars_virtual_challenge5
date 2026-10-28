@@ -19,6 +19,13 @@ const DEFAULT_CONFIG: RateLimitConfig = {
   refillRatePerSecond: 0.5, // 1 token every 2 seconds
 };
 
+/**
+ * In-memory Token Bucket rate limiter for API denial-of-service protection.
+ *
+ * Why: The token bucket algorithm naturally accommodates legitimate bursts (e.g. quick
+ * user interactions during plan creation) while strictly throttling sustained automated
+ * abuse. Automatic 15-minute eviction bounds memory usage without external Redis dependencies.
+ */
 export class TokenBucketLimiter {
   private buckets = new Map<string, TokenBucket>();
   private config: RateLimitConfig;
@@ -31,6 +38,10 @@ export class TokenBucketLimiter {
 
   /**
    * Checks and consumes one token for the given client identifier.
+   *
+   * @param key - Client identifier (e.g. client IP address or user ID).
+   * @param nowMs - Current epoch millisecond timestamp (defaults to Date.now()).
+   * @returns RateLimitResult with allowed boolean, remaining tokens, and retryAfterSeconds.
    */
   public check(key: string, nowMs: number = Date.now()): RateLimitResult {
     this.evictStaleKeys(nowMs);

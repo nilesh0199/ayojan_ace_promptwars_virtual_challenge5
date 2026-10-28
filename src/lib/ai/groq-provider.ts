@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { AiProvider, AiCallOptions } from './types';
 import { executeWithRepairRetry } from './repair';
+import { generateSchemaSkeleton } from './schema-converter';
 import { GeminiApiError, isDailyQuotaError } from '../gemini';
 
 export const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b';
@@ -189,6 +190,8 @@ export class GroqProvider implements AiProvider {
     const timeoutMs = options?.timeoutMs ?? 10000;
     const fetchToUse = this.fetchFn || fetch;
 
+    const skeleton = JSON.stringify(generateSchemaSkeleton(schema), null, 2);
+
     const generateRaw = async (currentPrompt: string, signal?: AbortSignal): Promise<string> => {
       let timerId: ReturnType<typeof setTimeout> | undefined;
 
@@ -223,8 +226,10 @@ export class GroqProvider implements AiProvider {
             messages: [
               {
                 role: 'system',
-                content:
-                  'You are a professional celebration and event planning assistant. Output ONLY a valid JSON object matching the required structure. Never output markdown fences, code blocks, or conversational text.',
+                content: `You are a professional celebration and event planning assistant. Output ONLY a valid JSON object matching the required structure. Never output markdown fences, code blocks, or conversational text.
+
+MANDATORY JSON FIELD NAMES AND SKELETON:
+${skeleton}`,
               },
               {
                 role: 'user',
@@ -360,6 +365,11 @@ export class GroqProvider implements AiProvider {
       }
     };
 
-    return executeWithRepairRetry(generateRaw, prompt, schema, options?.signal);
+    return executeWithRepairRetry(generateRaw, prompt, schema, {
+      provider: 'groq',
+      model,
+      normalizer: options?.normalizer,
+      signal: options?.signal,
+    });
   }
 }

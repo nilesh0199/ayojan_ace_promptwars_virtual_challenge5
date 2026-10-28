@@ -6,6 +6,14 @@ import { apiLimiter, getClientIp } from './ratelimit';
 
 /**
  * Constant-time string comparison to defend against timing attacks.
+ *
+ * Why: Standard string equality (`a === b`) short-circuits on the first mismatched
+ * character, exposing microsecond timing differences that allow attackers to deduce
+ * secret tokens character-by-character. Constant-time byte comparison prevents this.
+ *
+ * @param a - Untrusted user-provided string token.
+ * @param b - Expected secret token.
+ * @returns True if strings are byte-for-byte identical.
  */
 export function timingSafeEqualString(a: string, b: string): boolean {
   const bufA = Buffer.from(a, 'utf8');
@@ -76,6 +84,13 @@ export function checkRequestSafety(request: Request): SafetyCheckResult {
  * Global API error mapper that converts domain errors into consistent JSON responses.
  * Never leaks raw upstream error JSON, stack traces, or secrets to the client.
  * Returns typed error codes and friendly, positive messages.
+ *
+ * Why: Cloud providers return raw JSON with internal IP addresses, upstream endpoints,
+ * and occasional auth diagnostics. Intercepting every unhandled error guarantees zero
+ * information disclosure while providing structured error codes for client recovery.
+ *
+ * @param err - Caught error object from an API route handler.
+ * @returns Clean Next.js JSON response with status code, typed error code, and friendly message.
  */
 export function handleApiError(err: unknown): NextResponse {
   if (err instanceof ZodError) {

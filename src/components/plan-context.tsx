@@ -62,6 +62,7 @@ interface PlanContextType {
   undoReplan: () => void;
   generateRisks: () => Promise<void>;
   toggleTaskCompletion: (taskId: string) => void;
+  updateTaskAssignee: (taskId: string, assignee: string) => void;
   updateTimelineTasks: (tasks: TimelineTask[]) => void;
   updateVendorStatus: (vendorId: string, status: VendorStatus) => void;
   updateEventDate: (newDate: string) => void;
@@ -800,6 +801,27 @@ export function PlanProvider({
     });
   }, []);
 
+  const updateTaskAssignee = useCallback((taskId: string, assignee: string) => {
+    setActivePlanState((prev) => {
+      if (!prev) return null;
+      const updated = {
+        ...prev,
+        timeline: prev.timeline.map((t) =>
+          t.id === taskId
+            ? { ...t, owner: assignee.trim() ? assignee : t.owner, assignee }
+            : t
+        ),
+        updatedAt: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updated));
+      } catch {
+        // Storage unavailable
+      }
+      return updated;
+    });
+  }, []);
+
   const updateTimelineTasks = useCallback((tasks: TimelineTask[]) => {
     setActivePlanState((prev) => {
       if (!prev) return null;
@@ -935,6 +957,7 @@ export function PlanProvider({
       undoReplan,
       generateRisks,
       toggleTaskCompletion,
+      updateTaskAssignee,
       updateTimelineTasks,
       updateVendorStatus,
       updateEventDate,
@@ -969,6 +992,7 @@ export function PlanProvider({
       loadSavedExample,
       loadPreparedPlan,
       toggleTaskCompletion,
+      updateTaskAssignee,
       updateTimelineTasks,
       updateVendorStatus,
       updateEventDate,

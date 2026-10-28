@@ -10,6 +10,7 @@ export interface AiCallOptions {
   temperature?: number;
   model?: string;
   jitterFn?: () => number;
+  normalizer?: (raw: unknown) => unknown;
 }
 
 /**

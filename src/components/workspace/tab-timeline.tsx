@@ -43,6 +43,7 @@ export function TabTimeline() {
   const {
     activePlan,
     toggleTaskCompletion,
+    updateTaskAssignee,
     updateEventDate,
     updateTimelineTasks,
     dateReflowNotice,
@@ -657,6 +658,28 @@ export function TabTimeline() {
                                   <span>Draft invite</span>
                                 </button>
                               )}
+                            </div>
+
+                            {/* Assignee / Who is handling this? */}
+                            <div className="mt-3 pt-2.5 border-t border-rule/50 flex flex-wrap items-center gap-2">
+                              <label
+                                htmlFor={`assignee-${task.id}`}
+                                className="text-xs font-medium text-ink-muted flex items-center gap-1.5 shrink-0"
+                              >
+                                <User className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
+                                <span>Assignee:</span>
+                              </label>
+                              <div className="relative flex-1 min-w-[200px] max-w-sm">
+                                <input
+                                  id={`assignee-${task.id}`}
+                                  type="text"
+                                  maxLength={60}
+                                  value={task.assignee ?? task.owner ?? ''}
+                                  onChange={(e) => updateTaskAssignee(task.id, e.target.value)}
+                                  placeholder="Who is handling this?"
+                                  className="w-full h-8 px-2.5 py-1 text-xs rounded-lg border border-rule bg-paper text-ink placeholder:text-ink-faint focus:outline-none focus:ring-1 focus:ring-accent focus:border-accent transition-colors"
+                                />
+                              </div>
                             </div>
                           </div>
                         </div>

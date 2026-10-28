@@ -2,6 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 import { AiProvider, AiCallOptions } from './types';
 import { executeWithRepairRetry } from './repair';
+import { zodToGeminiSchema } from './schema-converter';
 import {
   DEFAULT_PRIMARY_MODEL,
   getGeminiClient,
@@ -73,6 +74,7 @@ export class GeminiProvider implements AiProvider {
           contents: currentPrompt,
           config: {
             responseMimeType: 'application/json',
+            responseSchema: zodToGeminiSchema(schema),
             temperature: options?.temperature ?? 0.4,
           },
         });
@@ -97,6 +99,11 @@ export class GeminiProvider implements AiProvider {
       }
     };
 
-    return executeWithRepairRetry(generateRaw, prompt, schema, options?.signal);
+    return executeWithRepairRetry(generateRaw, prompt, schema, {
+      provider: 'gemini',
+      model,
+      normalizer: options?.normalizer,
+      signal: options?.signal,
+    });
   }
 }

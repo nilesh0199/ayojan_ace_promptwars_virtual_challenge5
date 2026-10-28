@@ -3,6 +3,14 @@ import { IntakeFormData, EventPlan, ReplanRequest } from './schemas';
 /**
  * Standard prompt security wrapper that isolates user text inside strict data delimiters
  * and injects explicit instructions to ignore prompt injection attempts.
+ *
+ * Why: Untrusted user strings (event names, non-negotiables, host names) can contain
+ * adversarial jailbreaks or role-reversal commands. Wrapping in unambiguous delimiters
+ * (`<<<USER_INPUT_DATA>>>`) and explicitly instructing the model to treat content
+ * as passive JSON data isolates user text from system instructions.
+ *
+ * @param data - Key-value dictionary containing user-supplied strings or parameters.
+ * @returns Formatted prompt string with security boundaries and passive data directives.
  */
 export function wrapUntrustedData(data: Record<string, unknown>): string {
   const jsonString = JSON.stringify(data, null, 2);

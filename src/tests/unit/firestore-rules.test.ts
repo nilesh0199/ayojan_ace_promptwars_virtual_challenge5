@@ -252,6 +252,27 @@ describe('Firestore Rules Schema & Shape Compatibility', () => {
       expect(passed).toBe(true);
     });
 
+    it('accepts plans with custom assignee (who is handling this) on timeline tasks', () => {
+      const planWithAssignee: EventPlan = {
+        ...SAVED_EXAMPLES.wedding,
+        timeline: SAVED_EXAMPLES.wedding.timeline.map((t, idx) =>
+          idx === 0
+            ? { ...t, owner: 'Rohan (Brother)', assignee: 'Rohan (Brother)' }
+            : idx === 1
+            ? { ...t, owner: 'Priya (Coordinator)', assignee: 'Priya (Coordinator)' }
+            : t
+        ),
+      };
+
+      const docData = toFirestoreDoc(planWithAssignee);
+      expect(docData.timeline[0].assignee).toBe('Rohan (Brother)');
+      const passed = simulateIsValidPlanData(
+        docData as unknown as Record<string, unknown>,
+        planWithAssignee.id
+      );
+      expect(passed).toBe(true);
+    });
+
     it('accepts duplicated plan document shape with (Copy) title and new ID', () => {
       const newPlanId = 'plan_copy_987654321';
       const duplicatedPlan: EventPlan = {

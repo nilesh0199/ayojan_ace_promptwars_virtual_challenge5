@@ -116,6 +116,13 @@ export const EVENT_BUDGET_BENCHMARKS: Record<
  * 2. If the user budget is lean for their guest count/city, automatically scales down scope
  *    and appends positive trade-off guidance in stated assumptions.
  * 3. Keeps category minimums and maximums coherent (min <= target <= max).
+ *
+ * @param rawBudget - Raw budget slice returned by the AI provider or template generator.
+ * @param totalBudget - Hard financial ceiling specified by the user in celebration intake.
+ * @param guestCount - Expected guest headcount for per-head benchmark validation.
+ * @param city - Host city used to resolve market economic tier (Metro, Tier-2, Tier-3).
+ * @param eventType - Event category (Wedding, Birthday, Community Event) for allocation weights.
+ * @returns Coherent, schema-valid BudgetPlan with guaranteed zero financial overruns.
  */
 export function validateAndFitBudget(
   rawBudget: BudgetPlan,
@@ -124,12 +131,14 @@ export function validateAndFitBudget(
   city: string,
   eventType: EventType
 ): BudgetPlan {
+  // Why: Math guarantees - AI models frequently make calculation and rounding errors.
+  // We clamp inputs to safe minimums and derive the exact net multiplier for tax + contingency.
   const safeTotalBudget = Math.max(1000, Math.round(totalBudget));
   const contingencyPercent = Math.min(25, Math.max(0, Math.round(rawBudget.contingencyPercent ?? 10)));
   const taxPercent = Math.min(20, Math.max(0, Math.round(rawBudget.taxServiceChargePercent ?? 5)));
   const multiplier = 1 + (contingencyPercent + taxPercent) / 100;
 
-  // Maximum sum of category target midpoints allowed
+  // Why: Pre-calculate max allowable category subtotal so subtotal * multiplier <= safeTotalBudget.
   const maxAllowableSubtotal = Math.floor(safeTotalBudget / multiplier);
 
   const cityTier = getCityTier(city);
@@ -155,14 +164,14 @@ export function validateAndFitBudget(
   // Calculate current subtotal from category targets (midpoints)
   const currentSubtotal = categories.reduce((sum, c) => sum + c.targetEstimate, 0);
 
-  // If subtotal exceeds allowable limit or needs rescaling to guarantee fitting
+  // Why: Rescaling maintains proportional distribution while fitting strictly within ceiling.
   if (currentSubtotal > maxAllowableSubtotal || currentSubtotal <= 0) {
     const scaleFactor = currentSubtotal > 0 ? maxAllowableSubtotal / currentSubtotal : 1;
 
     let allocatedSubtotal = 0;
     categories.forEach((cat, idx) => {
       if (idx === categories.length - 1) {
-        // Last category absorbs rounding remainder to match exactly
+        // Why: The final category absorbs integer rounding remainder to hit maxAllowableSubtotal exactly.
         const remainingForLast = Math.max(500, maxAllowableSubtotal - allocatedSubtotal);
         cat.targetEstimate = remainingForLast;
         cat.minEstimate = Math.max(500, Math.round(remainingForLast * 0.85));

@@ -60,6 +60,16 @@ export class SimpleLruCache<T> {
   }
 }
 
+/**
+ * Canonicalizes an arbitrary JSON data structure by recursively sorting object keys.
+ *
+ * Why: Object property insertion order varies across HTTP clients and JSON serializers.
+ * Canonical key sorting guarantees identical cryptographic string hashes and cache hits
+ * for semantically identical client intake payloads.
+ *
+ * @param val - Any JSON-compatible payload value, array, or object.
+ * @returns Deterministically sorted payload structure.
+ */
 function canonicalize(val: unknown): unknown {
   if (val === null || typeof val !== 'object') {
     return val;
@@ -75,7 +85,11 @@ function canonicalize(val: unknown): unknown {
 }
 
 /**
- * Creates a deterministic cache key from an object payload.
+ * Creates a deterministic, order-independent cache key from a namespace prefix and payload.
+ *
+ * @param prefix - Cache namespace string (e.g. 'plan-gen', 'followup').
+ * @param payload - Arbitrary request parameters (intake form, follow-up answers).
+ * @returns Deterministic cache key string suitable for Map lookups.
  */
 export function createPayloadKey(prefix: string, payload: unknown): string {
   try {
@@ -85,5 +99,11 @@ export function createPayloadKey(prefix: string, payload: unknown): string {
   }
 }
 
-// Global server-side request cache
+/**
+ * Global in-memory LRU cache for successful AI-generated plans.
+ *
+ * Why: 15-minute TTL and 50-plan capacity avoids wasteful AI token consumption
+ * on rapid double-clicks or page reloads, while ensuring transient error states
+ * and fallback template plans are never cached.
+ */
 export const planGenerationCache = new SimpleLruCache<EventPlan>(50, 15 * 60 * 1000);

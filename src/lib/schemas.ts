@@ -192,6 +192,7 @@ export const timelineTaskSchema = z.object({
   description: z.string().max(300),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   owner: z.string().max(60),
+  assignee: z.string().max(60).optional(),
   estimatedCostLink: z.string().max(100).optional(),
   completed: z.boolean().default(false),
   daysBeforeEvent: z.number().int(),
@@ -231,6 +232,20 @@ export type PersonalizedIdeas = z.infer<typeof personalizedIdeasSchema>;
 
 export const PLAN_GENERATION_SOURCES = ['primary', 'backup', 'template'] as const;
 export type PlanGenerationSource = (typeof PLAN_GENERATION_SOURCES)[number];
+
+/**
+ * Intermediate structured AI plan generation schema.
+ * Represents the exact structured output expected from AI providers.
+ */
+export const planGenerationAiSchema = z.object({
+  suggestedTitle: z.string().min(2).max(120),
+  budget: budgetPlanSchema,
+  timeline: z.array(timelineTaskSchema).min(4),
+  vendors: z.array(vendorItemSchema).min(3),
+  ideas: personalizedIdeasSchema,
+});
+
+export type PlanGenerationAiOutput = z.infer<typeof planGenerationAiSchema>;
 
 /**
  * Complete Full Event Plan Schema

@@ -297,33 +297,71 @@ describe('API /api/plan/generate', () => {
     expect(data.error).toBe('Too Many Requests');
   });
 
-  it('resiliently normalizes alternative AI structures and fills sparse items', async () => {
+  it('resiliently normalizes harmless variations (casing, aliases, string numbers) without inventing content', async () => {
     const alternativeAiOutput = {
       title: 'Alternative Royal Celebration',
-      budgetPlan: [
-        { name: 'Palace Hall', targetEstimate: 800000 },
-        { name: 'Catering', cost: 700000 },
-      ],
+      budgetPlan: {
+        categories: [
+          { name: 'Palace Hall', targetEstimate: '800000', minEstimate: '700000', maxEstimate: '900000' },
+          { name: 'Catering', cost: '700000', minEstimate: '600000', maxEstimate: '800000' },
+          { name: 'Decor', targetEstimate: '400000', minEstimate: '350000', maxEstimate: '450000' },
+        ],
+        contingencyPercent: '10',
+        taxServiceChargePercent: '8',
+        statedAssumptions: ['Custom assumptions list'],
+      },
       timeline: [
         {
           title: 'Initial Venue Visit',
-          phase: 'Now',
+          phase: 'now',
           dueDate: '2026-11-20T10:00:00.000Z',
-          daysBeforeEvent: 30,
+          daysBeforeEvent: '30',
+        },
+        {
+          title: 'Floral Design Mockup',
+          phase: 'next 30 days',
+          dueDate: '2026-10-20',
+          daysBeforeEvent: '60',
+        },
+        {
+          title: 'Send Digital Invites',
+          phase: 'next 7 days',
+          dueDate: '2026-11-13',
+          daysBeforeEvent: '7',
+        },
+        {
+          title: 'Day Coordination',
+          phase: 'event day',
+          dueDate: '2026-11-20',
+          daysBeforeEvent: '0',
         },
       ],
       vendorChecklist: [
         {
           name: 'Royal Caterers',
           description: 'Authentic cuisine',
-          status: 'Booked',
+          status: 'booked',
           questionsToAsk: ['Are tastings available?', 'What is the deposit?'],
+        },
+        {
+          name: 'Decor Specialist',
+          description: 'Mandap decor',
+          status: 'shortlisted',
+          questionsToAsk: ['Can we see samples?', 'Setup time required?'],
+        },
+        {
+          name: 'Photographer',
+          description: 'Candid photos',
+          status: 'contacted',
+          questionsToAsk: ['Delivery time?', 'Includes albums?'],
         },
       ],
       personalizedIdeas: {
         themes: ['Grand Heritage'],
+        dietaryNotes: ['Jain spread'],
+        activities: ['Live music'],
+        decor: ['Floral drapes'],
       },
-      statedAssumptions: ['Custom assumptions list'],
     };
 
     vi.mocked(geminiModule.callGeminiStructured).mockResolvedValueOnce(alternativeAiOutput as any);
@@ -348,40 +386,23 @@ describe('API /api/plan/generate', () => {
     expect(plan.eventName).toBe('Pooja & Rohan Nuptials');
     expect(plan.muhuratTime).toBe('10:30');
     expect(plan.muhuratLabel).toBe('Lagna Muhurat');
-    // Sparse budget categories were filled up to at least 3
-    expect(plan.budget.categories.length).toBeGreaterThanOrEqual(3);
-    // Sparse timeline tasks were filled up to at least 4
+    expect(plan.budget.categories.length).toBe(3);
     expect(plan.timeline.length).toBeGreaterThanOrEqual(4);
-    // Sparse vendors were filled up to at least 3
-    expect(plan.vendors.length).toBeGreaterThanOrEqual(3);
+    expect(plan.vendors.length).toBe(3);
     expect(plan.budget.statedAssumptions).toContain('Custom assumptions list');
   });
 
-  it('normalizes empty ideas and unknown phases gracefully', async () => {
-    const sparseAiOutput = {
-      eventOverview: { title: 'Minimalist Gathering' },
-      budget: {
-        categories: [
-          { name: 'Venue', minEstimate: 200000, maxEstimate: 300000, targetEstimate: 250000 },
-          { name: 'Food', minEstimate: 300000, maxEstimate: 400000, targetEstimate: 350000 },
-          { name: 'Audio', minEstimate: 100000, maxEstimate: 150000, targetEstimate: 120000 },
-        ],
-      },
-      timeline: [
-        { title: 'Step 1', phase: 'UnknownPhase', dueDate: 'invalid-date' },
-        { title: 'Step 2', phase: 'Now' },
-        { title: 'Step 3', phase: 'Next 7 days' },
-        { title: 'Step 4', phase: 'Event week' },
-      ],
-      vendors: [
-        { categoryName: 'V1', questionsToAsk: ['Q1', 'Q2'] },
-        { categoryName: 'V2', questionsToAsk: ['Q1', 'Q2'] },
-        { categoryName: 'V3', questionsToAsk: ['Q1', 'Q2'] },
-      ],
-      ideas: {},
-    };
-
-    vi.mocked(geminiModule.callGeminiStructured).mockResolvedValueOnce(sparseAiOutput as any);
+  it('falls back to template plan with safe failing field count on AI validation failure', async () => {
+    vi.mocked(geminiModule.callGeminiStructured).mockRejectedValueOnce(
+      new geminiModule.GeminiApiError(
+        'Gemini response schema validation failed on 3 field(s)',
+        502,
+        false,
+        'AI_VALIDATION_FAILED',
+        3,
+        ['budget.categories', 'timeline', 'vendors']
+      )
+    );
 
     const req = new Request('http://localhost:3000/api/plan/generate', {
       method: 'POST',
@@ -392,11 +413,10 @@ describe('API /api/plan/generate', () => {
     const res = await POST(req);
     expect(res.status).toBe(200);
     const plan = await res.json();
-    expect(plan.title).toBe('Minimalist Gathering');
-    expect(plan.ideas.themes.length).toBeGreaterThanOrEqual(1);
-    expect(plan.ideas.dietaryNotes.length).toBeGreaterThanOrEqual(1);
-    const step1 = plan.timeline.find((t: { title: string }) => t.title === 'Step 1');
-    expect(step1).toBeDefined();
-    expect(step1?.dueDate).toBe(validIntake.date);
+    expect(plan.generationSource).toBe('template');
+    expect(plan.generationErrorCode).toBe('AI_VALIDATION_FAILED (3 fields)');
+    // Ensures zero prompt, values, or sensitive data leaked in generationErrorCode
+    expect(plan.generationErrorCode).not.toContain('{');
+    expect(plan.generationErrorCode).not.toContain('budget.categories');
   });
 });

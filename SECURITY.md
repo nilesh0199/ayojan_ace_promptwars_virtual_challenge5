@@ -68,20 +68,25 @@ Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
 1. **Zero Upstream Error Leakage**:
    - `handleApiError` ([`src/lib/api-helper.ts`](file:///src/lib/api-helper.ts)) and `mapGeminiError` ([`src/lib/gemini.ts`](file:///src/lib/gemini.ts)) guarantee that raw upstream JSON dumps, internal IP addresses, stack traces, and API keys are strictly never returned to the client or rendered in the UI.
    - All server failures map to a typed `GeminiErrorCode` union (`'AI_BUSY' | 'AI_QUOTA_EXHAUSTED' | 'AI_TIMEOUT' | 'AI_NOT_CONFIGURED' | 'AI_INVALID_KEY' | 'AI_BACKUP_KEY_EXPIRED' | 'AI_MODEL_NOT_FOUND' | 'AI_VALIDATION_FAILED' | 'AI_NETWORK_ERROR' | 'HOSTING_TIMEOUT' | 'AI_ERROR'`) with positive, reassuring copy.
-2. **Safe Server-Only Operational Logging**:
-   - Server-side error alerts log high-level metadata only (`[AI Attempt] provider=gemini model=<model> status=200 category=success attempt=1 duration=1200ms`).
-   - Strictly omits prompt contents, user input text, credentials, or API keys.
+2. **Safe Server-Only Operational Logging & Data Protection**:
+   - Server-side operational alerts log high-level diagnostic metadata only (`[AI Attempt] provider=gemini model=<model> status=200 category=success attempt=1 duration=1200ms`).
+   - On every schema validation failure, the server emits exactly one safe line:
+     `[AI Validation] provider=${provider} model=${model} receivedKeys=${JSON.stringify(receivedKeys)} failingPaths=${JSON.stringify(failingPaths)}`
+   - **Zero Content Leakage**: Prompt texts, user input values, response payload values, and API keys are strictly never logged.
+   - When a fallback occurs, the UI displays only the count of failing fields in the Reference line (e.g. `Reference: AI_VALIDATION_FAILED (3 fields)`), concealing all internal path names and payload structures.
 3. **Overload Hardening, Quota Awareness, Multi-Provider Failover & Circuit Breakers**:
    - *Cascading Execution Order*:
      1. Primary Key (`GEMINI_API_KEY`) + Configured Primary Model [up to 2 retries with exponential backoff & jitter]
      2. Primary Key + Configured Fallback Model [1 retry]
      3. Groq Provider (if `GROQ_API_KEY` configured, on overload / quota / timeout / invalid-key) [1 retry]. Fully configurable via `GROQ_MODEL`. Hardened against demo expiration (`GROQ_KEY_EXPIRES_ON`), 401/403 authorization rejection, and 404 model-not-found (disables Groq for the session with `AI_MODEL_NOT_FOUND`), continuing seamlessly to the template planner.
      4. Built-in Deterministic Template Planner (zero network transmission, complete schema-verified plan)
+   - *Structured Output Schemas & Constrained Decoding*: Gemini requests enforce `config.responseSchema: zodToGeminiSchema(schema)` with `responseMimeType: 'application/json'` to constrain decoding at the sampling layer. Groq requests use JSON mode (`response_format: { type: 'json_object' }`) with required field names and schema skeletons (`generateSchemaSkeleton()`) embedded in the system prompt.
+   - *Explicit Small Normalizer (`normalizePlanAiOutput`)*: Normalizes harmless variations (casing, known aliases, numbers as strings, ISO date slicing) without ever inventing content for missing sections. Missing required sections remain undefined so schema validation fails cleanly.
+   - *Private Schema Repair Retry*: Automated single repair retry transmits **only the failing field paths** (`failingPaths: string[]`) and request for valid JSON. No user input or prompt data is ever sent in repair prompts, guaranteeing privacy and minimal token consumption.
    - *Daily Quota Exhaustion vs Short Rate Limits*: 429 errors mentioning daily/per-day limits map to `AI_QUOTA_EXHAUSTED` (non-retryable) and trigger a 30-minute breaker cooldown for that provider/model combo. Burst per-minute rate limits keep transient retry backoffs.
    - *Independent Per-Combination Circuit Breakers*: Each `(provider, model)` pair maintains its own failure counter and cooldown timer (60s for transient overload, 30m for daily quota). Subsequent requests bypass tripped combinations with a firm cap on re-probing. Breaker only trips on overload/quota errors, never on schema validation or key errors.
    - *Intake Unclear Heuristic & Request Conservation*: Adaptive follow-up calls (`/api/plan/followup`) are dispatched only when intake details are genuinely ambiguous or contradictory (`isIntakeUnclear`), guaranteeing plan generation operates as a single AI call whenever possible.
    - *Deterministic Canonical Caching*: Generation requests are keyed using canonical sorted payloads in an in-memory LRU cache. Failures and template fallback plans are strictly never cached.
-   - *Targeted Schema Repair Retry*: If a model returns malformed JSON or invalid schema properties, an automated single repair instruction is dispatched before declaring the attempt failed.
    - *Total Time Budget & Hosting Protection*: Strict time budgets per call type (e.g. 55s for full plan generation, 15s for follow-up/names) and `maxDuration = 60` export guarantee requests finish within Vercel serverless limits. If a primary attempt times out, remaining budget is reserved for fallback models.
 4. **Protected Live Health Probe (`GET /api/health/probe`)**:
    - Disabled by default (returns 404). Activated only when `HEALTH_PROBE_TOKEN` is configured on the server.
@@ -143,3 +148,10 @@ In Cloud Firestore Security Rules, calling `.size()` on a map (such as `request.
   - *Zod Memory Consumption on Oversized Input (GHSA-mrhx-c7xc-m3w5)*: Aayojan Ace enforces a strict global 300KB request body ceiling (`MAX_BODY_BYTES`) in [`src/lib/ratelimit.ts`](file:///src/lib/ratelimit.ts) and caps all collection lengths (categories $\le 30$, timeline tasks $\le 100$, vendors $\le 50$) before or during parsing, preventing unbounded memory consumption.
   - *Undici / gRPC-js Transitive Dependencies*: In Aayojan Ace, Firebase Auth and Firestore calls execute within isolated client browser sandboxes or stateless server route handlers with strict timeouts (8-second attempt limit, 25-second total budget).
   - *Dev/Test Tooling Advisories (Vitest / esbuild / glob)*: Dev-only dependencies run exclusively in local developer test suites and automated CI environments; they are never bundled into production serverless functions or client JavaScript.
+
+---
+
+## 9. Architecture Decision Records & Continuous Verification
+
+- **Architecture Decision Records**: Detailed rationale for security boundaries (ephemeral session persistence, in-memory rate limiting, deterministic budget math, provider failovers) are documented in [`docs/DECISIONS.md`](file:///docs/DECISIONS.md).
+- **Automated Architecture Conformance Testing**: Structural security invariants (secret isolation, layered dependency direction, XSS prevention, serverless execution limits, literal build-time environment variable accesses) are verified by automated tests in [`src/tests/architecture/conventions.test.ts`](file:///src/tests/architecture/conventions.test.ts).

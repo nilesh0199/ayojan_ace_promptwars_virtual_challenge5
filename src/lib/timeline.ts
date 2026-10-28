@@ -68,6 +68,17 @@ export const GUEST_MILESTONE_DEFS: GuestMilestoneDef[] = [
  * Injects deterministic guest communication milestones into every plan.
  * Avoids duplicate tasks if a similar task already exists.
  * If event is closer than an offset allows, sets deadline to tomorrow and marks as Time-sensitive.
+ *
+ * Why: Guest communication deadlines (Save-the-Date, Invitations, RSVP follow-ups,
+ * and Final Headcount for catering) represent hard operational dependencies. Leaving them
+ * to LLM synthesis risks missed deadlines or arithmetic drift; code-injection guarantees
+ * they are always present with exact calendar math.
+ *
+ * @param tasks - Raw or synthesized timeline tasks from the AI provider or template generator.
+ * @param eventDate - Celebration date string in YYYY-MM-DD format.
+ * @param eventType - Event category string (e.g. 'Wedding', 'Birthday', 'Community Event').
+ * @param referenceDate - Baseline date for proximity calculations (defaults to today in UTC).
+ * @returns Complete task array with guaranteed guest milestones sorted by daysBeforeEvent.
  */
 export function injectGuestMilestones(
   tasks: TimelineTask[],

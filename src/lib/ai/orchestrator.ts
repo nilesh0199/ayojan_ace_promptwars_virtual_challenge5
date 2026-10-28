@@ -46,6 +46,13 @@ interface CascadeStage {
  * Checks whether an error is eligible for fallback to secondary AI providers.
  * Eligible: overload (503), quota (429), timeout (504), invalid key (401), model not found (404),
  * or validation failure after repair retry.
+ *
+ * Why: Non-retryable operational errors (quota, invalid key, auth rejection) and permanent
+ * validation failures should immediately advance to the next provider stage rather than
+ * repeatedly hammering the failing endpoint.
+ *
+ * @param err - Unknown error caught during AI invocation.
+ * @returns True if error justifies routing to the next cascade provider stage.
  */
 export function isEligibleForProviderFallback(err: unknown): boolean {
   if (err instanceof GeminiApiError) {
@@ -74,7 +81,17 @@ export function isEligibleForProviderFallback(err: unknown): boolean {
  * 2. Gemini Fallback Model
  * 3. Groq Provider (if configured, on overload / quota / timeout / invalid-key)
  *
- * If all AI providers fail or time out, callers can fall back to the built-in template planner.
+ * If all AI providers fail or time out, callers fall back to the built-in template planner.
+ *
+ * Why: Cloud AI services experience regional traffic spikes, rate limits, and outages.
+ * A 4-tier cascade with per-attempt timeout bounds guarantees that user requests never
+ * hang indefinitely and always return a complete, valid event plan.
+ *
+ * @param prompt - Fully formed system and user prompt string.
+ * @param schema - Strict Zod schema defining the expected structured JSON output.
+ * @param options - Orchestrator options including timeouts, normalizer, and custom test clients.
+ * @returns AiExecutionResult containing parsed data and generation source ('primary' | 'backup').
+ * @throws GeminiApiError if all stages fail and caller must fall back to template.
  */
 export async function executeAiCascade<T>(
   prompt: string,
@@ -202,6 +219,7 @@ export async function executeAiCascade<T>(
           signal: options.signal,
           temperature: options.temperature,
           model: stage.model,
+          normalizer: options.normalizer,
         });
 
         // Safe server-only attempt logging

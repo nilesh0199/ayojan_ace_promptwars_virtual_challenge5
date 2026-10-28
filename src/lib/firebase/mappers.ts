@@ -31,6 +31,7 @@ export interface FirestorePlanDoc {
     description: string;
     dueDate: string;
     owner: string;
+    assignee?: string;
     estimatedCostLink?: string;
     completed: boolean;
     daysBeforeEvent: number;
@@ -107,6 +108,9 @@ export function toFirestoreDoc(plan: EventPlan): FirestorePlanDoc {
         completed: Boolean(t.completed),
         daysBeforeEvent: t.daysBeforeEvent,
       };
+      if (t.assignee !== undefined && t.assignee !== null && t.assignee !== '') {
+        item.assignee = t.assignee;
+      }
       if (t.estimatedCostLink !== undefined && t.estimatedCostLink !== null && t.estimatedCostLink !== '') {
         item.estimatedCostLink = t.estimatedCostLink;
       }

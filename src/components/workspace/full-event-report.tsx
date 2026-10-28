@@ -210,7 +210,7 @@ export function FullEventReport({ plan, risks }: FullEventReportProps) {
               <th className="p-2 border-r border-neutral-400 w-24">Due Date</th>
               <th className="p-2 border-r border-neutral-400 w-24">Offset</th>
               <th className="p-2 border-r border-neutral-400">Task Milestone</th>
-              <th className="p-2 border-r border-neutral-400 w-28">Owner</th>
+              <th className="p-2 border-r border-neutral-400 w-32">Assignee (Who is handling this)</th>
               <th className="p-2 w-28">Status &amp; Flags</th>
             </tr>
           </thead>
@@ -238,8 +238,8 @@ export function FullEventReport({ plan, risks }: FullEventReportProps) {
                     {task.description}
                   </div>
                 </td>
-                <td className="p-2 border-r border-neutral-300 text-neutral-800">
-                  {task.owner || 'Lead Coordinator'}
+                <td className="p-2 border-r border-neutral-300 text-neutral-800 font-medium">
+                  {task.assignee || task.owner || 'Who is handling this?'}
                 </td>
                 <td className="p-2 space-y-1">
                   <div>

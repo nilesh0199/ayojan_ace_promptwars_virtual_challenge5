@@ -23,6 +23,7 @@ src/
 │   ├── plan/             # Celebration Plan Creator (Intake form, presets, 12h ceremony picker)
 │   ├── about/            # About page with creator, architecture & contact links
 │   ├── api/health/       # Config & service health check endpoint
+│   │   └── probe/        # Protected diagnostic health probe endpoint
 │   ├── api/plan/         # Server-only API routes (/followup, /generate, /replan, /risks, /names, /ask)
 │   ├── workspace/        # 8-Tab Celebration Workspace (Overview, Budget, Timeline, Vendors, Ideas, Risks, Reminders, Ask AI)
 │   ├── saved/            # Cloud and Static Saved Plans
@@ -30,7 +31,7 @@ src/
 │   ├── terms/            # Terms of Service & Disclaimers
 │   ├── globals.css       # Design tokens & print stylesheet
 │   └── layout.tsx        # Shell root with font loading and providers
-├── components/           # UI Components
+├── components/           # UI Presentation Components (No Business Calculations)
 │   ├── landing/          # Landing Page components (Header, Hero, WordBand, HowItWorks, About, PrivacyTerms, CTA, Footer, ScrollEffects)
 │   ├── workspace/        # Workspace sub-views (Header, Tabs, Replan Modal)
 │   ├── ai-loader.tsx     # Reusable animated AI loader with cancellation
@@ -39,20 +40,42 @@ src/
 │   ├── auth-context.tsx  # Firebase Auth State Context
 │   └── plan-context.tsx  # Client Plan Store, Undo Stack, and Local Storage
 ├── lib/                  # Pure Business Logic (Zero UI / Testable)
+│   ├── ai/               # AI Provider Abstraction, Failover Cascade & Normalization
+│   │   ├── types.ts           # AiProvider, AiCallOptions, AiExecutionResult contracts
+│   │   ├── orchestrator.ts    # Unified multi-tier failover cascade with time budgets
+│   │   ├── gemini-provider.ts # Google Gemini structured output provider
+│   │   ├── groq-provider.ts   # Groq Cloud JSON mode provider
+│   │   ├── repair.ts          # Automatic single repair retry on validation failure
+│   │   ├── normalize.ts       # Small explicit normalizer for harmless variations
+│   │   ├── safe-logger.ts     # Safe server-only diagnostic logging (no leaks)
+│   │   ├── schema-converter.ts# OpenAPI 3.0 / Gemini & skeleton generator
+│   │   └── index.ts           # Barrel exports for AI subsystem
+│   ├── api-helper.ts     # Shared request safety checks and global error mappers
 │   ├── budget.ts         # Deterministic ledger math, formatting, alerts
 │   ├── budget-benchmarks.ts # Indian city tier baselines and hard ceiling budget fitter
-│   ├── timeline.ts       # Date reflow algorithm & guest milestone injection
+│   ├── constants.ts      # Shared application constants, event types, and presets
 │   ├── diff.ts           # Before/After replanning diff engine
+│   ├── gemini.ts         # GoogleGenAI SDK wrapper, retries & circuit breaker
+│   ├── google-calendar.ts# Warning-free Google Calendar URL templates & reminders
 │   ├── ics.ts            # RFC 5545 calendar export generator with 1-day alarms
-│   ├── google-calendar.ts# Google Calendar URL templates & reminders
 │   ├── prompts.ts        # Delimited prompt constructors & injection defense
+│   ├── ratelimit.ts      # Token bucket rate limiter per client IP with stale eviction
 │   ├── schemas.ts        # Master Zod validation models
-│   ├── gemini.ts         # GoogleGenAI SDK wrapper, retries & fallback
-│   ├── ratelimit.ts      # Token bucket rate limiter per client IP
-│   ├── cache.ts          # Server-side LRU memory cache
+│   ├── template-planner.ts # Offline deterministic regional plan generator (<1ms)
+│   ├── time.ts           # Time parsing and 12h/24h conversion helpers
+│   ├── timeline.ts       # Date reflow algorithm & guest milestone injection
+│   ├── cache.ts          # Server-side canonical LRU memory cache
 │   └── firebase/         # Client Auth & Firestore subcollection persistence
+│       ├── config.ts     # Firebase initialization and literal env variable accesses
+│       └── mappers.ts    # Firestore document sanitization and mapping
 ├── data/                 # Static JSON Plan Presets (Wedding, Birthday, Community)
-└── tests/                # Automated Vitest Suite (Unit, API, Components, a11y)
+├── docs/                 # Architecture Decision Records (ADRs)
+│   └── DECISIONS.md      # Foundational technical and product decision rationale
+└── tests/                # Automated Vitest Suite (Unit, API, Components, a11y, Architecture)
+    ├── api/              # API route integration tests
+    ├── architecture/     # Structural dependency, secret isolation & convention tests
+    ├── components/       # React component unit and user-event tests
+    └── unit/             # Pure business logic unit tests
 ```
 
 ---
