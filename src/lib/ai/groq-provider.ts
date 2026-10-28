@@ -3,7 +3,7 @@ import { AiProvider, AiCallOptions } from './types';
 import { executeWithRepairRetry } from './repair';
 import { GeminiApiError, isDailyQuotaError } from '../gemini';
 
-export const DEFAULT_GROQ_MODEL = 'llama-3.3-70b-versatile';
+export const DEFAULT_GROQ_MODEL = 'openai/gpt-oss-120b';
 export const GROQ_COMPLETIONS_ENDPOINT = 'https://api.groq.com/openai/v1/chat/completions';
 
 export const BACKUP_PROVIDER_EXPIRED_NOTICE =
@@ -190,25 +190,29 @@ export class GroqProvider implements AiProvider {
     const fetchToUse = this.fetchFn || fetch;
 
     const generateRaw = async (currentPrompt: string, signal?: AbortSignal): Promise<string> => {
-      const abortController = new AbortController();
       let timerId: ReturnType<typeof setTimeout> | undefined;
 
-      const combinedSignal = signal || options?.signal;
-      if (combinedSignal) {
-        if (combinedSignal.aborted) {
-          throw new GeminiApiError('Request aborted by caller', 504, true, 'AI_TIMEOUT');
-        }
-        combinedSignal.addEventListener('abort', () => abortController.abort(), { once: true });
+      const activeSignal = signal || options?.signal;
+      if (activeSignal?.aborted) {
+        throw new GeminiApiError('Request aborted by caller', 504, true, 'AI_TIMEOUT');
       }
 
-      if (timeoutMs > 0) {
-        timerId = setTimeout(() => {
-          abortController.abort(new Error(`Groq request timed out after ${timeoutMs}ms`));
-        }, timeoutMs);
-      }
+      const abortPromise = new Promise<never>((_, reject) => {
+        activeSignal?.addEventListener(
+          'abort',
+          () => reject(new GeminiApiError('Request aborted by caller', 504, true, 'AI_TIMEOUT')),
+          { once: true }
+        );
+
+        if (timeoutMs > 0) {
+          timerId = setTimeout(() => {
+            reject(new GeminiApiError(`Groq planning request timed out after ${timeoutMs}ms.`, 504, true, 'AI_TIMEOUT'));
+          }, timeoutMs);
+        }
+      });
 
       try {
-        const response = await fetchToUse(GROQ_COMPLETIONS_ENDPOINT, {
+        const requestPromise = fetchToUse(GROQ_COMPLETIONS_ENDPOINT, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -230,8 +234,9 @@ export class GroqProvider implements AiProvider {
             response_format: { type: 'json_object' },
             temperature: options?.temperature ?? 0.3,
           }),
-          signal: abortController.signal,
         });
+
+        const response = await Promise.race([requestPromise, abortPromise]);
 
         if (!response.ok) {
           const status = response.status;
@@ -330,7 +335,7 @@ export class GroqProvider implements AiProvider {
 
         const msg = err instanceof Error ? err.message : String(err || '');
         if (
-          abortController.signal.aborted ||
+          activeSignal?.aborted ||
           msg.toLowerCase().includes('aborted') ||
           msg.toLowerCase().includes('timeout')
         ) {

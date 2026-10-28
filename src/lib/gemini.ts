@@ -1,10 +1,10 @@
 import { GoogleGenAI } from '@google/genai';
 import { z } from 'zod';
 
-export const DEFAULT_PRIMARY_MODEL = 'gemini-3.8-flash';
-export const DEFAULT_FALLBACK_MODEL = 'gemini-3.5-flash';
-export const DEFAULT_TOTAL_BUDGET_MS = 25000;
-export const DEFAULT_PER_ATTEMPT_TIMEOUT_MS = 8000;
+export const DEFAULT_PRIMARY_MODEL = 'gemini-flash-lite-latest';
+export const DEFAULT_FALLBACK_MODEL = 'gemini-3.5-flash-lite';
+export const DEFAULT_TOTAL_BUDGET_MS = 30000;
+export const DEFAULT_PER_ATTEMPT_TIMEOUT_MS = 15000;
 export const PRIMARY_MAX_RETRIES = 2;
 export const FALLBACK_MAX_RETRIES = 1;
 export const CIRCUIT_BREAKER_FAIL_THRESHOLD = 3;

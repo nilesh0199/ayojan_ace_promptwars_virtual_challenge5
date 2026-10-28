@@ -296,4 +296,107 @@ describe('API /api/plan/generate', () => {
     const data = await res.json();
     expect(data.error).toBe('Too Many Requests');
   });
+
+  it('resiliently normalizes alternative AI structures and fills sparse items', async () => {
+    const alternativeAiOutput = {
+      title: 'Alternative Royal Celebration',
+      budgetPlan: [
+        { name: 'Palace Hall', targetEstimate: 800000 },
+        { name: 'Catering', cost: 700000 },
+      ],
+      timeline: [
+        {
+          title: 'Initial Venue Visit',
+          phase: 'Now',
+          dueDate: '2026-11-20T10:00:00.000Z',
+          daysBeforeEvent: 30,
+        },
+      ],
+      vendorChecklist: [
+        {
+          name: 'Royal Caterers',
+          description: 'Authentic cuisine',
+          status: 'Booked',
+          questionsToAsk: ['Are tastings available?', 'What is the deposit?'],
+        },
+      ],
+      personalizedIdeas: {
+        themes: ['Grand Heritage'],
+      },
+      statedAssumptions: ['Custom assumptions list'],
+    };
+
+    vi.mocked(geminiModule.callGeminiStructured).mockResolvedValueOnce(alternativeAiOutput as any);
+
+    const req = new Request('http://localhost:3000/api/plan/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        intake: {
+          ...validIntake,
+          eventName: 'Pooja & Rohan Nuptials',
+          muhuratTime: '10:30',
+          muhuratLabel: 'Lagna Muhurat',
+        },
+      }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const plan = await res.json();
+    expect(plan.title).toBe('Pooja & Rohan Nuptials');
+    expect(plan.eventName).toBe('Pooja & Rohan Nuptials');
+    expect(plan.muhuratTime).toBe('10:30');
+    expect(plan.muhuratLabel).toBe('Lagna Muhurat');
+    // Sparse budget categories were filled up to at least 3
+    expect(plan.budget.categories.length).toBeGreaterThanOrEqual(3);
+    // Sparse timeline tasks were filled up to at least 4
+    expect(plan.timeline.length).toBeGreaterThanOrEqual(4);
+    // Sparse vendors were filled up to at least 3
+    expect(plan.vendors.length).toBeGreaterThanOrEqual(3);
+    expect(plan.budget.statedAssumptions).toContain('Custom assumptions list');
+  });
+
+  it('normalizes empty ideas and unknown phases gracefully', async () => {
+    const sparseAiOutput = {
+      eventOverview: { title: 'Minimalist Gathering' },
+      budget: {
+        categories: [
+          { name: 'Venue', minEstimate: 200000, maxEstimate: 300000, targetEstimate: 250000 },
+          { name: 'Food', minEstimate: 300000, maxEstimate: 400000, targetEstimate: 350000 },
+          { name: 'Audio', minEstimate: 100000, maxEstimate: 150000, targetEstimate: 120000 },
+        ],
+      },
+      timeline: [
+        { title: 'Step 1', phase: 'UnknownPhase', dueDate: 'invalid-date' },
+        { title: 'Step 2', phase: 'Now' },
+        { title: 'Step 3', phase: 'Next 7 days' },
+        { title: 'Step 4', phase: 'Event week' },
+      ],
+      vendors: [
+        { categoryName: 'V1', questionsToAsk: ['Q1', 'Q2'] },
+        { categoryName: 'V2', questionsToAsk: ['Q1', 'Q2'] },
+        { categoryName: 'V3', questionsToAsk: ['Q1', 'Q2'] },
+      ],
+      ideas: {},
+    };
+
+    vi.mocked(geminiModule.callGeminiStructured).mockResolvedValueOnce(sparseAiOutput as any);
+
+    const req = new Request('http://localhost:3000/api/plan/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ intake: validIntake }),
+    });
+
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const plan = await res.json();
+    expect(plan.title).toBe('Minimalist Gathering');
+    expect(plan.ideas.themes.length).toBeGreaterThanOrEqual(1);
+    expect(plan.ideas.dietaryNotes.length).toBeGreaterThanOrEqual(1);
+    const step1 = plan.timeline.find((t: { title: string }) => t.title === 'Step 1');
+    expect(step1).toBeDefined();
+    expect(step1?.dueDate).toBe(validIntake.date);
+  });
 });
