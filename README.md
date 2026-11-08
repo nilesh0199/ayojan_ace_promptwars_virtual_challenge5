@@ -14,7 +14,7 @@
 | Resource | Link | Description |
 | :--- | :--- | :--- |
 | **🚀 Live Application** | [https://ayojan-ace.vercel.app/](https://ayojan-ace.vercel.app/) | Deployed production app on Vercel |
-| **📺 Demo Walkthrough** | [https://youtu.be/MADncJBkCgo](https://youtu.be/MADncJBkCgo) | Complete video walkthrough of all features and workflows |
+| **📺 Demo Walkthrough** | [https://youtu.be/MADncJBkCgo](https://youtu.be/MADncJBkCgo) | Complete video walkthrough of all features and workflows with the problem explained|
 | **💻 GitHub Repository** | [https://github.com/nilesh0199/ayojan_ace_promptwars_virtual_challenge5](https://github.com/nilesh0199/ayojan_ace_promptwars_virtual_challenge5) | Clean, typed, production codebase with zero lint/type errors |
 | **🏛️ Architecture Guide** | [ARCHITECTURE.md](./ARCHITECTURE.md) | Layer separation, data flows, and GenAI boundaries |
 | **🛡️ Threat Model & Security** | [SECURITY.md](./SECURITY.md) | Delimited prompt injection defense, CSP, and Firestore rules |
